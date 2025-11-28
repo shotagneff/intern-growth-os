@@ -20,7 +20,28 @@
 }
 
 body {
-  background: var(--background);
+  min-height: 100vh;
+  background: #ffffff;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.card-elevated {
+  border-radius: 0.9rem;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+}
+
+.btn-primary {
+  border-radius: 9999px;
+  background: #9e8d70;
+  color: #ffffff;
+  transition: background-color 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+.btn-primary:hover {
+  background: #8c7c62;
+}
+
+.btn-primary:active {
+  opacity: 0.95;
 }
