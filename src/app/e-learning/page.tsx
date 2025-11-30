@@ -192,6 +192,24 @@ export default function ELearningPage() {
     }
   }, [watchedSet]);
 
+  // ログインユーザーの進捗をサーバーから取得して反映
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        const res = await fetch("/api/e-learning/progress");
+        if (!res.ok) return;
+        const data = (await res.json()) as { watchedVideoIds?: string[] };
+        if (Array.isArray(data.watchedVideoIds)) {
+          setWatchedSet(new Set(data.watchedVideoIds));
+        }
+      } catch (e) {
+        console.error("failed to load progress", e);
+      }
+    };
+
+    void fetchProgress();
+  }, []);
+
   // 初回マウント時に DB(API) から最新の一覧を取得
   useEffect(() => {
     const fetchVideos = async () => {
@@ -284,17 +302,31 @@ export default function ELearningPage() {
   };
 
   const openVideo = (video: Video) => {
+    // ローカル状態を即時更新
+    setWatchedSet((prev) => new Set(prev).add(video.id));
+
+    // サーバー側進捗を非同期で更新（エラーはUIには反映しない）
+    void (async () => {
+      try {
+        await fetch("/api/e-learning/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ videoId: video.id }),
+        });
+      } catch (e) {
+        console.error("failed to save progress", e);
+      }
+    })();
+
     // sec1-*** などアプリ内の詳細ページが用意されている動画は、内部遷移させる
     if (video.id.startsWith("sec")) {
       router.push(`/videos/${video.id}`);
-      setWatchedSet((prev) => new Set(prev).add(video.id));
       return;
     }
 
     // それ以外は従来どおり外部URLを新規タブで開く
     if (typeof window !== "undefined") {
       window.open(video.url, "_blank");
-      setWatchedSet((prev) => new Set(prev).add(video.id));
     }
   };
 
@@ -333,6 +365,23 @@ export default function ELearningPage() {
     return map;
   }, [sorted]);
 
+  // セクションごとの並び順とロック判定
+  const sectionOrder = useMemo(() => {
+    return [...groupedBySection.keys()].sort((a, b) => a - b);
+  }, [groupedBySection]);
+
+  const isSectionUnlocked = (sectionId: number) => {
+    if (sectionOrder.length === 0) return true;
+    const idx = sectionOrder.indexOf(sectionId);
+    if (idx <= 0) return true; // 最初のセクションは常に解放
+
+    const prevId = sectionOrder[idx - 1];
+    const prevVideos = groupedBySection.get(prevId) ?? [];
+    if (prevVideos.length === 0) return true;
+
+    return prevVideos.every((v) => watchedSet.has(v.id));
+  };
+
   const getSectionInfo = (sectionId: number) => {
     if (sectionId === 1)
       return {
@@ -343,8 +392,13 @@ export default function ELearningPage() {
     if (sectionId === 2)
       return {
         title: "セクション2：初期設定・アカウント準備",
+        description: "業務で使う主要ツールの初期設定を行います",
+      };
+    if (sectionId === 3)
+      return {
+        title: "セクション3：日々の業務のポイント",
         description:
-          "業務で使う主要ツールの初期設定や、コミュニケーションの基本ルールを押さえます。",
+          "日常の業務におけるポイントや気を付けるべき点を解説します。",
       };
     return { title: "その他", description: "" };
   };
@@ -468,6 +522,7 @@ export default function ELearningPage() {
           const watchedCount = videos.filter((v) => watchedSet.has(v.id)).length;
           const totalCount = videos.length;
           const percent = totalCount ? Math.round((watchedCount / totalCount) * 100) : 0;
+          const unlocked = isSectionUnlocked(sectionId);
 
           return (
             <section key={sectionId} className="mb-8 pt-2">
@@ -497,6 +552,11 @@ export default function ELearningPage() {
                       </div>
                     </>
                   )}
+                  {!unlocked && (
+                    <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                      直前のセクションをすべて視聴すると、このセクションが解放されます。
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -517,8 +577,16 @@ export default function ELearningPage() {
                   return (
                     <article
                       key={video.id}
-                      className="flex min-w-[260px] max-w-[320px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white pb-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80 sm:min-w-[280px] lg:min-w-[300px]"
+                      className={`relative flex min-w-[260px] max-w-[320px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white pb-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80 sm:min-w-[280px] lg:min-w-[300px] ${
+                        !unlocked ? "opacity-60" : ""
+                      }`}
                     >
+                      {!unlocked && (
+                        <div className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                          <span className="mr-1">🔒</span>
+                          <span>LOCKED</span>
+                        </div>
+                      )}
                       {video.coverImageUrl && (
                         <div className="px-2 pt-3">
                           <img
@@ -622,9 +690,14 @@ export default function ELearningPage() {
                         <button
                           type="button"
                           onClick={() => openVideo(video)}
-                          className="flex-1 rounded-full bg-[#ad9c79] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#9b8a65]"
+                          disabled={!unlocked}
+                          className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm ${
+                            unlocked
+                              ? "bg-[#ad9c79] hover:bg-[#9b8a65]"
+                              : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
+                          }`}
                         >
-                          動画を開く
+                          {unlocked ? "動画を開く" : "ロック中"}
                         </button>
                         <button
                           type="button"

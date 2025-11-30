@@ -14,7 +14,24 @@ type SidebarLinkProps = {
 };
 
 export default function Sidebar() {
-  const showAdmin = true;
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.user?.isAdmin) {
+          setIsAdmin(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    void fetchMe();
+  }, []);
 
   return (
     <aside
@@ -49,7 +66,7 @@ export default function Sidebar() {
         <SidebarLink href="/rankings" label="ランキングボード" />
         <SidebarLink href="/documents" label="ドキュメント" />
 
-        {showAdmin && (
+        {isAdmin && (
           <>
             <div className="mt-3 border-t border-dashed border-neutral-200 pt-2 text-[10px] uppercase tracking-[0.16em] text-neutral-400 dark:border-neutral-800">
               管理メニュー
@@ -58,6 +75,7 @@ export default function Sidebar() {
             <SidebarLink href="/admin/partners-mindmap" label="パートナー紹介マインドマップ（管理）" />
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
             <SidebarLink href="/admin/members" label="メンバー管理（管理者用）" />
+            <SidebarLink href="/admin/users" label="ユーザー管理（管理者用）" />
           </>
         )}
       </nav>

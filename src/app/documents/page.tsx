@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, ElementType } from "react";
 import Image from "next/image";
 
 type DocCategory = "login" | "document" | "tool";
@@ -103,6 +103,7 @@ export default function DocumentsPage() {
             </p>
           ) : (
             <div className="grid gap-4 md:grid-cols-3">
+              {/* ログイン系 */}
               <div className="space-y-2 md:col-span-1">
                 <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                   ログイン系
@@ -114,7 +115,7 @@ export default function DocumentsPage() {
                 ) : (
                   <div className="space-y-2">
                     {loginDocs.map((doc) => {
-                      const Wrapper: React.ElementType = doc.url ? "a" : "div";
+                      const Wrapper: ElementType = doc.url ? "a" : "div";
                       const wrapperProps = doc.url
                         ? {
                             href: doc.url,
@@ -166,6 +167,8 @@ export default function DocumentsPage() {
                   </div>
                 )}
               </div>
+
+              {/* ツール系 */}
               <div className="space-y-2 md:col-span-1">
                 <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                   ツール系
@@ -177,7 +180,7 @@ export default function DocumentsPage() {
                 ) : (
                   <div className="space-y-2">
                     {toolDocs.map((doc) => {
-                      const Wrapper: React.ElementType = doc.url ? "a" : "div";
+                      const Wrapper: ElementType = doc.url ? "a" : "div";
                       const wrapperProps = doc.url
                         ? {
                             href: doc.url,
@@ -230,6 +233,7 @@ export default function DocumentsPage() {
                 )}
               </div>
 
+              {/* 資料系 */}
               <div className="space-y-2 md:col-span-1">
                 <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                   資料系
@@ -241,7 +245,7 @@ export default function DocumentsPage() {
                 ) : (
                   <div className="space-y-2">
                     {documentDocs.map((doc) => {
-                      const Wrapper: React.ElementType = doc.url ? "a" : "div";
+                      const Wrapper: ElementType = doc.url ? "a" : "div";
                       const wrapperProps = doc.url
                         ? {
                             href: doc.url,

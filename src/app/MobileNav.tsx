@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
 
   const toggle = () => setOpen((prev) => !prev);
@@ -17,6 +18,23 @@ export function MobileNav() {
     if (href === "/") return pathname === "/";
     return href !== "#" && pathname.startsWith(href);
   };
+
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.user?.isAdmin) {
+          setIsAdmin(true);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    void fetchMe();
+  }, []);
 
   return (
     <div className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 px-4 py-3 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
@@ -49,44 +67,86 @@ export function MobileNav() {
       </div>
 
       {open && (
-        <div className="mt-3 space-y-1 rounded-2xl border border-neutral-200 bg-white p-2 text-sm shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-          <MobileLink href="/" label="ホーム" active={isActive("/")} onClick={close} />
-          <MobileLink
-            href="/daily-reports"
-            label="日報・ホウレンソウ"
-            active={isActive("/daily-reports")}
-            onClick={close}
-          />
-          <MobileLink
-            href="/dashboard"
-            label="売上・KPIダッシュボード"
-            active={isActive("/dashboard")}
-            onClick={close}
-          />
-          <MobileLink
-            href="/e-learning"
-            label="動画研修ラーニング"
-            active={isActive("/e-learning")}
-            onClick={close}
-          />
-          <MobileLink
-            href="/partners/mindmap"
-            label="パートナー紹介マインドマップ"
-            active={isActive("/partners/mindmap")}
-            onClick={close}
-          />
-          <MobileLink
-            href="/rankings"
-            label="ランキングボード"
-            active={isActive("/rankings")}
-            onClick={close}
-          />
-          <MobileLink
-            href="/documents"
-            label="ドキュメント"
-            active={isActive("/documents")}
-            onClick={close}
-          />
+        <div className="mt-3 space-y-2 rounded-2xl border border-neutral-200 bg-white p-2 text-sm shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+          {/* 一般メニュー */}
+          <div className="space-y-1">
+            <MobileLink href="/" label="ホーム" active={isActive("/")} onClick={close} />
+            <MobileLink
+              href="/daily-reports"
+              label="日報・ホウレンソウ"
+              active={isActive("/daily-reports")}
+              onClick={close}
+            />
+            <MobileLink
+              href="/dashboard"
+              label="売上・KPIダッシュボード"
+              active={isActive("/dashboard")}
+              onClick={close}
+            />
+            <MobileLink
+              href="/e-learning"
+              label="動画研修ラーニング"
+              active={isActive("/e-learning")}
+              onClick={close}
+            />
+            <MobileLink
+              href="/partners/mindmap"
+              label="パートナー紹介マインドマップ"
+              active={isActive("/partners/mindmap")}
+              onClick={close}
+            />
+            <MobileLink
+              href="/rankings"
+              label="ランキングボード"
+              active={isActive("/rankings")}
+              onClick={close}
+            />
+            <MobileLink
+              href="/documents"
+              label="ドキュメント"
+              active={isActive("/documents")}
+              onClick={close}
+            />
+          </div>
+
+          {/* 管理メニュー（管理者のみ） */}
+          {isAdmin && (
+            <div className="space-y-1 border-t border-dashed border-neutral-200 pt-2 text-[13px] text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+              <p className="px-1 text-[10px] uppercase tracking-[0.16em] text-neutral-400">
+                管理メニュー
+              </p>
+              <MobileLink
+                href="/docs"
+                label="ドキュメントゾーン（管理）"
+                active={isActive("/docs")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/partners-mindmap"
+                label="パートナー紹介マインドマップ（管理）"
+                active={isActive("/admin/partners-mindmap")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/e-learning"
+                label="動画研修ラーニング（管理）"
+                active={isActive("/admin/e-learning")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/members"
+                label="メンバー管理（管理者用）"
+                active={isActive("/admin/members")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/users"
+                label="ユーザー管理（管理者用）"
+                active={isActive("/admin/users")}
+                onClick={close}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
