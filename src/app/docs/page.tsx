@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "igos_docs_v1";
-
 type DocCategory = "login" | "document" | "tool";
 
 type StoredDoc = {
@@ -21,28 +19,6 @@ const CATEGORY_LABELS: Record<DocCategory, string> = {
   tool: "ツール系",
 };
 
-function loadDocs(): StoredDoc[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredDoc[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
-function saveDocs(docs: StoredDoc[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(docs));
-  } catch {
-    // ignore
-  }
-}
-
 export default function DocsPage() {
   const [docs, setDocs] = useState<StoredDoc[]>([]);
   const [title, setTitle] = useState("");
@@ -52,7 +28,20 @@ export default function DocsPage() {
   const [url, setUrl] = useState("");
 
   useEffect(() => {
-    setDocs(loadDocs());
+    const fetchDocs = async () => {
+      try {
+        const res = await fetch("/api/documents");
+        if (!res.ok) return;
+        const data = (await res.json()) as StoredDoc[];
+        if (Array.isArray(data)) {
+          setDocs(data);
+        }
+      } catch (e) {
+        console.error("failed to load documents", e);
+      }
+    };
+
+    void fetchDocs();
   }, []);
 
   const resetForm = () => {
@@ -75,32 +64,68 @@ export default function DocsPage() {
       url: url.trim() || undefined,
     };
 
-    if (editingId) {
-      // 既存ドキュメントの更新
-      const next = docs.map((d) =>
-        d.id === editingId ? { ...d, ...base } : d,
-      );
-      setDocs(next);
-      saveDocs(next);
-    } else {
-      // 新規追加
-      const newDoc: StoredDoc = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        createdAt: new Date().toISOString(),
+    const doSave = async () => {
+      const id = editingId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const createdAt = editingId
+        ? docs.find((d) => d.id === editingId)?.createdAt ?? new Date().toISOString()
+        : new Date().toISOString();
+
+      const payload: StoredDoc = {
+        id,
+        createdAt,
         ...base,
       };
-      const next = [newDoc, ...docs];
-      setDocs(next);
-      saveDocs(next);
-    }
 
-    resetForm();
+      try {
+        const res = await fetch("/api/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          console.error("failed to save document", await res.text());
+          return;
+        }
+
+        setDocs((prev) => {
+          const exists = prev.some((d) => d.id === id);
+          if (exists) {
+            return prev.map((d) => (d.id === id ? payload : d));
+          }
+          return [payload, ...prev];
+        });
+
+        resetForm();
+      } catch (e) {
+        console.error("failed to save document", e);
+      }
+    };
+
+    void doSave();
   };
 
   const handleDelete = (id: string) => {
-    const next = docs.filter((d) => d.id !== id);
-    setDocs(next);
-    saveDocs(next);
+    const doDelete = async () => {
+      try {
+        const res = await fetch(`/api/documents?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          console.error("failed to delete document", await res.text());
+          return;
+        }
+
+        setDocs((prev) => prev.filter((d) => d.id !== id));
+
+        if (editingId === id) {
+          resetForm();
+        }
+      } catch (e) {
+        console.error("failed to delete document", e);
+      }
+    };
+
+    void doDelete();
   };
 
   const handleEdit = (doc: StoredDoc) => {

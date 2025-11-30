@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
-const STORAGE_KEY = "igos_docs_v1";
-
 type DocCategory = "login" | "document" | "tool";
 
 type StoredDoc = {
@@ -22,25 +20,25 @@ const CATEGORY_LABELS: Record<DocCategory, string> = {
   tool: "ツール系",
 };
 
-function loadDocs(): StoredDoc[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredDoc[];
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-}
-
 export default function DocumentsPage() {
   const [docs, setDocs] = useState<StoredDoc[]>([]);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    setDocs(loadDocs());
+    const fetchDocs = async () => {
+      try {
+        const res = await fetch("/api/documents");
+        if (!res.ok) return;
+        const data = (await res.json()) as StoredDoc[];
+        if (Array.isArray(data)) {
+          setDocs(data);
+        }
+      } catch (e) {
+        console.error("failed to load documents", e);
+      }
+    };
+
+    void fetchDocs();
   }, []);
 
   const filtered = useMemo(() => {
