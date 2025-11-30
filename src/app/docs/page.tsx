@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "igos_docs_v1";
 
-type DocCategory = "login" | "document";
+type DocCategory = "login" | "document" | "tool";
 
 type StoredDoc = {
   id: string;
@@ -12,11 +12,13 @@ type StoredDoc = {
   category: DocCategory;
   note?: string;
   createdAt: string;
+  url?: string;
 };
 
 const CATEGORY_LABELS: Record<DocCategory, string> = {
   login: "ログイン系",
   document: "資料系",
+  tool: "ツール系",
 };
 
 function loadDocs(): StoredDoc[] {
@@ -47,6 +49,7 @@ export default function DocsPage() {
   const [category, setCategory] = useState<DocCategory>("login");
   const [note, setNote] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
 
   useEffect(() => {
     setDocs(loadDocs());
@@ -57,6 +60,7 @@ export default function DocsPage() {
     setCategory("login");
     setNote("");
     setEditingId(null);
+    setUrl("");
   };
 
   const handleSubmit = () => {
@@ -68,6 +72,7 @@ export default function DocsPage() {
       title: title.trim(),
       category,
       note: note.trim() || undefined,
+      url: url.trim() || undefined,
     };
 
     if (editingId) {
@@ -103,6 +108,7 @@ export default function DocsPage() {
     setTitle(doc.title);
     setCategory(doc.category);
     setNote(doc.note ?? "");
+    setUrl(doc.url ?? "");
   };
 
   return (
@@ -148,6 +154,7 @@ export default function DocsPage() {
               >
                 <option value="login">ログイン系</option>
                 <option value="document">資料系</option>
+                <option value="tool">ツール系</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -160,6 +167,18 @@ export default function DocsPage() {
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
                 placeholder="例：スタートプランは採用広報チームで利用"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-medium text-neutral-700 dark:text-neutral-300">
+                URL（任意）
+              </label>
+              <input
+                type="text"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                placeholder="例：https://example.com/tool"
               />
             </div>
           </div>
@@ -221,6 +240,19 @@ export default function DocsPage() {
                         <div>
                           <span className="font-medium">メモ：</span>
                           <span>{doc.note}</span>
+                        </div>
+                      )}
+                      {doc.url && (
+                        <div className="mt-0.5">
+                          <span className="font-medium">URL：</span>
+                          <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
+                          >
+                            {doc.url}
+                          </a>
                         </div>
                       )}
                     </div>

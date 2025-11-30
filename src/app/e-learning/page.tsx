@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 // 元 learning-portal と同じ構造のダミーデータ（必要に応じて編集してください）
@@ -25,6 +26,22 @@ type Video = {
   instructorTitle?: string;
   coverImageUrl?: string;
   instructorAvatarUrl?: string;
+  materials?: { label: string; url: string }[];
+};
+
+type AdminVideoFromApi = {
+  id: string;
+  title: string;
+  category?: string | null;
+  url: string;
+  coverImageUrl?: string | null;
+  sectionId?: number | null;
+  episodeLabel?: string | null;
+  durationMinutes?: number | null;
+  instructorName?: string | null;
+  materialLabel?: string | null;
+  materialUrl?: string | null;
+  updatedAt?: string | null;
 };
 
 const INSTRUCTORS = {
@@ -45,6 +62,14 @@ const INSTRUCTORS = {
   },
 } as const;
 
+function inferInstructorKey(name?: string | null): keyof typeof INSTRUCTORS | undefined {
+  if (!name) return undefined;
+  if (name.includes("平賀")) return "hiraga";
+  if (name.includes("宅間")) return "takuma";
+  if (name.includes("佐藤")) return "sato";
+  return undefined;
+}
+
 const VIDEOS: Video[] = [
   {
     id: "sec1-001",
@@ -61,6 +86,12 @@ const VIDEOS: Video[] = [
     instructorTitle: "代表取締役",
     coverImageUrl: "/cover/cover_mkt01.png",
     instructorAvatarUrl: "/avatar_photo/avatar_hiraga.jpg",
+    materials: [
+      {
+        label: "スライド資料（PDF）",
+        url: "https://example.com/materials/sec1-001.pdf",
+      },
+    ],
   },
   {
     id: "sec1-002",
@@ -74,6 +105,12 @@ const VIDEOS: Video[] = [
     updatedAt: "2025-04-02",
     durationMinutes: 12,
     instructorKey: "takuma",
+    materials: [
+      {
+        label: "インターン概要サマリー（PDF）",
+        url: "https://example.com/materials/sec1-002.pdf",
+      },
+    ],
   },
   {
     id: "sec1-003",
@@ -108,15 +145,17 @@ const VIDEOS: Video[] = [
 ];
 
 export default function ELearningPage() {
+  const router = useRouter();
+  const [videos, setVideos] = useState<Video[]>([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [status, setStatus] = useState<"all" | "watched" | "unwatched">("all");
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
 
-  const totalVideoCount = useMemo(() => VIDEOS.length, []);
+  const totalVideoCount = useMemo(() => videos.length, [videos]);
   const totalWatchedCount = useMemo(
-    () => VIDEOS.filter((v) => watchedSet.has(v.id)).length,
-    [watchedSet]
+    () => videos.filter((v) => watchedSet.has(v.id)).length,
+    [videos, watchedSet]
   );
 
   // localStorage から視聴済み情報を復元
@@ -145,10 +184,60 @@ export default function ELearningPage() {
     }
   }, [watchedSet]);
 
+  // 初回マウント時に DB(API) から最新の一覧を取得
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const res = await fetch("/api/e-learning/videos");
+        if (!res.ok) return;
+        const data = (await res.json()) as AdminVideoFromApi[];
+        if (!Array.isArray(data)) return;
+
+        const mapped: Video[] = data.map((v) => {
+          const instructorKey = inferInstructorKey(v.instructorName);
+          const updatedAtDate =
+            typeof v.updatedAt === "string" && v.updatedAt.length >= 10
+              ? v.updatedAt.slice(0, 10)
+              : undefined;
+
+          return {
+            id: v.id,
+            title: v.title,
+            category: v.category ?? "その他",
+            url: v.url,
+            description: "",
+            sectionId: v.sectionId ?? undefined,
+            episodeLabel: v.episodeLabel ?? undefined,
+            updatedAt: updatedAtDate,
+            durationMinutes:
+              typeof v.durationMinutes === "number" && v.durationMinutes > 0
+                ? v.durationMinutes
+                : undefined,
+            instructorKey,
+            instructorName: v.instructorName ?? undefined,
+            coverImageUrl: v.coverImageUrl ?? undefined,
+            materials:
+              v.materialLabel && v.materialUrl
+                ? [{ label: v.materialLabel, url: v.materialUrl }]
+                : [],
+          };
+        });
+
+        if (mapped.length > 0) {
+          setVideos(mapped);
+        }
+      } catch (e) {
+        console.error("failed to fetch e-learning videos", e);
+      }
+    };
+
+    void fetchVideos();
+  }, []);
+
   const filteredVideos = useMemo(() => {
     const keyword = search.trim().toLowerCase();
 
-    return VIDEOS.filter((video) => {
+    return videos.filter((video) => {
       if (keyword) {
         const text = `${video.title} ${video.description || ""} ${
           video.instructorName || ""
@@ -164,13 +253,13 @@ export default function ELearningPage() {
 
       return true;
     });
-  }, [search, category, status, watchedSet]);
+  }, [search, category, status, watchedSet, videos]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
-    VIDEOS.forEach((v) => set.add(v.category));
+    videos.forEach((v) => set.add(v.category));
     return Array.from(set).sort();
-  }, []);
+  }, [videos]);
 
   const toggleWatched = (id: string) => {
     setWatchedSet((prev) => {
@@ -182,6 +271,14 @@ export default function ELearningPage() {
   };
 
   const openVideo = (video: Video) => {
+    // sec1-*** などアプリ内の詳細ページが用意されている動画は、内部遷移させる
+    if (video.id.startsWith("sec")) {
+      router.push(`/videos/${video.id}`);
+      setWatchedSet((prev) => new Set(prev).add(video.id));
+      return;
+    }
+
+    // それ以外は従来どおり外部URLを新規タブで開く
     if (typeof window !== "undefined") {
       window.open(video.url, "_blank");
       setWatchedSet((prev) => new Set(prev).add(video.id));
@@ -436,8 +533,7 @@ export default function ELearningPage() {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between px-4 pt-1 text-[11px] text-neutral-600">
-                        <span>{video.category}</span>
+                      <div className="flex items-center justify-end px-4 pt-1 text-[11px] text-neutral-600">
                         <span>
                           {video.durationMinutes && `${video.durationMinutes}分`}
                           {video.updatedAt && ` ・ 更新: ${video.updatedAt}`}
@@ -465,6 +561,35 @@ export default function ELearningPage() {
                       <p className="px-4 pt-2 text-[11px] leading-relaxed text-neutral-700 dark:text-neutral-200">
                         {video.description}
                       </p>
+
+                      {video.materials && video.materials.length > 0 && (
+                        <div className="px-4 pt-2 text-[11px]">
+                          <div className="rounded-lg border-l-4 border-[#c4a769] bg-[#fdf7e7] px-3 py-2 dark:border-amber-400 dark:bg-neutral-800/70">
+                            <div className="mb-1 flex items-center gap-1.5">
+                              <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#c4a769] text-[9px] font-bold text-white dark:bg-amber-400 dark:text-neutral-900">
+                                資
+                              </span>
+                              <p className="text-[10px] font-semibold text-[#4b3b1c] dark:text-neutral-100">
+                                補助資料
+                              </p>
+                            </div>
+                            <ul className="space-y-0.5">
+                              {video.materials.map((m) => (
+                                <li key={m.url}>
+                                  <a
+                                    href={m.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[10px] text-[#6f5a29] underline-offset-2 hover:underline dark:text-amber-200"
+                                  >
+                                    {m.label}
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="mt-2 flex gap-2 px-4 pb-3 pt-1">
                         <button

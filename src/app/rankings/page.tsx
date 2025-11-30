@@ -848,7 +848,9 @@ export default function RankingsPage() {
                   title="総売上ランキング"
                   unit="円"
                   items={
-                    personMonthlySales && personMonthlySales.length > 0
+                    personMonthlySales === null
+                      ? []
+                      : personMonthlySales.length > 0
                       ? personMonthlySales
                       : dummyPersonRankings.totalSales
                   }
@@ -857,7 +859,9 @@ export default function RankingsPage() {
                   title="登録会員数ランキング"
                   unit="件"
                   items={
-                    personMonthlyMembers && personMonthlyMembers.length > 0
+                    personMonthlyMembers === null
+                      ? []
+                      : personMonthlyMembers.length > 0
                       ? personMonthlyMembers
                       : dummyPersonRankings.membersCount
                   }
@@ -866,7 +870,9 @@ export default function RankingsPage() {
                   title="イベント送客数ランキング"
                   unit="件"
                   items={
-                    personMonthlyEvents && personMonthlyEvents.length > 0
+                    personMonthlyEvents === null
+                      ? []
+                      : personMonthlyEvents.length > 0
                       ? personMonthlyEvents
                       : dummyPersonRankings.eventCount
                   }
@@ -875,7 +881,9 @@ export default function RankingsPage() {
                   title="パートナー提携数ランキング"
                   unit="件"
                   items={
-                    personMonthlyPartnerDeals && personMonthlyPartnerDeals.length > 0
+                    personMonthlyPartnerDeals === null
+                      ? []
+                      : personMonthlyPartnerDeals.length > 0
                       ? personMonthlyPartnerDeals
                       : dummyPersonRankings.partnerDeals
                   }
@@ -888,10 +896,14 @@ export default function RankingsPage() {
                   unit="円"
                   items={
                     period === "monthly"
-                      ? partnerSalesMonthly && partnerSalesMonthly.length > 0
+                      ? partnerSalesMonthly === null
+                        ? []
+                        : partnerSalesMonthly.length > 0
                         ? partnerSalesMonthly
                         : dummyPartnerRankings.totalSales
-                      : partnerSalesTotal && partnerSalesTotal.length > 0
+                      : partnerSalesTotal === null
+                      ? []
+                      : partnerSalesTotal.length > 0
                       ? partnerSalesTotal
                       : dummyPartnerRankings.totalSales
                   }
@@ -901,10 +913,14 @@ export default function RankingsPage() {
                   unit="件"
                   items={
                     period === "monthly"
-                      ? partnerMembersMonthly && partnerMembersMonthly.length > 0
+                      ? partnerMembersMonthly === null
+                        ? []
+                        : partnerMembersMonthly.length > 0
                         ? partnerMembersMonthly
                         : dummyPartnerRankings.membersCount
-                      : partnerMembersTotal && partnerMembersTotal.length > 0
+                      : partnerMembersTotal === null
+                      ? []
+                      : partnerMembersTotal.length > 0
                       ? partnerMembersTotal
                       : dummyPartnerRankings.membersCount
                   }
@@ -914,10 +930,14 @@ export default function RankingsPage() {
                   unit="件"
                   items={
                     period === "monthly"
-                      ? partnerEventsMonthly && partnerEventsMonthly.length > 0
+                      ? partnerEventsMonthly === null
+                        ? []
+                        : partnerEventsMonthly.length > 0
                         ? partnerEventsMonthly
                         : dummyPartnerRankings.eventCount
-                      : partnerEventsTotal && partnerEventsTotal.length > 0
+                      : partnerEventsTotal === null
+                      ? []
+                      : partnerEventsTotal.length > 0
                       ? partnerEventsTotal
                       : dummyPartnerRankings.eventCount
                   }

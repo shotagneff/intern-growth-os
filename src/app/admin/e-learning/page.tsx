@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
@@ -43,10 +43,15 @@ const INITIAL_VIDEOS = [
   },
 ];
 
-type AdminVideo = (typeof INITIAL_VIDEOS)[number];
+type AdminVideo = (typeof INITIAL_VIDEOS)[number] & {
+  materialLabel?: string;
+  materialUrl?: string;
+};
 
 export default function AdminELearningPage() {
-  const [videos, setVideos] = useState<AdminVideo[]>(INITIAL_VIDEOS);
+  const [videos, setVideos] = useState<AdminVideo[]>([]);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("スタートガイド");
@@ -56,6 +61,26 @@ export default function AdminELearningPage() {
   const [sectionId, setSectionId] = useState(1);
   const [episodeLabel, setEpisodeLabel] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number | "">("");
+  const [materialLabel, setMaterialLabel] = useState("");
+  const [materialUrl, setMaterialUrl] = useState("");
+
+  // 初期表示時にサーバーから一覧を取得
+  useEffect(() => {
+    const fetchVideos = async () => {
+      try {
+        const res = await fetch("/api/e-learning/videos");
+        if (!res.ok) return;
+        const data = (await res.json()) as AdminVideo[];
+        if (Array.isArray(data)) {
+          setVideos(data);
+        }
+      } catch (e) {
+        console.error("failed to fetch admin e-learning videos", e);
+      }
+    };
+
+    fetchVideos();
+  }, []);
 
   const sorted = useMemo(() => {
     return [...videos].sort((a, b) => {
@@ -72,10 +97,14 @@ export default function AdminELearningPage() {
       return;
     }
 
-    setVideos((prev) => {
-      const nextIndex = prev.length + 1;
+    const doAdd = async () => {
+      const nextIndex = videos.length + 1;
+      const generatedId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `new-${Date.now()}-${nextIndex}`;
       const newVideo: AdminVideo = {
-        id: `new-${nextIndex}`,
+        id: generatedId,
         title: title.trim(),
         category,
         url: url.trim(),
@@ -85,15 +114,162 @@ export default function AdminELearningPage() {
         updatedAt: new Date().toISOString().slice(0, 10),
         durationMinutes: durationMinutes === "" ? 0 : Number(durationMinutes),
         instructorName,
+        materialLabel: materialLabel.trim() || undefined,
+        materialUrl: materialUrl.trim() || undefined,
       };
-      return [...prev, newVideo];
-    });
 
+      try {
+        const res = await fetch("/api/e-learning/videos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newVideo),
+        });
+        if (!res.ok) {
+          console.error("failed to save new video", await res.text());
+          return;
+        }
+        setVideos((prev) => [...prev, newVideo]);
+        resetForm();
+      } catch (e) {
+        console.error("failed to save new video", e);
+      }
+    };
+
+    void doAdd();
+  };
+
+  const resetForm = () => {
     setTitle("");
     setUrl("");
     setCoverImageUrl("");
     setEpisodeLabel("");
     setDurationMinutes("");
+    setSectionId(1);
+    setCategory("スタートガイド");
+    setInstructorName("平賀 翔大");
+    setMaterialLabel("");
+    setMaterialUrl("");
+    setEditingId(null);
+  };
+
+  const handleStartEdit = (video: AdminVideo) => {
+    setEditingId(video.id);
+    setTitle(video.title ?? "");
+    setCategory(video.category ?? "スタートガイド");
+    setInstructorName(video.instructorName ?? "平賀 翔大");
+    setUrl(video.url ?? "");
+    setCoverImageUrl(video.coverImageUrl ?? "");
+    setSectionId(video.sectionId ?? 1);
+    setEpisodeLabel(video.episodeLabel ?? "");
+    setDurationMinutes(
+      typeof video.durationMinutes === "number" ? video.durationMinutes : ""
+    );
+    setMaterialLabel(video.materialLabel ?? "");
+    setMaterialUrl(video.materialUrl ?? "");
+  };
+
+  const handleUpdateVideo = () => {
+    if (!editingId) {
+      handleAddVideo();
+      return;
+    }
+
+    if (!title.trim() || !url.trim()) {
+      alert("タイトルとURLは必須です。");
+      return;
+    }
+
+    const doUpdate = async () => {
+      const updatedAt = new Date().toISOString().slice(0, 10);
+
+      const payload = {
+        id: editingId,
+        title: title.trim(),
+        category,
+        instructorName,
+        url: url.trim(),
+        coverImageUrl: coverImageUrl.trim(),
+        sectionId,
+        episodeLabel: episodeLabel.trim(),
+        durationMinutes: durationMinutes === "" ? 0 : Number(durationMinutes),
+        materialLabel: materialLabel.trim() || undefined,
+        materialUrl: materialUrl.trim() || undefined,
+        updatedAt,
+      };
+
+      try {
+        const res = await fetch("/api/e-learning/videos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          console.error("failed to update video", await res.text());
+          return;
+        }
+
+        setVideos((prev) =>
+          prev.map((v) =>
+            v.id === editingId
+              ? {
+                  ...v,
+                  title: payload.title,
+                  category: payload.category,
+                  instructorName: payload.instructorName,
+                  url: payload.url,
+                  coverImageUrl: payload.coverImageUrl,
+                  sectionId: payload.sectionId,
+                  episodeLabel:
+                    payload.episodeLabel || v.episodeLabel || "",
+                  durationMinutes: payload.durationMinutes,
+                  materialLabel: payload.materialLabel,
+                  materialUrl: payload.materialUrl,
+                  updatedAt,
+                }
+              : v
+          )
+        );
+
+        resetForm();
+      } catch (e) {
+        console.error("failed to update video", e);
+      }
+    };
+
+    void doUpdate();
+  };
+
+  const handleDeleteVideo = (id: string) => {
+    const target = videos.find((v) => v.id === id);
+    if (!target) return;
+
+    const ok = window.confirm(
+      `「${target.title}」を削除しますか？` +
+        "\n※ この画面上の一覧からのみ削除されます（サーバー保存はまだ行っていません）。"
+    );
+    if (!ok) return;
+
+    const doDelete = async () => {
+      try {
+        const res = await fetch(`/api/e-learning/videos?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        if (!res.ok) {
+          console.error("failed to delete video", await res.text());
+          return;
+        }
+
+        setVideos((prev) => prev.filter((v) => v.id !== id));
+
+        if (editingId === id) {
+          resetForm();
+        }
+      } catch (e) {
+        console.error("failed to delete video", e);
+      }
+    };
+
+    void doDelete();
   };
 
   return (
@@ -185,6 +361,9 @@ export default function AdminELearningPage() {
                   onChange={(e) => setCoverImageUrl(e.target.value)}
                   placeholder="/cover/xxx.png または https://..."
                 />
+                <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+                  画像は Next.js の public 配下のパスを指定してください（例：/avatar_photo/avatar_hiraga.jpg や /training-banners/intern-onboarding-01.png と指定してください）。インターンOS用の外部URL（https://intern-growth-os/...）を使うこともできます。
+                </p>
               </div>
 
               <div className="flex flex-col gap-1">
@@ -228,17 +407,46 @@ export default function AdminELearningPage() {
                   placeholder="例：15"
                 />
               </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-200">補助資料タイトル</label>
+                <input
+                  className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-[11px] outline-none focus:ring dark:border-neutral-700 dark:bg-neutral-900"
+                  value={materialLabel}
+                  onChange={(e) => setMaterialLabel(e.target.value)}
+                  placeholder="例：スライド資料（PDF）"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-200">補助資料URL</label>
+                <input
+                  className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-[11px] outline-none focus:ring dark:border-neutral-700 dark:bg-neutral-900"
+                  value={materialUrl}
+                  onChange={(e) => setMaterialUrl(e.target.value)}
+                  placeholder="例：https://example.com/materials/xxx.pdf"
+                />
+              </div>
             </div>
 
             <div className="mt-3 flex justify-end">
               <button
                 type="button"
-                onClick={handleAddVideo}
+                onClick={handleUpdateVideo}
                 className="rounded-full px-4 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:opacity-90"
                 style={{ backgroundColor: MAIN_COLOR }}
               >
-                一覧に追加
+                {editingId ? "内容を更新" : "一覧に追加"}
               </button>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="ml-2 rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-[11px] font-semibold text-neutral-700 shadow-sm hover:border-neutral-400"
+                >
+                  編集をキャンセル
+                </button>
+              )}
             </div>
           </div>
 
@@ -316,17 +524,17 @@ export default function AdminELearningPage() {
                       <div className="inline-flex gap-1">
                         <button
                           type="button"
-                          disabled
-                          className="rounded-full border border-neutral-300 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-600 shadow-sm hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => handleStartEdit(v)}
+                          className="rounded-full border border-neutral-300 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-600 shadow-sm hover:border-neutral-400"
                         >
-                          編集（準備中）
+                          編集
                         </button>
                         <button
                           type="button"
-                          disabled
-                          className="rounded-full border border-neutral-300 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-600 shadow-sm hover:border-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => handleDeleteVideo(v.id)}
+                          className="rounded-full border border-neutral-300 bg-white px-2 py-1 text-[10px] font-semibold text-neutral-600 shadow-sm hover:border-red-300"
                         >
-                          削除（準備中）
+                          削除
                         </button>
                       </div>
                     </td>

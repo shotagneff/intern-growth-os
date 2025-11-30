@@ -5,7 +5,7 @@ import Image from "next/image";
 
 const STORAGE_KEY = "igos_docs_v1";
 
-type DocCategory = "login" | "document";
+type DocCategory = "login" | "document" | "tool";
 
 type StoredDoc = {
   id: string;
@@ -13,11 +13,13 @@ type StoredDoc = {
   category: DocCategory;
   note?: string;
   createdAt: string;
+  url?: string;
 };
 
 const CATEGORY_LABELS: Record<DocCategory, string> = {
   login: "ログイン系",
   document: "資料系",
+  tool: "ツール系",
 };
 
 function loadDocs(): StoredDoc[] {
@@ -53,6 +55,7 @@ export default function DocumentsPage() {
 
   const loginDocs = filtered.filter((d) => d.category === "login");
   const documentDocs = filtered.filter((d) => d.category === "document");
+  const toolDocs = filtered.filter((d) => d.category === "tool");
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] px-4 py-8 text-[var(--foreground)] dark:bg-neutral-950">
@@ -128,6 +131,70 @@ export default function DocumentsPage() {
                                 <span>{doc.note}</span>
                               </div>
                             )}
+                            {doc.url && (
+                              <div className="mt-0.5">
+                                <span className="font-medium">URL：</span>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
+                                >
+                                  {doc.url}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
+                          <span>
+                            追加日：{new Date(doc.createdAt).toLocaleDateString("ja-JP")}
+                          </span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2 md:col-span-1">
+                <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                  ツール系
+                </h3>
+                {toolDocs.length === 0 ? (
+                  <p className="text-[11px] text-neutral-400 dark:text-neutral-500">
+                    該当するツール系ドキュメントはありません。
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {toolDocs.map((doc) => (
+                      <article
+                        key={doc.id}
+                        className="flex flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                      >
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                            {doc.title}
+                          </p>
+                          <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
+                            {doc.note && (
+                              <div>
+                                <span className="font-medium">メモ：</span>
+                                <span>{doc.note}</span>
+                              </div>
+                            )}
+                            {doc.url && (
+                              <div className="mt-0.5">
+                                <span className="font-medium">URL：</span>
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
+                                >
+                                  {doc.url}
+                                </a>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
@@ -141,7 +208,7 @@ export default function DocumentsPage() {
                 )}
               </div>
 
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 md:col-span-1">
                 <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                   資料系
                 </h3>
