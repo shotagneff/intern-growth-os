@@ -13,12 +13,15 @@ export function MobileNav() {
   const toggle = () => setOpen((prev) => !prev);
   const close = () => setOpen(false);
 
-  const isActive = (href: string) => href !== "#" && pathname.startsWith(href);
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return href !== "#" && pathname.startsWith(href);
+  };
 
   return (
-    <div className="border-b border-neutral-200 bg-white/95 px-4 py-3 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
+    <div className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 px-4 py-3 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-950/95">
       <div className="flex items-center justify-between">
-        <Link href="/daily-reports" onClick={close}>
+        <Link href="/" onClick={close}>
           <div className="flex flex-col">
             <span
               className="text-xs font-semibold uppercase tracking-wide"
@@ -47,10 +50,43 @@ export function MobileNav() {
 
       {open && (
         <div className="mt-3 space-y-1 rounded-2xl border border-neutral-200 bg-white p-2 text-sm shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-          <MobileLink href="/daily-reports" label="日報・ホウレンソウ" active={isActive("/daily-reports")} onClick={close} />
-          <MobileLink href="/dashboard" label="売上・KPIダッシュボード" active={isActive("/dashboard")} onClick={close} />
-          <MobileLink href="/e-learning" label="動画研修ラーニング" active={isActive("/e-learning")} onClick={close} />
-          <MobileLink href="/admin/members" label="メンバー管理（管理者用）" active={isActive("/admin/members")} onClick={close} />
+          <MobileLink href="/" label="ホーム" active={isActive("/")} onClick={close} />
+          <MobileLink
+            href="/daily-reports"
+            label="日報・ホウレンソウ"
+            active={isActive("/daily-reports")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/dashboard"
+            label="売上・KPIダッシュボード"
+            active={isActive("/dashboard")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/e-learning"
+            label="動画研修ラーニング"
+            active={isActive("/e-learning")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/partners/mindmap"
+            label="パートナー紹介マインドマップ"
+            active={isActive("/partners/mindmap")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/rankings"
+            label="ランキングボード"
+            active={isActive("/rankings")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/documents"
+            label="ドキュメント"
+            active={isActive("/documents")}
+            onClick={close}
+          />
         </div>
       )}
     </div>

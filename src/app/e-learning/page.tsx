@@ -225,8 +225,13 @@ export default function ELearningPage() {
             instructorName: v.instructorName ?? undefined,
             coverImageUrl: v.coverImageUrl ?? undefined,
             materials:
-              v.materialLabel && v.materialUrl
-                ? [{ label: v.materialLabel, url: v.materialUrl }]
+              v.materialLabel || v.materialUrl
+                ? [
+                    {
+                      label: v.materialLabel ?? v.materialUrl ?? "",
+                      url: v.materialUrl ?? "",
+                    },
+                  ]
                 : [],
           };
         });
@@ -590,16 +595,22 @@ export default function ELearningPage() {
                               </p>
                             </div>
                             <ul className="space-y-0.5">
-                              {video.materials.map((m) => (
-                                <li key={m.url}>
-                                  <a
-                                    href={m.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[10px] text-[#6f5a29] underline-offset-2 hover:underline dark:text-amber-200"
-                                  >
-                                    {m.label}
-                                  </a>
+                              {video.materials.map((m, index) => (
+                                <li key={m.url || `${video.id}-material-${index}`}>
+                                  {m.url ? (
+                                    <a
+                                      href={m.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="text-[10px] text-[#6f5a29] underline-offset-2 hover:underline dark:text-amber-200"
+                                    >
+                                      {m.label}
+                                    </a>
+                                  ) : (
+                                    <span className="text-[10px] text-[#6f5a29] dark:text-amber-200">
+                                      {m.label}
+                                    </span>
+                                  )}
                                 </li>
                               ))}
                             </ul>
