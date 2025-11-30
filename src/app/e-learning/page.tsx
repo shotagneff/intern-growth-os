@@ -532,7 +532,7 @@ export default function ELearningPage() {
                     {info.title}
                   </h2>
                   {info.description && (
-                    <p className="mt-2 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
+                    <p className="mt-2 text-xs sm:text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                       {info.description}
                     </p>
                   )}
