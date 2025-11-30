@@ -4,6 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
+function parseEpisodeNumber(label?: string | null): number | null {
+  if (!label) return null;
+  const match = label.match(/第(\d+)回/);
+  if (!match) return null;
+  const num = Number(match[1]);
+  return Number.isNaN(num) ? null : num;
+}
+
 const INITIAL_VIDEOS = [
   {
     id: "sec1-001",
@@ -87,6 +95,14 @@ export default function AdminELearningPage() {
       const sa = a.sectionId ?? 0;
       const sb = b.sectionId ?? 0;
       if (sa !== sb) return sa - sb;
+
+      const ea = parseEpisodeNumber(a.episodeLabel);
+      const eb = parseEpisodeNumber(b.episodeLabel);
+
+      if (ea !== null && eb !== null && ea !== eb) {
+        return ea - eb; // 第1回, 第2回, ... の順
+      }
+
       return (a.episodeLabel || "").localeCompare(b.episodeLabel || "");
     });
   }, [videos]);
