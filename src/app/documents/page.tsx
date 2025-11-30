@@ -192,39 +192,40 @@ export default function DocumentsPage() {
                           className="flex cursor-pointer flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/80"
                           {...wrapperProps}
                         >
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                            {doc.title}
-                          </p>
-                          <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
-                            {doc.note && (
-                              <div>
-                                <span className="font-medium">メモ：</span>
-                                <span>{doc.note}</span>
-                              </div>
-                            )}
-                            {doc.url && (
-                              <div className="mt-0.5">
-                                <span className="font-medium">URL：</span>
-                                <a
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
-                                >
-                                  {doc.url}
-                                </a>
-                              </div>
-                            )}
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                              {doc.title}
+                            </p>
+                            <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
+                              {doc.note && (
+                                <div>
+                                  <span className="font-medium">メモ：</span>
+                                  <span>{doc.note}</span>
+                                </div>
+                              )}
+                              {doc.url && (
+                                <div className="mt-0.5">
+                                  <span className="font-medium">URL：</span>
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
+                                  >
+                                    {doc.url}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
-                          <span>
-                            追加日：{new Date(doc.createdAt).toLocaleDateString("ja-JP")}
-                          </span>
-                        </div>
-                      </article>
-                    ))}
+                          <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
+                            <span>
+                              追加日：{new Date(doc.createdAt).toLocaleDateString("ja-JP")}
+                            </span>
+                          </div>
+                        </Wrapper>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -255,39 +256,40 @@ export default function DocumentsPage() {
                           className="flex cursor-pointer flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/80"
                           {...wrapperProps}
                         >
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                            {doc.title}
-                          </p>
-                          <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
-                            {doc.note && (
-                              <div>
-                                <span className="font-medium">メモ：</span>
-                                <span>{doc.note}</span>
-                              </div>
-                            )}
-                            {doc.url && (
-                              <div className="mt-0.5">
-                                <span className="font-medium">URL：</span>
-                                <a
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
-                                >
-                                  {doc.url}
-                                </a>
-                              </div>
-                            )}
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                              {doc.title}
+                            </p>
+                            <div className="space-y-1 text-xs text-neutral-600 dark:text-neutral-300">
+                              {doc.note && (
+                                <div>
+                                  <span className="font-medium">メモ：</span>
+                                  <span>{doc.note}</span>
+                                </div>
+                              )}
+                              {doc.url && (
+                                <div className="mt-0.5">
+                                  <span className="font-medium">URL：</span>
+                                  <a
+                                    href={doc.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] text-sky-600 underline underline-offset-2 dark:text-sky-400"
+                                  >
+                                    {doc.url}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
-                          <span>
-                            追加日：{new Date(doc.createdAt).toLocaleDateString("ja-JP")}
-                          </span>
-                        </div>
-                      </article>
-                    ))}
+                          <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
+                            <span>
+                              追加日：{new Date(doc.createdAt).toLocaleDateString("ja-JP")}
+                            </span>
+                          </div>
+                        </Wrapper>
+                      );
+                    })}
                   </div>
                 )}
               </div>
