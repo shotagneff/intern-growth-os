@@ -54,6 +54,7 @@ type AdminVideoFromApi = {
 
 type Section2Checklist = {
   survey: boolean;
+  contract: boolean;
   line: boolean;
   prokin: boolean;
   drive: boolean;
@@ -165,6 +166,7 @@ export default function ELearningPage() {
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
   const [section2Checklist, setSection2Checklist] = useState<Section2Checklist>({
     survey: false,
+    contract: false,
     line: false,
     prokin: false,
     drive: false,
@@ -218,6 +220,7 @@ export default function ELearningPage() {
         if (data.section2Checklist) {
           setSection2Checklist((prev) => ({
             survey: data.section2Checklist?.survey ?? prev.survey,
+            contract: data.section2Checklist?.contract ?? prev.contract,
             line: data.section2Checklist?.line ?? prev.line,
             prokin: data.section2Checklist?.prokin ?? prev.prokin,
             drive: data.section2Checklist?.drive ?? prev.drive,
@@ -399,6 +402,7 @@ export default function ELearningPage() {
     if (sectionId === 3) {
       const checklistDone =
         section2Checklist.survey &&
+        section2Checklist.contract &&
         section2Checklist.line &&
         section2Checklist.prokin &&
         section2Checklist.drive;
@@ -536,7 +540,7 @@ export default function ELearningPage() {
                         完了チェックリスト
                       </p>
                       <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
-                        以下の4つをすべて完了すると、セクション3が解放されます。
+                        以下の5つをすべて完了すると、セクション3が解放されます。
                       </p>
                       <div className="mt-1 space-y-1.5">
                         <label className="flex items-start gap-2">
@@ -550,6 +554,19 @@ export default function ELearningPage() {
                           />
                           <span className="text-[11px] leading-snug">
                             Googleアンケートを回答して提出したか
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section2Checklist.contract}
+                            onChange={(e) =>
+                              updateSection2Checklist({ contract: e.target.checked })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            契約書を締結したか
                           </span>
                         </label>
                         <label className="flex items-start gap-2">

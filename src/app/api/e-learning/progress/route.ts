@@ -39,6 +39,10 @@ async function ensureTables() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
+
+  await pool.query(
+    'ALTER TABLE e_learning_section2_checklist ADD COLUMN IF NOT EXISTS contract BOOLEAN DEFAULT FALSE;'
+  );
 }
 
 export async function GET(req: NextRequest) {
@@ -58,7 +62,7 @@ export async function GET(req: NextRequest) {
   const watchedVideoIds = result.rows.map((r) => r.video_id as string);
 
   const checklistResult = await pool.query(
-    `SELECT survey, line, prokin, drive
+    `SELECT survey, line, prokin, drive, contract
        FROM e_learning_section2_checklist
       WHERE user_id = $1;`,
     [userId]
@@ -71,8 +75,9 @@ export async function GET(req: NextRequest) {
         line: !!row.line,
         prokin: !!row.prokin,
         drive: !!row.drive,
+        contract: !!row.contract,
       }
-    : { survey: false, line: false, prokin: false, drive: false };
+    : { survey: false, line: false, prokin: false, drive: false, contract: false };
 
   return NextResponse.json({ watchedVideoIds, section2Checklist });
 }
@@ -87,7 +92,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const videoId = body?.videoId as string | undefined;
   const section2Checklist = body?.section2Checklist as
-    | { survey?: boolean; line?: boolean; prokin?: boolean; drive?: boolean }
+    | {
+        survey?: boolean;
+        line?: boolean;
+        prokin?: boolean;
+        drive?: boolean;
+        contract?: boolean;
+      }
     | undefined;
 
   await ensureTables();
@@ -102,18 +113,19 @@ export async function POST(req: NextRequest) {
   }
 
   if (section2Checklist) {
-    const { survey, line, prokin, drive } = section2Checklist;
+    const { survey, line, prokin, drive, contract } = section2Checklist;
 
     await pool.query(
-      `INSERT INTO e_learning_section2_checklist (user_id, survey, line, prokin, drive, updated_at)
-       VALUES ($1, COALESCE($2, FALSE), COALESCE($3, FALSE), COALESCE($4, FALSE), COALESCE($5, FALSE), NOW())
+      `INSERT INTO e_learning_section2_checklist (user_id, survey, line, prokin, drive, contract, updated_at)
+       VALUES ($1, COALESCE($2, FALSE), COALESCE($3, FALSE), COALESCE($4, FALSE), COALESCE($5, FALSE), COALESCE($6, FALSE), NOW())
        ON CONFLICT (user_id) DO UPDATE SET
          survey = COALESCE($2, e_learning_section2_checklist.survey),
          line   = COALESCE($3, e_learning_section2_checklist.line),
          prokin = COALESCE($4, e_learning_section2_checklist.prokin),
          drive  = COALESCE($5, e_learning_section2_checklist.drive),
+         contract = COALESCE($6, e_learning_section2_checklist.contract),
          updated_at = NOW();`,
-      [userId, survey, line, prokin, drive]
+      [userId, survey, line, prokin, drive, contract]
     );
   }
 
