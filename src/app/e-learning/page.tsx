@@ -52,6 +52,13 @@ type AdminVideoFromApi = {
   updatedAt?: string | null;
 };
 
+type Section2Checklist = {
+  survey: boolean;
+  line: boolean;
+  prokin: boolean;
+  drive: boolean;
+};
+
 const INSTRUCTORS = {
   hiraga: {
     name: "平賀 翔大",
@@ -155,10 +162,13 @@ const VIDEOS: Video[] = [
 export default function ELearningPage() {
   const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("all");
-  const [status, setStatus] = useState<"all" | "watched" | "unwatched">("all");
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
+  const [section2Checklist, setSection2Checklist] = useState<Section2Checklist>({
+    survey: false,
+    line: false,
+    prokin: false,
+    drive: false,
+  });
 
   const totalVideoCount = useMemo(() => videos.length, [videos]);
   const totalWatchedCount = useMemo(
@@ -198,9 +208,20 @@ export default function ELearningPage() {
       try {
         const res = await fetch("/api/e-learning/progress");
         if (!res.ok) return;
-        const data = (await res.json()) as { watchedVideoIds?: string[] };
+        const data = (await res.json()) as {
+          watchedVideoIds?: string[];
+          section2Checklist?: Partial<Section2Checklist>;
+        };
         if (Array.isArray(data.watchedVideoIds)) {
           setWatchedSet(new Set(data.watchedVideoIds));
+        }
+        if (data.section2Checklist) {
+          setSection2Checklist((prev) => ({
+            survey: data.section2Checklist?.survey ?? prev.survey,
+            line: data.section2Checklist?.line ?? prev.line,
+            prokin: data.section2Checklist?.prokin ?? prev.prokin,
+            drive: data.section2Checklist?.drive ?? prev.drive,
+          }));
         }
       } catch (e) {
         console.error("failed to load progress", e);
@@ -265,33 +286,6 @@ export default function ELearningPage() {
     void fetchVideos();
   }, []);
 
-  const filteredVideos = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    return videos.filter((video) => {
-      if (keyword) {
-        const text = `${video.title} ${video.description || ""} ${
-          video.instructorName || ""
-        } ${video.instructorTitle || ""}`.toLowerCase();
-        if (!text.includes(keyword)) return false;
-      }
-
-      if (category !== "all" && video.category !== category) return false;
-
-      const isWatched = watchedSet.has(video.id);
-      if (status === "watched" && !isWatched) return false;
-      if (status === "unwatched" && isWatched) return false;
-
-      return true;
-    });
-  }, [search, category, status, watchedSet, videos]);
-
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    videos.forEach((v) => set.add(v.category));
-    return Array.from(set).sort();
-  }, [videos]);
-
   const toggleWatched = (id: string) => {
     setWatchedSet((prev) => {
       const next = new Set(prev);
@@ -333,7 +327,7 @@ export default function ELearningPage() {
   // sectionId ごとに、「第◯回」の数字が小さいものが左に来るようにソート
   // episodeLabel が取れない場合のみ、古い順（updatedAt 昇順）→ 新しい順（右側）で並べる
   const sorted = useMemo(() => {
-    return [...filteredVideos].sort((a, b) => {
+    return [...videos].sort((a, b) => {
       const sa = a.sectionId ?? 0;
       const sb = b.sectionId ?? 0;
       if (sa !== sb) return sa - sb;
@@ -352,7 +346,7 @@ export default function ELearningPage() {
 
       return (a.title || "").localeCompare(b.title || "");
     });
-  }, [filteredVideos]);
+  }, [videos]);
 
   const groupedBySection = useMemo(() => {
     const map = new Map<number, Video[]>();
@@ -379,7 +373,19 @@ export default function ELearningPage() {
     const prevVideos = groupedBySection.get(prevId) ?? [];
     if (prevVideos.length === 0) return true;
 
-    return prevVideos.every((v) => watchedSet.has(v.id));
+    const prevCompleted = prevVideos.every((v) => watchedSet.has(v.id));
+    if (!prevCompleted) return false;
+
+    if (sectionId === 3) {
+      const checklistDone =
+        section2Checklist.survey &&
+        section2Checklist.line &&
+        section2Checklist.prokin &&
+        section2Checklist.drive;
+      return checklistDone;
+    }
+
+    return true;
   };
 
   const getSectionInfo = (sectionId: number) => {
@@ -479,41 +485,9 @@ export default function ELearningPage() {
             </div>
           </div>
         </section>
-
-        <section className="mb-6 flex flex-wrap gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-          <input
-            type="text"
-            placeholder="キーワード検索"
-            className="min-w-[160px] flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:ring"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="min-w-[140px] rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="all">すべてのカテゴリ</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <select
-            className="min-w-[140px] rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as typeof status)}
-          >
-            <option value="all">すべて</option>
-            <option value="unwatched">未視聴のみ</option>
-            <option value="watched">視聴済みのみ</option>
-          </select>
-        </section>
-
-        {sorted.length === 0 && (
+        {videos.length === 0 && (
           <p className="mt-6 text-xs text-neutral-500">
-            条件に合う動画がありません。
+            まだ動画が登録されていません。
           </p>
         )}
 
@@ -535,6 +509,70 @@ export default function ELearningPage() {
                     <p className="mt-2 text-xs sm:text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
                       {info.description}
                     </p>
+                  )}
+                  {sectionId === 2 && (
+                    <div className="mt-3 space-y-1.5 rounded-xl border border-dashed border-neutral-300 bg-white/70 px-3 py-2 text-[11px] text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-200">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                        完了チェックリスト
+                      </p>
+                      <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
+                        以下の4つをすべて完了すると、セクション3が解放されます。
+                      </p>
+                      <div className="mt-1 space-y-1.5">
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section2Checklist.survey}
+                            onChange={(e) =>
+                              updateSection2Checklist({ survey: e.target.checked })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            Googleアンケートを回答して提出したか
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section2Checklist.line}
+                            onChange={(e) =>
+                              updateSection2Checklist({ line: e.target.checked })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            LINEグループへ参加して意気込みを投稿できたか
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section2Checklist.prokin}
+                            onChange={(e) =>
+                              updateSection2Checklist({ prokin: e.target.checked })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            プロ勤にログインして出勤できたか
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section2Checklist.drive}
+                            onChange={(e) =>
+                              updateSection2Checklist({ drive: e.target.checked })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            Googleドライブのアクセス権限をもらったか
+                          </span>
+                        </label>
+                      </div>
+                    </div>
                   )}
                   {totalCount > 0 && (
                     <>
