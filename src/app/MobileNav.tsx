@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
@@ -22,14 +22,16 @@ export function MobileNav() {
   useEffect(() => {
     const fetchMe = async () => {
       try {
-        const res = await fetch("/api/auth/me");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.user?.isAdmin) {
-          setIsAdmin(true);
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setIsAdmin(false);
+          return;
         }
+        const data = await res.json();
+        setIsAdmin(!!data?.user?.isAdmin);
       } catch (e) {
         console.error(e);
+        setIsAdmin(false);
       }
     };
 
@@ -162,6 +164,7 @@ type MobileLinkProps = {
 };
 
 function MobileLink({ href, label, disabled, active, onClick }: MobileLinkProps) {
+  const router = useRouter();
   const base =
     "flex items-center rounded-xl px-3 py-2 text-sm font-medium";
 
@@ -173,10 +176,15 @@ function MobileLink({ href, label, disabled, active, onClick }: MobileLinkProps)
     );
   }
 
+  const handleClick = () => {
+    onClick();
+    router.push(href);
+  };
+
   return (
-    <Link
-      href={href}
-      onClick={onClick}
+    <button
+      type="button"
+      onClick={handleClick}
       className={`${base} ${
         active
           ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-50"
@@ -184,6 +192,6 @@ function MobileLink({ href, label, disabled, active, onClick }: MobileLinkProps)
       }`}
     >
       <span>{label}</span>
-    </Link>
+    </button>
   );
 }
