@@ -639,6 +639,12 @@ export default function ELearningPage() {
                 {videos.map((video) => {
                   const isWatched = watchedSet.has(video.id);
 
+                  const isDetailTypeVideo =
+                    video.sectionId === 2 &&
+                    (video.title.includes("契約書の締結について") ||
+                      video.title.includes("LINEグループの参加") ||
+                      video.title.includes("インターン登録フォームの提出"));
+
                   const tpl = video.instructorKey
                     ? INSTRUCTORS[video.instructorKey]
                     : undefined;
@@ -772,7 +778,11 @@ export default function ELearningPage() {
                               : "bg-neutral-300 text-neutral-500 cursor-not-allowed"
                           }`}
                         >
-                          {unlocked ? "動画を開く" : "ロック中"}
+                          {unlocked
+                            ? isDetailTypeVideo
+                              ? "詳細を確認する"
+                              : "動画を開く"
+                            : "ロック中"}
                         </button>
                         <button
                           type="button"
