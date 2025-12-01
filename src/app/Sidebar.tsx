@@ -48,10 +48,10 @@ export default function Sidebar() {
               className="block text-sm font-semibold uppercase tracking-wide"
               style={{ color: MAIN_COLOR }}
             >
-              intern growth OS
+              intern portable site
             </span>
             <span className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
-              インターンダッシュボード
+              インターンポータブルサイト
             </span>
           </div>
         </Link>

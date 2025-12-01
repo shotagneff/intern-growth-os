@@ -47,10 +47,10 @@ export function MobileNav() {
               className="text-xs font-semibold uppercase tracking-wide"
               style={{ color: MAIN_COLOR }}
             >
-              intern growth OS
+              intern portable site
             </span>
             <span className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
-              成長ダッシュボード
+              インターンポータブルサイト
             </span>
           </div>
         </Link>

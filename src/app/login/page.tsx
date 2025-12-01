@@ -41,34 +41,26 @@ export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f6f1e8] via-[#f5f5f7] to-[#e3edf7] px-4 py-8 text-[var(--foreground)] dark:from-neutral-950 dark:via-neutral-950 dark:to-neutral-900">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-8 md:flex-row md:items-stretch">
-        <section className="w-full md:w-1/2">
-          <div className="max-w-md">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-              intern growth OS
+        <section className="relative w-full md:w-1/2">
+          <div
+            className="pointer-events-none absolute inset-0 rounded-3xl opacity-30 blur-[1px] md:opacity-40"
+            style={{
+              backgroundImage: "url('/login-bg.jpg')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+          <div className="relative max-w-md">
+            <p className="inline-flex items-center rounded-full bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-600 shadow-sm ring-1 ring-neutral-200/80 dark:bg-neutral-900/70 dark:text-neutral-300 dark:ring-neutral-700">
+              intern portable site
             </p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              インターン専用の
-              <br className="hidden sm:block" />
-              成長ダッシュボード
+            <h1 className="mt-4 text-2xl font-bold tracking-tight text-neutral-900 sm:text-3xl md:text-4xl dark:text-neutral-50">
+              インターンポータブルサイト
             </h1>
-            <p className="mt-3 text-xs leading-relaxed text-neutral-600 dark:text-neutral-300">
-              日々のアウトプットや動画研修、ドキュメントを一つのハブで管理するための社内ポータルです。
+            <p className="mt-3 max-w-lg text-[13px] leading-relaxed text-neutral-700 md:text-sm dark:text-neutral-300">
+              日々のアウトプットや動画研修、ドキュメントを一つのハブで管理するための株式会社SEEKADのポータルサイトです。
               ログインすると、あなたのメンバーIDに紐づいたコンテンツと進捗が表示されます。
             </p>
-            <div className="mt-4 grid grid-cols-1 gap-2 text-[11px] text-neutral-700 dark:text-neutral-200 sm:grid-cols-2">
-              <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/70">
-                <p className="font-semibold">動画研修ラーニング</p>
-                <p className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-400">
-                  各セクションの視聴状況が自動で記録され、前のセクションを完了すると次が解放されます。
-                </p>
-              </div>
-              <div className="rounded-xl border border-neutral-200 bg-white/70 px-3 py-2 shadow-sm backdrop-blur dark:border-neutral-700 dark:bg-neutral-900/70">
-                <p className="font-semibold">管理者メニュー</p>
-                <p className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-400">
-                  権限を持つメンバーだけがユーザーやコンテンツの管理メニューにアクセスできます。
-                </p>
-              </div>
-            </div>
           </div>
         </section>
 
