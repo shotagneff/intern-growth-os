@@ -324,6 +324,26 @@ export default function ELearningPage() {
     }
   };
 
+  const saveSection2Checklist = async (next: Section2Checklist) => {
+    try {
+      await fetch("/api/e-learning/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section2Checklist: next }),
+      });
+    } catch (e) {
+      console.error("failed to save section2 checklist", e);
+    }
+  };
+
+  const updateSection2Checklist = (partial: Partial<Section2Checklist>) => {
+    setSection2Checklist((prev) => {
+      const next = { ...prev, ...partial };
+      void saveSection2Checklist(next);
+      return next;
+    });
+  };
+
   // sectionId ごとに、「第◯回」の数字が小さいものが左に来るようにソート
   // episodeLabel が取れない場合のみ、古い順（updatedAt 昇順）→ 新しい順（右側）で並べる
   const sorted = useMemo(() => {
