@@ -59,6 +59,11 @@ type Section2Checklist = {
   prokin: boolean;
 };
 
+type Section3Checklist = {
+  asanaPcMobile: boolean;
+  asanaFixedTask: boolean;
+};
+
 const INSTRUCTORS = {
   hiraga: {
     name: "平賀 翔大",
@@ -169,6 +174,10 @@ export default function ELearningPage() {
     line: false,
     prokin: false,
   });
+  const [section3Checklist, setSection3Checklist] = useState<Section3Checklist>({
+    asanaPcMobile: false,
+    asanaFixedTask: false,
+  });
 
   const totalVideoCount = useMemo(() => videos.length, [videos]);
   const totalWatchedCount = useMemo(
@@ -211,6 +220,7 @@ export default function ELearningPage() {
         const data = (await res.json()) as {
           watchedVideoIds?: string[];
           section2Checklist?: Partial<Section2Checklist>;
+          section3Checklist?: Partial<Section3Checklist>;
         };
         if (Array.isArray(data.watchedVideoIds)) {
           setWatchedSet(new Set(data.watchedVideoIds));
@@ -221,6 +231,13 @@ export default function ELearningPage() {
             contract: data.section2Checklist?.contract ?? prev.contract,
             line: data.section2Checklist?.line ?? prev.line,
             prokin: data.section2Checklist?.prokin ?? prev.prokin,
+          }));
+        }
+        if (data.section3Checklist) {
+          setSection3Checklist((prev) => ({
+            asanaPcMobile: data.section3Checklist?.asanaPcMobile ?? prev.asanaPcMobile,
+            asanaFixedTask:
+              data.section3Checklist?.asanaFixedTask ?? prev.asanaFixedTask,
           }));
         }
       } catch (e) {
@@ -310,6 +327,26 @@ export default function ELearningPage() {
         })();
       }
 
+      return next;
+    });
+  };
+
+  const saveSection3Checklist = async (next: Section3Checklist) => {
+    try {
+      await fetch("/api/e-learning/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section3Checklist: next }),
+      });
+    } catch (e) {
+      console.error("failed to save section3 checklist", e);
+    }
+  };
+
+  const updateSection3Checklist = (partial: Partial<Section3Checklist>) => {
+    setSection3Checklist((prev) => {
+      const next = { ...prev, ...partial };
+      void saveSection3Checklist(next);
       return next;
     });
   };
@@ -415,13 +452,21 @@ export default function ELearningPage() {
     const prevCompleted = prevVideos.every((v) => watchedSet.has(v.id));
     if (!prevCompleted) return false;
 
+    // セクション3は「セクション2の動画＋チェックリスト完了」で解放
     if (sectionId === 3) {
-      const checklistDone =
+      const checklistDone2 =
         section2Checklist.survey &&
         section2Checklist.contract &&
         section2Checklist.line &&
         section2Checklist.prokin;
-      return checklistDone;
+      return checklistDone2;
+    }
+
+    // セクション4は「セクション3の動画＋Asanaチェックリスト完了」で解放
+    if (sectionId === 4) {
+      const checklistDone3 =
+        section3Checklist.asanaPcMobile && section3Checklist.asanaFixedTask;
+      return checklistDone3;
     }
 
     return true;
@@ -613,6 +658,48 @@ export default function ELearningPage() {
                       </div>
                     </div>
                   )}
+                  {sectionId === 3 && (
+                    <div className="mt-3 space-y-1.5 rounded-xl border border-dashed border-neutral-300 bg-white/70 px-3 py-2 text-[11px] text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/60 dark:text-neutral-200">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                        完了チェックリスト
+                      </p>
+                      <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
+                        以下の2つを完了すると、次のセクション（セクション4）が解放されます。
+                      </p>
+                      <div className="mt-1 space-y-1.5">
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section3Checklist.asanaPcMobile}
+                            onChange={(e) =>
+                              updateSection3Checklist({
+                                asanaPcMobile: e.target.checked,
+                              })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            asanaへPC、スマホからアクセスできましたか？
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
+                            checked={section3Checklist.asanaFixedTask}
+                            onChange={(e) =>
+                              updateSection3Checklist({
+                                asanaFixedTask: e.target.checked,
+                              })
+                            }
+                          />
+                          <span className="text-[11px] leading-snug">
+                            出勤日用の『出勤・日報』タスクは、Asanaの固定曜日タスクに設定済みですか？
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                   {totalCount > 0 && (
                     <>
                       <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
@@ -793,7 +880,11 @@ export default function ELearningPage() {
                         <button
                           type="button"
                           onClick={() => toggleWatched(video.id)}
-                          className="flex-1 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-700 hover:border-neutral-400"
+                          className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold transition
+                            ${isWatched
+                              ? "border border-amber-300 bg-amber-50 text-amber-800 shadow-inner"
+                              : "border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"}
+                          `}
                         >
                           {isWatched ? "未視聴に戻す" : "視聴済みにする"}
                         </button>

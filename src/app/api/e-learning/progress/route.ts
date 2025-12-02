@@ -43,6 +43,15 @@ async function ensureTables() {
   await pool.query(
     'ALTER TABLE e_learning_section2_checklist ADD COLUMN IF NOT EXISTS contract BOOLEAN DEFAULT FALSE;'
   );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS e_learning_section3_checklist (
+      user_id TEXT PRIMARY KEY,
+      asana_pc_mobile BOOLEAN DEFAULT FALSE,
+      asana_fixed_task BOOLEAN DEFAULT FALSE,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
 }
 
 export async function GET(req: NextRequest) {
@@ -79,7 +88,22 @@ export async function GET(req: NextRequest) {
       }
     : { survey: false, line: false, prokin: false, drive: false, contract: false };
 
-  return NextResponse.json({ watchedVideoIds, section2Checklist });
+  const checklist3Result = await pool.query(
+    `SELECT asana_pc_mobile, asana_fixed_task
+       FROM e_learning_section3_checklist
+      WHERE user_id = $1;`,
+    [userId]
+  );
+
+  const row3 = checklist3Result.rows[0];
+  const section3Checklist = row3
+    ? {
+        asanaPcMobile: !!row3.asana_pc_mobile,
+        asanaFixedTask: !!row3.asana_fixed_task,
+      }
+    : { asanaPcMobile: false, asanaFixedTask: false };
+
+  return NextResponse.json({ watchedVideoIds, section2Checklist, section3Checklist });
 }
 
 export async function POST(req: NextRequest) {
@@ -98,6 +122,13 @@ export async function POST(req: NextRequest) {
         prokin?: boolean;
         drive?: boolean;
         contract?: boolean;
+      }
+    | undefined;
+
+  const section3Checklist = body?.section3Checklist as
+    | {
+        asanaPcMobile?: boolean;
+        asanaFixedTask?: boolean;
       }
     | undefined;
 
@@ -126,6 +157,20 @@ export async function POST(req: NextRequest) {
          contract = COALESCE($6, e_learning_section2_checklist.contract),
          updated_at = NOW();`,
       [userId, survey, line, prokin, drive, contract]
+    );
+  }
+
+  if (section3Checklist) {
+    const { asanaPcMobile, asanaFixedTask } = section3Checklist;
+
+    await pool.query(
+      `INSERT INTO e_learning_section3_checklist (user_id, asana_pc_mobile, asana_fixed_task, updated_at)
+       VALUES ($1, COALESCE($2, FALSE), COALESCE($3, FALSE), NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         asana_pc_mobile = COALESCE($2, e_learning_section3_checklist.asana_pc_mobile),
+         asana_fixed_task = COALESCE($3, e_learning_section3_checklist.asana_fixed_task),
+         updated_at = NOW();`,
+      [userId, asanaPcMobile, asanaFixedTask]
     );
   }
 
