@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Home() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [locationFilter, setLocationFilter] = useState<"all" | EventLocation>("all");
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
@@ -49,6 +50,7 @@ export default function Home() {
     description?: string;
     applyUrl?: string;
     time?: string; // 例: "19:00〜21:00"
+    lineKeyword?: string;
   };
 
   const typeLabel: Record<EventType, string> = {
@@ -66,7 +68,7 @@ export default function Home() {
   };
 
   const buildApplyKeyword = (event: Event) => {
-    // 応募用キーワード（LINE応答メッセージ用）を自動生成（ダミー）
+    // 応募用キーワード（LINE応答メッセージ用）を自動生成（デフォルト）
     // 現状は就活イベント（jobfair）のみに利用
     const base = "応募:就活イベント";
     const loc =
@@ -151,8 +153,38 @@ export default function Home() {
     },
   ];
 
+  const [events, setEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("/api/home/calendar-events", { cache: "no-store" });
+        if (!res.ok) {
+          console.error("failed to fetch home calendar events", await res.text().catch(() => ""));
+          setEvents(dummyEvents);
+          return;
+        }
+        const data = (await res.json().catch(() => null)) as { events?: Event[] } | null;
+        if (data?.events && Array.isArray(data.events) && data.events.length > 0) {
+          setEvents(data.events as Event[]);
+        } else {
+          setEvents(dummyEvents);
+        }
+      } catch (e) {
+        console.error("failed to fetch home calendar events", e);
+        setEvents(dummyEvents);
+      }
+    };
+
+    void fetchEvents();
+  }, []);
+
+  const effectiveEvents = (events.length > 0 ? events : dummyEvents).filter((event) =>
+    locationFilter === "all" ? true : event.location === locationFilter
+  );
+
   const eventsByDate = new Map<string, Event[]>();
-  dummyEvents.forEach((event) => {
+  effectiveEvents.forEach((event) => {
     const arr = eventsByDate.get(event.date) ?? [];
     arr.push(event);
     eventsByDate.set(event.date, arr);
@@ -212,6 +244,33 @@ export default function Home() {
               <span className="h-2 w-2 rounded-full bg-amber-300" />
               定期研修
             </span>
+          </div>
+
+          {/* 場所フィルタ */}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+            <span className="font-semibold text-xs text-neutral-600 dark:text-neutral-300">場所で絞り込み:</span>
+            {[
+              { value: "all" as const, label: "すべて" },
+              { value: "online" as const, label: locationLabel.online },
+              { value: "osaka" as const, label: locationLabel.osaka },
+              { value: "tokyo" as const, label: locationLabel.tokyo },
+              { value: "other" as const, label: locationLabel.other },
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setLocationFilter(opt.value)}
+                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition-colors
+                  ${
+                    locationFilter === opt.value
+                      ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-50 dark:bg-neutral-50 dark:text-neutral-900"
+                      : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                  }
+                `}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
 
           <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(260px,1.2fr)]">
@@ -429,7 +488,11 @@ export default function Home() {
                     <ul className="mt-2 space-y-2">
                       {selectedEvents.map((event) => {
                         const hasKeyword = event.type === "jobfair";
-                        const keyword = hasKeyword ? buildApplyKeyword(event) : "";
+                        const keyword = hasKeyword
+                          ? (event.lineKeyword && event.lineKeyword.trim().length > 0
+                              ? event.lineKeyword
+                              : buildApplyKeyword(event))
+                          : "";
                         return (
                           <li
                             key={`${event.date}-${event.title}`}
@@ -467,9 +530,9 @@ export default function Home() {
                               </div>
                             </div>
                             {event.description && (
-                              <p className="mt-1 text-xs text-white/90">
+                              <div className="mt-1 text-xs text-white/90 whitespace-pre-line">
                                 {event.description}
-                              </p>
+                              </div>
                             )}
 
                             {/* 就活イベントのみ：応募キーワード（LINE用） */}

@@ -76,6 +76,8 @@ export default function Sidebar() {
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
             <SidebarLink href="/admin/members" label="メンバー管理（管理者用）" />
             <SidebarLink href="/admin/users" label="ユーザー管理（管理者用）" />
+            <SidebarLink href="/admin/threads" label="Threads予約投稿（管理）" />
+            <SidebarLink href="/admin/calendar" label="ホームカレンダー管理" />
           </>
         )}
       </nav>

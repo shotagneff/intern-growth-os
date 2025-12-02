@@ -147,6 +147,18 @@ export function MobileNav() {
                 active={isActive("/admin/users")}
                 onClick={close}
               />
+              <MobileLink
+                href="/admin/threads"
+                label="Threads予約投稿（管理）"
+                active={isActive("/admin/threads")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/calendar"
+                label="ホームカレンダー管理"
+                active={isActive("/admin/calendar")}
+                onClick={close}
+              />
             </div>
           )}
         </div>
