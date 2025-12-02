@@ -57,7 +57,6 @@ type Section2Checklist = {
   contract: boolean;
   line: boolean;
   prokin: boolean;
-  drive: boolean;
 };
 
 const INSTRUCTORS = {
@@ -169,7 +168,6 @@ export default function ELearningPage() {
     contract: false,
     line: false,
     prokin: false,
-    drive: false,
   });
 
   const totalVideoCount = useMemo(() => videos.length, [videos]);
@@ -223,7 +221,6 @@ export default function ELearningPage() {
             contract: data.section2Checklist?.contract ?? prev.contract,
             line: data.section2Checklist?.line ?? prev.line,
             prokin: data.section2Checklist?.prokin ?? prev.prokin,
-            drive: data.section2Checklist?.drive ?? prev.drive,
           }));
         }
       } catch (e) {
@@ -404,8 +401,7 @@ export default function ELearningPage() {
         section2Checklist.survey &&
         section2Checklist.contract &&
         section2Checklist.line &&
-        section2Checklist.prokin &&
-        section2Checklist.drive;
+        section2Checklist.prokin;
       return checklistDone;
     }
 
@@ -540,7 +536,7 @@ export default function ELearningPage() {
                         完了チェックリスト
                       </p>
                       <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
-                        以下の5つをすべて完了すると、セクション3が解放されます。
+                        以下の4つをすべて完了すると、セクション3が解放されます。
                       </p>
                       <div className="mt-1 space-y-1.5">
                         <label className="flex items-start gap-2">
@@ -579,7 +575,7 @@ export default function ELearningPage() {
                             }
                           />
                           <span className="text-[11px] leading-snug">
-                            LINEグループへ参加して意気込みを投稿できたか
+                            長期インターンLINEグループへ参加して意気込みを投稿できたか
                           </span>
                         </label>
                         <label className="flex items-start gap-2">
@@ -593,19 +589,6 @@ export default function ELearningPage() {
                           />
                           <span className="text-[11px] leading-snug">
                             プロ勤にログインして出勤できたか
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-2">
-                          <input
-                            type="checkbox"
-                            className="mt-[2px] h-3.5 w-3.5 rounded border-neutral-300 text-[#ad9c79] focus:ring-0"
-                            checked={section2Checklist.drive}
-                            onChange={(e) =>
-                              updateSection2Checklist({ drive: e.target.checked })
-                            }
-                          />
-                          <span className="text-[11px] leading-snug">
-                            Googleドライブのアクセス権限をもらったか
                           </span>
                         </label>
                       </div>
@@ -644,6 +627,8 @@ export default function ELearningPage() {
                     (video.title.includes("契約書の締結について") ||
                       video.title.includes("LINEグループの参加") ||
                       video.title.includes("インターン登録フォームの提出"));
+
+                  const isProkinSiteVideo = video.title.includes("プロ勤の使い方について");
 
                   const tpl = video.instructorKey
                     ? INSTRUCTORS[video.instructorKey]
@@ -779,9 +764,11 @@ export default function ELearningPage() {
                           }`}
                         >
                           {unlocked
-                            ? isDetailTypeVideo
-                              ? "詳細を確認する"
-                              : "動画を開く"
+                            ? isProkinSiteVideo
+                              ? "プロ勤のサイトはこちら"
+                              : isDetailTypeVideo
+                                ? "詳細を確認する"
+                                : "動画を開く"
                             : "ロック中"}
                         </button>
                         <button
