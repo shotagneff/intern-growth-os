@@ -289,8 +289,27 @@ export default function ELearningPage() {
   const toggleWatched = (id: string) => {
     setWatchedSet((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const wasWatched = next.has(id);
+
+      if (wasWatched) {
+        next.delete(id);
+      } else {
+        next.add(id);
+
+        // 「視聴済みにする」にしたときだけサーバーにも保存
+        void (async () => {
+          try {
+            await fetch("/api/e-learning/progress", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ videoId: id }),
+            });
+          } catch (e) {
+            console.error("failed to save progress from toggle", e);
+          }
+        })();
+      }
+
       return next;
     });
   };
