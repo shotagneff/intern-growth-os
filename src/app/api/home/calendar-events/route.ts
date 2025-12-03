@@ -50,5 +50,53 @@ export async function GET(req: NextRequest) {
     [start, end]
   );
 
-  return NextResponse.json({ events: result.rows });
+  const events = result.rows as {
+    id: number | null;
+    date: string;
+    title: string;
+    type: string;
+    location: string;
+    description: string | null;
+    applyUrl: string | null;
+    time: string | null;
+    lineKeyword: string | null;
+  }[];
+
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const saturdayEventTitle = "学生定期集会";
+  const saturdayEventDescription = "週に一回集合する定期集会です。\n基本的には参加必須です。";
+  const saturdayEventTime = "15:00〜18:00";
+
+  const cursor = new Date(start.getTime());
+  while (cursor <= end) {
+    if (cursor.getDay() === 6) {
+      events.push({
+        id: null,
+        date: formatDate(cursor),
+        title: saturdayEventTitle,
+        type: "training",
+        location: "osaka",
+        description: saturdayEventDescription,
+        applyUrl: null,
+        time: saturdayEventTime,
+        lineKeyword: null,
+      });
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  events.sort((a, b) => {
+    if (a.date === b.date) {
+      return (a.id ?? 0) - (b.id ?? 0);
+    }
+    return a.date < b.date ? -1 : 1;
+  });
+
+  return NextResponse.json({ events });
 }
