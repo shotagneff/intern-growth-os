@@ -76,17 +76,28 @@ export async function GET(req: NextRequest) {
   const cursor = new Date(start.getTime());
   while (cursor <= end) {
     if (cursor.getDay() === 6) {
-      events.push({
-        id: null,
-        date: formatDate(cursor),
-        title: saturdayEventTitle,
-        type: "training",
-        location: "osaka",
-        description: saturdayEventDescription,
-        applyUrl: null,
-        time: saturdayEventTime,
-        lineKeyword: null,
-      });
+      const dateStr = formatDate(cursor);
+      const alreadyExists = events.some(
+        (ev) =>
+          ev.date === dateStr &&
+          ev.title === saturdayEventTitle &&
+          ev.type === "training" &&
+          ev.location === "osaka"
+      );
+
+      if (!alreadyExists) {
+        events.push({
+          id: null,
+          date: dateStr,
+          title: saturdayEventTitle,
+          type: "training",
+          location: "osaka",
+          description: saturdayEventDescription,
+          applyUrl: null,
+          time: saturdayEventTime,
+          lineKeyword: null,
+        });
+      }
     }
     cursor.setDate(cursor.getDate() + 1);
   }

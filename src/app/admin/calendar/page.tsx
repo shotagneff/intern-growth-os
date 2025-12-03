@@ -7,7 +7,7 @@ export type HomeCalendarEvent = {
   date: string;
   title: string;
   type: "internal" | "jobfair" | "training" | "other" | string;
-  location: "online" | "osaka" | "tokyo" | "other" | string;
+  location: "online" | "osaka" | "tokyo" | "nagoya" | "other" | string;
   description?: string | null;
   applyUrl?: string | null;
   time?: string | null;
@@ -25,6 +25,7 @@ const LOCATION_OPTIONS: { value: HomeCalendarEvent["location"]; label: string }[
   { value: "online", label: "オンライン" },
   { value: "osaka", label: "大阪" },
   { value: "tokyo", label: "東京" },
+  { value: "nagoya", label: "名古屋" },
   { value: "other", label: "その他" },
 ];
 
@@ -33,11 +34,13 @@ export default function HomeCalendarAdminPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
 
   const fetchEvents = async () => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
       const res = await fetch("/api/admin/home/calendar-events", { cache: "no-store" });
       if (!res.ok) {
@@ -65,7 +68,6 @@ export default function HomeCalendarAdminPage() {
       today.getDate()
     ).padStart(2, "0")}`;
     setEvents((prev) => [
-      ...prev,
       {
         date,
         title: "新しいイベント",
@@ -76,6 +78,7 @@ export default function HomeCalendarAdminPage() {
         applyUrl: "",
         lineKeyword: "",
       },
+      ...prev,
     ]);
   };
 
@@ -90,6 +93,7 @@ export default function HomeCalendarAdminPage() {
   const handleSave = async () => {
     setSaving(true);
     setError(null);
+    setSuccess(null);
     try {
       const res = await fetch("/api/admin/home/calendar-events", {
         method: "POST",
@@ -101,6 +105,7 @@ export default function HomeCalendarAdminPage() {
         setError(data?.error || "保存に失敗しました");
         return;
       }
+      setSuccess("保存が完了しました");
     } catch (e) {
       console.error(e);
       setError("保存に失敗しました");
@@ -112,6 +117,7 @@ export default function HomeCalendarAdminPage() {
   const handleImportFromSheet = async () => {
     setImporting(true);
     setError(null);
+    setSuccess(null);
     try {
       const res = await fetch("/api/admin/home/calendar-events/import-from-sheet", {
         method: "POST",
@@ -173,6 +179,9 @@ export default function HomeCalendarAdminPage() {
       </div>
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {success && !error && (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
+      )}
 
       {loading ? (
         <p className="text-sm text-neutral-600 dark:text-neutral-300">読み込み中...</p>

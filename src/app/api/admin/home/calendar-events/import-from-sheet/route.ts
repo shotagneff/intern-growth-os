@@ -62,6 +62,7 @@ function normalizeLocation(place?: string): string {
   if (p.includes("オン") || p.toLowerCase().includes("online")) return "online";
   if (p.includes("大阪")) return "osaka";
   if (p.includes("東京")) return "tokyo";
+  if (p.includes("名古屋") || p.toLowerCase().includes("nagoya")) return "nagoya";
   return "other";
 }
 
@@ -167,7 +168,6 @@ export async function POST(req: NextRequest) {
       // LINE合言葉は常に P 列（index 15）のみを見る。
       // P列が空 or 無い場合は lineKeyword も空として扱う。
       const rawLineKeyword = row[15];
-      console.log("LINE KEYWORD DEBUG", { title, date, rawLineKeyword, rowLength: row.length });
       const lineKeyword = rawLineKeyword && typeof rawLineKeyword === "string" ? rawLineKeyword.trim() : "";
 
       const location = normalizeLocation(place);

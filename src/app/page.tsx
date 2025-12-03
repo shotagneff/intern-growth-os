@@ -40,7 +40,7 @@ export default function Home() {
   const weeksNext = buildWeeks(nextYear, nextMonth);
 
   type EventType = "internal" | "jobfair" | "training" | "other";
-  type EventLocation = "online" | "osaka" | "tokyo" | "other";
+  type EventLocation = "online" | "osaka" | "tokyo" | "nagoya" | "other";
 
   type Event = {
     date: string; // YYYY-MM-DD
@@ -64,6 +64,7 @@ export default function Home() {
     online: "オンライン",
     osaka: "大阪",
     tokyo: "東京",
+    nagoya: "名古屋",
     other: "その他",
   };
 
@@ -78,80 +79,11 @@ export default function Home() {
         ? "大阪"
         : event.location === "tokyo"
         ? "東京"
+        : event.location === "nagoya"
+        ? "名古屋"
         : "";
     return `${base} ${loc} ${event.title}`.trim();
   };
-
-  const dummyEvents: Event[] = [
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-05`,
-      title: "社内キックオフMTG",
-      type: "internal",
-      location: "online",
-      description: "全メンバー参加の月初キックオフミーティング",
-      applyUrl: "https://example.com/internal-kickoff-form",
-      time: "19:00〜20:30",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-12`,
-      title: "就活イベント（大阪）",
-      type: "jobfair",
-      location: "osaka",
-      description: "インターンも同席する対面就活イベント",
-      time: "13:00〜17:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-12`,
-      title: "内定者向けキャリア相談会",
-      type: "internal",
-      location: "online",
-      description: "就活イベント後に行う社内キャリア相談・振り返り会（ダミー）",
-      applyUrl: "https://example.com/internal-career-meeting",
-      time: "18:00〜19:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-18`,
-      title: "就活イベント（オンライン）",
-      type: "jobfair",
-      location: "online",
-      description: "オンライン開催の就活イベント",
-      time: "16:00〜18:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-25`,
-      title: "定期研修（ロープレ会）",
-      type: "training",
-      location: "online",
-      description: "営業ロープレとフィードバックの定期研修",
-      time: "10:00〜12:00",
-    },
-    // 来月分のダミーイベント
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-03`,
-      title: "来月 社内共有MTG",
-      type: "internal",
-      location: "online",
-      description: "来月の目標共有とメンバーアップデート（ダミー）",
-      applyUrl: "https://example.com/next-internal-sharing",
-      time: "19:00〜20:00",
-    },
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-10`,
-      title: "来月 就活イベント（東京）",
-      type: "jobfair",
-      location: "tokyo",
-      description: "来月開催予定の就活イベント（東京会場・ダミー）",
-      time: "13:00〜17:00",
-    },
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-21`,
-      title: "来月 定期研修（ロープレ会）",
-      type: "training",
-      location: "online",
-      description: "来月の営業ロープレとフィードバック研修（ダミー）",
-      time: "10:00〜12:00",
-    },
-  ];
 
   const [events, setEvents] = useState<Event[]>([]);
 
@@ -161,30 +93,30 @@ export default function Home() {
         const res = await fetch("/api/home/calendar-events", { cache: "no-store" });
         if (!res.ok) {
           console.error("failed to fetch home calendar events", await res.text().catch(() => ""));
-          setEvents(dummyEvents);
+          setEvents([]);
           return;
         }
         const data = (await res.json().catch(() => null)) as { events?: Event[] } | null;
         if (data?.events && Array.isArray(data.events) && data.events.length > 0) {
           setEvents(data.events as Event[]);
         } else {
-          setEvents(dummyEvents);
+          setEvents([]);
         }
       } catch (e) {
         console.error("failed to fetch home calendar events", e);
-        setEvents(dummyEvents);
+        setEvents([]);
       }
     };
 
     void fetchEvents();
   }, []);
 
-  const effectiveEvents = (events.length > 0 ? events : dummyEvents).filter((event) =>
+  const effectiveEvents = events.filter((event: Event) =>
     locationFilter === "all" ? true : event.location === locationFilter
   );
 
   const eventsByDate = new Map<string, Event[]>();
-  effectiveEvents.forEach((event) => {
+  effectiveEvents.forEach((event: Event) => {
     const arr = eventsByDate.get(event.date) ?? [];
     arr.push(event);
     eventsByDate.set(event.date, arr);
@@ -216,17 +148,17 @@ export default function Home() {
             </h1>
           </div>
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
-            intern growth OS の入り口となるホームです。日報・売上/KPI・動画研修・パートナー紹介・ランキング・ドキュメントなど、長期インターンの成長と運営に必要な機能へここからアクセスできます。
+            日報・売上/KPI・動画研修・パートナー紹介・ランキング・ドキュメントなど、長期インターンの活動に必要なコンテンツはこちらからアクセスできます。
           </p>
         </header>
 
         {/* カレンダー＋詳細 */}
         <section className="pt-4 text-xs text-neutral-600 dark:text-neutral-300">
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-            カレンダー（ダミー）
+            カレンダー
           </h2>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            今月と来月の社内イベント・就活イベント・定期研修の予定をざっくり確認するためのカレンダーです（いまはダミーデータです）。
+            今月と来月の社内イベント・就活イベント・定期研修の予定を確認するためのカレンダーです。
           </p>
 
           {/* 凡例 */}
@@ -272,6 +204,10 @@ export default function Home() {
               </button>
             ))}
           </div>
+
+          <p className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-500">
+            ※ カレンダー上のイベントがある日付をタップすると、下にその日の詳細が表示されます。
+          </p>
 
           <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(260px,1.2fr)]">
             {/* 左側：2ヶ月分のカレンダー */}
@@ -486,7 +422,7 @@ export default function Home() {
                       日付: {selectedDate}
                     </p>
                     <ul className="mt-2 space-y-2">
-                      {selectedEvents.map((event) => {
+                      {selectedEvents.map((event, idx) => {
                         const hasKeyword = event.type === "jobfair";
                         const keyword = hasKeyword
                           ? (event.lineKeyword && event.lineKeyword.trim().length > 0
@@ -495,7 +431,7 @@ export default function Home() {
                           : "";
                         return (
                           <li
-                            key={`${event.date}-${event.title}`}
+                            key={`${event.date}-${event.title}-${idx}`}
                             className={`rounded-lg p-2 text-[11px] shadow-sm border
                               ${
                                 event.type === "internal"
