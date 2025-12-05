@@ -9,6 +9,7 @@ const LOGIN_PASSWORD = "seekad_learning"; // いまは未使用（パスワー�
 
 const STORAGE_KEY_WATCHED = "learning_portal_watched_videos";
 const MAIN_COLOR = "#9e8d70";
+const MEMBERS_STORAGE_KEY = "igos_members_v1";
 
 function parseEpisodeNumber(label?: string | null): number | null {
   if (!label) return null;
@@ -62,6 +63,15 @@ type Section2Checklist = {
 type Section3Checklist = {
   asanaPcMobile: boolean;
   asanaFixedTask: boolean;
+};
+
+type MemberForDisplay = {
+  id: string;
+  name: string;
+  team?: string;
+  role?: string;
+  iconUrl?: string;
+  active?: boolean;
 };
 
 const INSTRUCTORS = {
@@ -168,6 +178,7 @@ export default function ELearningPage() {
   const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
+  const [members, setMembers] = useState<MemberForDisplay[]>([]);
   const [section2Checklist, setSection2Checklist] = useState<Section2Checklist>({
     survey: false,
     contract: false,
@@ -197,6 +208,24 @@ export default function ELearningPage() {
       }
     } catch (e) {
       console.error("failed to load watched videos", e);
+    }
+  }, []);
+
+  // admin/members と同じストレージからメンバー情報を読み込み、講師表示に利用
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(MEMBERS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as MemberForDisplay[];
+      if (Array.isArray(parsed)) {
+        const activeMembers = parsed.filter(
+          (m) => m && m.name && (m.active ?? true),
+        );
+        setMembers(activeMembers);
+      }
+    } catch (e) {
+      console.error("failed to load members for e-learning presenter info", e);
     }
   }, []);
 
@@ -732,19 +761,28 @@ export default function ELearningPage() {
                     video.sectionId === 2 &&
                     (video.title.includes("契約書の締結について") ||
                       video.title.includes("LINEグループの参加") ||
-                      video.title.includes("インターン登録フォームの提出"));
+                      video.title.includes("インターン登録フォームの提出") ||
+                      video.title.includes("出勤報告の方法について"));
 
                   const isProkinSiteVideo = video.title.includes("プロ勤の使い方について");
+
+                  const isSection2ConfirmationVideo =
+                    video.sectionId === 2 &&
+                    (video.title.includes("社内規則について") ||
+                      video.title.includes("インターン登録フォームの提出") ||
+                      video.title.includes("出勤報告の方法について"));
 
                   const tpl = video.instructorKey
                     ? INSTRUCTORS[video.instructorKey]
                     : undefined;
-                  const instructorName =
-                    tpl?.name || video.instructorName || "";
-                  const instructorTitle =
-                    tpl?.title || video.instructorTitle || "";
+
+                  const baseName = tpl?.name || video.instructorName || "";
+                  const member = members.find((m) => m.name === baseName);
+
+                  const instructorName = member?.name || baseName;
+                  const instructorTitle = member?.role || tpl?.title || video.instructorTitle || "";
                   const instructorAvatar =
-                    tpl?.avatar || video.instructorAvatarUrl || "";
+                    member?.iconUrl || tpl?.avatar || video.instructorAvatarUrl || "";
 
                   return (
                     <article
@@ -886,7 +924,11 @@ export default function ELearningPage() {
                               : "border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"}
                           `}
                         >
-                          {isWatched ? "未視聴に戻す" : "視聴済みにする"}
+                          {isWatched
+                            ? isSection2ConfirmationVideo
+                              ? "未確認に戻す"
+                              : "未視聴に戻す"
+                            : "視聴済みにする"}
                         </button>
                       </div>
                     </article>

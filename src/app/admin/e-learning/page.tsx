@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
+type MemberOption = {
+  id: string;
+  name: string;
+  role?: string;
+  iconUrl?: string;
+  active?: boolean;
+};
+
+const MEMBERS_STORAGE_KEY = "igos_members_v1";
+
 function parseEpisodeNumber(label?: string | null): number | null {
   if (!label) return null;
   const match = label.match(/第(\d+)回/);
@@ -58,6 +68,7 @@ type AdminVideo = (typeof INITIAL_VIDEOS)[number] & {
 
 export default function AdminELearningPage() {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
+  const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -86,8 +97,25 @@ export default function AdminELearningPage() {
         console.error("failed to fetch admin e-learning videos", e);
       }
     };
-
     fetchVideos();
+  }, []);
+
+  // メンバー管理画面と同じ localStorage からアクティブなメンバー一覧を読み込み、講師候補として利用
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(MEMBERS_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as MemberOption[];
+      if (Array.isArray(parsed)) {
+        const activeMembers = parsed.filter(
+          (m) => m && m.name && (m.active ?? true),
+        );
+        setMemberOptions(activeMembers);
+      }
+    } catch (e) {
+      console.error("failed to load members for instructor options", e);
+    }
   }, []);
 
   const sorted = useMemo(() => {
@@ -351,10 +379,23 @@ export default function AdminELearningPage() {
                   value={instructorName}
                   onChange={(e) => setInstructorName(e.target.value)}
                 >
-                  <option value="平賀 翔大">平賀 翔大</option>
-                  <option value="宅間 宗太">宅間 宗太</option>
-                  <option value="佐藤 翔永">佐藤 翔永</option>
-                  <option value="教育担当">教育担当</option>
+                  {memberOptions.length > 0 && (
+                    <>
+                      <option value="" disabled>
+                        
+                       --- メンバー一覧 ---
+                      </option>
+                      {memberOptions.map((m) => (
+                        <option key={m.id} value={m.name}>
+                          {m.name}
+                        </option>
+                      ))}
+                      <option value="" disabled>
+                        
+                       ----------
+                      </option>
+                    </>
+                  )}
                   <option value="その他">その他</option>
                 </select>
               </div>
