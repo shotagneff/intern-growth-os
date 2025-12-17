@@ -46,40 +46,62 @@ export default function MembersAdminPage() {
   const [role, setRole] = useState("");
   const [iconUrl, setIconUrl] = useState("");
   const [saveMessage, setSaveMessage] = useState<string>("");
+  const [isDirty, setIsDirty] = useState(false);
 
-  const loadMembersFromStorage = () => {
-    if (typeof window === "undefined") return;
+  const fetchMembersFromApi = async () => {
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
-        setMembers(initialMembers);
-        return;
-      }
-      const parsed = JSON.parse(raw) as Member[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        setMembers(parsed);
+      const res = await fetch("/api/admin/members", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch members");
+      const data = (await res.json()) as Member[];
+      if (Array.isArray(data) && data.length > 0) {
+        setMembers(data);
       } else {
         setMembers(initialMembers);
       }
+      setIsDirty(false);
     } catch (e) {
-      console.error("Failed to load members", e);
+      console.error("Failed to load members from API", e);
       setMembers(initialMembers);
+      setIsDirty(false);
     }
   };
 
   // 初期ロード + タブに戻ってきたときに常に最新を反映
   useEffect(() => {
-    loadMembersFromStorage();
+    void fetchMembersFromApi();
 
     if (typeof window === "undefined") return;
     const handleFocus = () => {
-      loadMembersFromStorage();
+      if (isDirty) return;
+      void fetchMembersFromApi();
     };
     window.addEventListener("focus", handleFocus);
     return () => {
       window.removeEventListener("focus", handleFocus);
     };
-  }, []);
+  }, [isDirty]);
+
+  // 変更が入ったら自動保存（編集中の消失防止）
+  useEffect(() => {
+    if (members.length === 0) return;
+    if (!isDirty) return;
+
+    const t = window.setTimeout(async () => {
+      try {
+        const res = await fetch("/api/admin/members", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ members }),
+        });
+        if (!res.ok) throw new Error("Failed to autosave members");
+        setIsDirty(false);
+      } catch (e) {
+        console.error("Failed to autosave members", e);
+      }
+    }, 600);
+
+    return () => window.clearTimeout(t);
+  }, [members, isDirty]);
 
   // 保存は「変更を保存」ボタンから明示的に行う
 
@@ -106,6 +128,7 @@ export default function MembersAdminPage() {
       active: true,
     };
     setMembers((prev) => [...prev, newMember]);
+    setIsDirty(true);
 
     setName("");
     setRole("");
@@ -114,24 +137,35 @@ export default function MembersAdminPage() {
 
   const updateMember = (id: string, patch: Partial<Member>) => {
     setMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+    setIsDirty(true);
   };
 
   const deleteMember = (id: string) => {
     if (!window.confirm("このメンバーを削除しますか？")) return;
     setMembers((prev) => prev.filter((m) => m.id !== id));
+    setIsDirty(true);
+    void fetch(`/api/admin/members?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }).catch((e) => console.error("Failed to delete member", e));
   };
 
   const handleManualSave = () => {
-    try {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(members));
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/members", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ members }),
+        });
+        if (!res.ok) throw new Error("Failed to save members");
+        setIsDirty(false);
+        setSaveMessage("メンバー情報を保存しました。");
+        setTimeout(() => setSaveMessage(""), 3000);
+      } catch (e) {
+        console.error("Failed to save members manually", e);
+        setSaveMessage("保存に失敗しました。");
       }
-      setSaveMessage("メンバー情報を保存しました。");
-      setTimeout(() => setSaveMessage(""), 3000);
-    } catch (e) {
-      console.error("Failed to save members manually", e);
-      setSaveMessage("保存に失敗しました。");
-    }
+    })();
   };
 
   return (

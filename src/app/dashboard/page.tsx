@@ -1,5 +1,31 @@
 import Image from "next/image";
 
+function normalizeGoogleSheetsCsvUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.includes("output=csv")) return trimmed;
+
+  try {
+    const u = new URL(trimmed);
+    // pubhtml で公開されている場合は pub + output=csv に変換
+    if (u.pathname.endsWith("/pubhtml")) {
+      u.pathname = u.pathname.replace(/\/pubhtml$/, "/pub");
+      u.searchParams.set("output", "csv");
+      return u.toString();
+    }
+
+    // pub だが output=csv が付いていない場合
+    if (u.pathname.endsWith("/pub")) {
+      u.searchParams.set("output", "csv");
+      return u.toString();
+    }
+
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
 type MembershipKpiRow = {
   year: number;
   month: number;
@@ -264,44 +290,63 @@ function parseSalesCsv(csv: string): SalesKpiRow[] {
   });
 }
 
-async function fetchMembershipKpi(): Promise<MembershipKpiRow[]> {
-  const url = process.env.MEMBERSHIP_KPI_CSV_URL;
+async function fetchMembershipKpi(url?: string): Promise<MembershipKpiRow[]> {
   if (!url) return [];
-
-  const res = await fetch(url, { cache: "no-store" });
+  const normalized = normalizeGoogleSheetsCsvUrl(url);
+  const res = await fetch(normalized, { cache: "no-store" });
   if (!res.ok) return [];
 
   const text = await res.text();
   return parseMembershipCsv(text);
 }
 
-async function fetchPartnerKpi(): Promise<PartnerKpiRow[]> {
-  const url = process.env.PARTNER_KPI_CSV_URL;
+async function fetchPartnerKpi(url?: string): Promise<PartnerKpiRow[]> {
   if (!url) return [];
 
-  const res = await fetch(url, { cache: "no-store" });
+  const normalized = normalizeGoogleSheetsCsvUrl(url);
+  const res = await fetch(normalized, { cache: "no-store" });
   if (!res.ok) return [];
 
   const text = await res.text();
   return parsePartnerCsv(text);
 }
 
-async function fetchSalesKpi(): Promise<SalesKpiRow[]> {
-  const url = process.env.SALES_KPI_CSV_URL;
+async function fetchSalesKpi(url?: string): Promise<SalesKpiRow[]> {
   if (!url) return [];
 
-  const res = await fetch(url, { cache: "no-store" });
+  const normalized = normalizeGoogleSheetsCsvUrl(url);
+  const res = await fetch(normalized, { cache: "no-store" });
   if (!res.ok) return [];
 
   const text = await res.text();
   return parseSalesCsv(text);
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams?: { business?: string } | Promise<{ business?: string }>;
+}) {
+  const resolvedSearchParams = searchParams
+    ? await Promise.resolve(searchParams)
+    : undefined;
+  const business =
+    resolvedSearchParams?.business === "design" ? "design" : "job";
+
+  const membershipUrl =
+    business === "design"
+      ? process.env.MEMBERSHIP_KPI_CSV_URL_DESIGN ?? process.env.MEMBERSHIP_KPI_CSV_URL
+      : process.env.MEMBERSHIP_KPI_CSV_URL;
+  const partnerUrl = business === "design" ? undefined : process.env.PARTNER_KPI_CSV_URL;
+  const salesUrl =
+    business === "design"
+      ? process.env.SALES_KPI_CSV_URL_DESIGN ?? process.env.SALES_KPI_CSV_URL
+      : process.env.SALES_KPI_CSV_URL;
+
   const [membershipKpi, partnerKpi, salesKpi] = await Promise.all([
-    fetchMembershipKpi(),
-    fetchPartnerKpi(),
-    fetchSalesKpi(),
+    fetchMembershipKpi(membershipUrl),
+    fetchPartnerKpi(partnerUrl),
+    fetchSalesKpi(salesUrl),
   ]);
 
   const latestMembership =
@@ -501,9 +546,26 @@ export default async function DashboardPage() {
       : undefined;
 
   const totalSalesActual =
-    latestTotalSales && latestTotalSales.total_sales_actual != null && latestTotalSales.total_sales_actual !== 0
-      ? latestTotalSales.total_sales_actual
-      : eventSalesActual;
+    business === "design"
+      ? [...salesKpi]
+          .sort((a, b) => (a.year - b.year) || (a.month - b.month))
+          .reduce((sum, row) => {
+            const totalActual =
+              row.total_sales_actual != null && row.total_sales_actual !== 0
+                ? row.total_sales_actual
+                : 0;
+            const eventActual =
+              row.event_sales_actual != null && row.event_sales_actual !== 0
+                ? row.event_sales_actual
+                : 0;
+            const actual = totalActual || eventActual;
+            return sum + (actual ?? 0);
+          }, 0)
+      : latestTotalSales &&
+          latestTotalSales.total_sales_actual != null &&
+          latestTotalSales.total_sales_actual !== 0
+        ? latestTotalSales.total_sales_actual
+        : eventSalesActual;
 
   const totalSalesTargetAnnualForYear = latestTotalSales
     ? salesKpi.find(
@@ -649,6 +711,29 @@ export default async function DashboardPage() {
             会員数・パートナー数・売上を月次で追うための、4つの指標ブロックで構成されたダッシュボード（ダミーデータ版）です。
           </p>
         </header>
+
+        <div className="mb-5 flex flex-wrap gap-2">
+          <a
+            href="/dashboard?business=job"
+            className={`rounded-full px-4 py-2 text-xs font-semibold shadow-sm transition ${
+              business === "job"
+                ? "bg-[#9e8d70] text-white"
+                : "border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+            }`}
+          >
+            就活支援事業
+          </a>
+          <a
+            href="/dashboard?business=design"
+            className={`rounded-full px-4 py-2 text-xs font-semibold shadow-sm transition ${
+              business === "design"
+                ? "bg-[#9e8d70] text-white"
+                : "border border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+            }`}
+          >
+            デザイナー育成事業
+          </a>
+        </div>
 
         {/* パートナー紹介マインドマップ案内（小さく） */}
         <p className="mb-2 text-[10px] text-neutral-500 dark:text-neutral-400">
@@ -809,148 +894,150 @@ export default async function DashboardPage() {
         </section>
 
         {/* パートナー提携数 */}
-        <section className="mb-5 rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">パートナー提携数</h2>
-              <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                提携完了企業数（イベントパートナー＋面談パートナー）の月次推移と目標達成度を管理します。
-              </p>
+        {business === "job" && (
+          <section className="mb-5 rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+            <div className="mb-3 flex items-baseline justify-between gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">パートナー提携数</h2>
+                <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                  提携完了企業数（イベントパートナー＋面談パートナー）の月次推移と目標達成度を管理します。
+                </p>
+              </div>
+              <a
+                href="/partners/mindmap"
+                className="inline-flex items-center gap-1 rounded-full bg-[#9e8d70] px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#8b7a5f] dark:bg-[#9e8d70] dark:hover:bg-[#7c6c54]"
+              >
+                <span>紹介マインドマップを見る</span>
+                <span className="text-[10px]">↗</span>
+              </a>
             </div>
-            <a
-              href="/partners/mindmap"
-              className="inline-flex items-center gap-1 rounded-full bg-[#9e8d70] px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-[#8b7a5f] dark:bg-[#9e8d70] dark:hover:bg-[#7c6c54]"
-            >
-              <span>紹介マインドマップを見る</span>
-              <span className="text-[10px]">↗</span>
-            </a>
-          </div>
-          {/* パートナー数のサマリーパネル */}
-          <div className="mb-3 grid gap-2 text-xs sm:grid-cols-3">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">提携パートナー合計</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {partnerActual.toLocaleString()} 社
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">パートナー目標数</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {partnerTarget.toLocaleString()} 社
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">目標達成率</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {partnerAchievementRate}%
-              </p>
-              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-                <div
-                  className="h-full rounded-full bg-sky-500"
-                  style={{ width: `${Math.min(partnerAchievementRate, 100)}%` }}
-                />
+            {/* パートナー数のサマリーパネル */}
+            <div className="mb-3 grid gap-2 text-xs sm:grid-cols-3">
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
+                <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">提携パートナー合計</p>
+                <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
+                  {partnerActual.toLocaleString()} 社
+                </p>
+              </div>
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
+                <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">パートナー目標数</p>
+                <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
+                  {partnerTarget.toLocaleString()} 社
+                </p>
+              </div>
+              <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
+                <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">目標達成率</p>
+                <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
+                  {partnerAchievementRate}%
+                </p>
+                <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+                  <div
+                    className="h-full rounded-full bg-sky-500"
+                    style={{ width: `${Math.min(partnerAchievementRate, 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-1">
-            <div className="flex flex-col justify-between">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">月次推移（サンプル）</p>
-              <div className="mt-2 flex h-40 rounded-xl border border-neutral-100 bg-neutral-100 px-3 pt-2 pb-1 text-[10px] text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/60">
-                {/* 縦軸ラベル（0 / 2 / 4 / 6 固定） */}
-                <div className="mr-2 flex flex-col justify-between pb-3 pt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                  {[6, 4, 2, 0].map((v) => (
-                    <span key={v}>{v}</span>
-                  ))}
-                </div>
-                {/* グリッド＋バー */}
-                <div className="flex-1 pb-0">
-                  <div className="relative flex h-full items-end gap-2">
-                    {/* 横線ガイド */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 flex h-full flex-col justify-between">
-                      {[0, 1, 2, 3].map((i) => (
+            <div className="grid gap-3 md:grid-cols-1">
+              <div className="flex flex-col justify-between">
+                <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">月次推移（サンプル）</p>
+                <div className="mt-2 flex h-40 rounded-xl border border-neutral-100 bg-neutral-100 px-3 pt-2 pb-1 text-[10px] text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/60">
+                  {/* 縦軸ラベル（0 / 2 / 4 / 6 固定） */}
+                  <div className="mr-2 flex flex-col justify-between pb-3 pt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                    {[6, 4, 2, 0].map((v) => (
+                      <span key={v}>{v}</span>
+                    ))}
+                  </div>
+                  {/* グリッド＋バー */}
+                  <div className="flex-1 pb-0">
+                    <div className="relative flex h-full items-end gap-2">
+                      {/* 横線ガイド */}
+                      <div className="pointer-events-none absolute inset-x-0 top-0 flex h-full flex-col justify-between">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="h-px w-full border-t border-dashed border-neutral-200 dark:border-neutral-700"
+                          />
+                        ))}
+                      </div>
+                      {/* 棒グラフ（データが入っている月まで） */}
+                      {partnerChartActuals.map((value, idx) => (
                         <div
-                          key={i}
-                          className="h-px w-full border-t border-dashed border-neutral-200 dark:border-neutral-700"
-                        />
+                          key={MONTH_LABELS[idx]}
+                          className="relative z-10 flex flex-1 flex-col items-center justify-end"
+                        >
+                          <div
+                            className="w-full max-w-[18px] rounded-t-md"
+                            style={{ height: `${(value / 6) * 110}px`, backgroundColor: "#9e8d70" }}
+                          />
+                        </div>
                       ))}
                     </div>
-                    {/* 棒グラフ（データが入っている月まで） */}
-                    {partnerChartActuals.map((value, idx) => (
-                      <div
-                        key={MONTH_LABELS[idx]}
-                        className="relative z-10 flex flex-1 flex-col items-center justify-end"
-                      >
-                        <div
-                          className="w-full max-w-[18px] rounded-t-md"
-                          style={{ height: `${(value / 6) * 110}px`, backgroundColor: "#9e8d70" }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {/* X軸ラベル（グラフ枠の外、下側） */}
-                  <div className="mt-1 flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
-                    {MONTH_LABELS.slice(0, partnerChartActuals.length).map((label) => (
-                      <span key={label} className="flex-1 text-center">
-                        {label}
-                      </span>
-                    ))}
+                    {/* X軸ラベル（グラフ枠の外、下側） */}
+                    <div className="mt-1 flex justify-between text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {MONTH_LABELS.slice(0, partnerChartActuals.length).map((label) => (
+                        <span key={label} className="flex-1 text-center">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col justify-between">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">月別サマリ（サンプル・単位：社）</p>
-              <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-100 bg-neutral-50 p-3 text-[11px] dark:border-neutral-700 dark:bg-neutral-900/60">
-                <table className="min-w-full border-collapse text-right text-[12px] md:text-sm">
-                  <thead>
-                    <tr className="border-b border-neutral-100 text-[10px] text-neutral-500 dark:border-neutral-800">
-                      <th className="py-1 pr-2 text-left">項目</th>
-                      {MONTH_LABELS.map((label, i) => (
-                        <th key={i} className="py-1 px-1 font-semibold">
-                          {label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
-                      <td className="py-1 pr-2 text-left text-neutral-500">実数値</td>
-                      {partnerMonthlyActuals.map((v, idx) => (
-                        <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
-                          {v === 0 ? "–" : v}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
-                      <td className="py-1 pr-2 text-left text-neutral-500">月間目標</td>
-                      {partnerMonthlyTargets.map((v, idx) => (
-                        <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
-                          {v === 0 ? "–" : v}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
-                      <td className="py-1 pr-2 text-left text-neutral-500">月間目標達成率</td>
-                      {partnerMonthlyAchievementRates.map((r, idx) => (
-                        <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
-                          {partnerMonthlyActuals[idx] === 0 ? "–" : `${r}%`}
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-1 pr-2 text-left text-neutral-500">累計達成率（年間）</td>
-                      {partnerMonthlyCumulativeRates.map((r, idx) => (
-                        <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
-                          {partnerMonthlyCumulativeActuals[idx] === 0 ? "–" : `${r}%`}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="flex flex-col justify-between">
+                <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">月別サマリ（サンプル・単位：社）</p>
+                <div className="mt-2 overflow-x-auto rounded-xl border border-neutral-100 bg-neutral-50 p-3 text-[11px] dark:border-neutral-700 dark:bg-neutral-900/60">
+                  <table className="min-w-full border-collapse text-right text-[12px] md:text-sm">
+                    <thead>
+                      <tr className="border-b border-neutral-100 text-[10px] text-neutral-500 dark:border-neutral-800">
+                        <th className="py-1 pr-2 text-left">項目</th>
+                        {MONTH_LABELS.map((label, i) => (
+                          <th key={i} className="py-1 px-1 font-semibold">
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
+                        <td className="py-1 pr-2 text-left text-neutral-500">実数値</td>
+                        {partnerMonthlyActuals.map((v, idx) => (
+                          <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
+                            {v === 0 ? "–" : v}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
+                        <td className="py-1 pr-2 text-left text-neutral-500">月間目標</td>
+                        {partnerMonthlyTargets.map((v, idx) => (
+                          <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
+                            {v === 0 ? "–" : v}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="border-b border-neutral-100 last:border-0 dark:border-neutral-800">
+                        <td className="py-1 pr-2 text-left text-neutral-500">月間目標達成率</td>
+                        {partnerMonthlyAchievementRates.map((r, idx) => (
+                          <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
+                            {partnerMonthlyActuals[idx] === 0 ? "–" : `${r}%`}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-1 pr-2 text-left text-neutral-500">累計達成率（年間）</td>
+                        {partnerMonthlyCumulativeRates.map((r, idx) => (
+                          <td key={idx} className="py-1 px-1 font-medium text-neutral-900 dark:text-neutral-50">
+                            {partnerMonthlyCumulativeActuals[idx] === 0 ? "–" : `${r}%`}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* KGI（売上）セクション見出し */}
         <div className="mb-2 mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400 md:text-sm">
@@ -961,16 +1048,22 @@ export default async function DashboardPage() {
         <section className="mb-2 rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">月間総売上</h2>
+              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">
+                {business === "design" ? "総売上（累計）" : "月間総売上"}
+              </h2>
               <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                現時点では「月間イベント送客売上」と一致し、将来的にはその他売上源を加えた総売上として集計します。
+                {business === "design"
+                  ? "これまでの実数値の合計（累計）を表示します。"
+                  : "現時点では「月間イベント送客売上」と一致し、将来的にはその他売上源を加えた総売上として集計します。"}
               </p>
             </div>
           </div>
           {/* 総売上のサマリーパネル */}
           <div className="mb-3 grid gap-2 text-xs sm:grid-cols-3">
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">総売上</p>
+              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+                {business === "design" ? "総売上（累計）" : "総売上"}
+              </p>
               <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
                 {totalSalesActual.toLocaleString()} 円
               </p>

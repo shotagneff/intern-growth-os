@@ -24,13 +24,13 @@ export function MobileNav() {
         <Link href="/" onClick={close}>
           <div className="flex flex-col">
             <span
-              className="text-xs font-semibold uppercase tracking-wide"
+              className="block text-xs font-semibold uppercase tracking-wide"
               style={{ color: MAIN_COLOR }}
             >
               intern growth OS
             </span>
             <span className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
-              成長ダッシュボード
+              インターンダッシュボード
             </span>
           </div>
         </Link>

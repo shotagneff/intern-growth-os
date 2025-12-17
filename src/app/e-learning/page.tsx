@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 const LOGIN_PASSWORD = "seekad_learning"; // いまは未使用（パスワード画面なし運用）
 
 const STORAGE_KEY_WATCHED = "learning_portal_watched_videos";
+const STORAGE_KEY_SECTION2_CHECKLIST = "intern_growth_os_section2_checklist";
+const STORAGE_KEY_SECTION3_CHECKLIST = "intern_growth_os_section3_checklist";
 const MAIN_COLOR = "#9e8d70";
 
 function parseEpisodeNumber(label?: string | null): number | null {
@@ -30,6 +32,7 @@ type Video = {
   updatedAt?: string;
   durationMinutes?: number;
   instructorKey?: keyof typeof INSTRUCTORS;
+  instructorId?: string;
   instructorName?: string;
   instructorTitle?: string;
   coverImageUrl?: string;
@@ -46,10 +49,20 @@ type AdminVideoFromApi = {
   sectionId?: number | null;
   episodeLabel?: string | null;
   durationMinutes?: number | null;
+  instructorId?: string | null;
   instructorName?: string | null;
   materialLabel?: string | null;
   materialUrl?: string | null;
   updatedAt?: string | null;
+};
+
+type Member = {
+  id: string;
+  name: string;
+  team?: string;
+  role?: string;
+  iconUrl?: string;
+  active: boolean;
 };
 
 const INSTRUCTORS = {
@@ -155,10 +168,20 @@ const VIDEOS: Video[] = [
 export default function ELearningPage() {
   const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("all");
-  const [status, setStatus] = useState<"all" | "watched" | "unwatched">("all");
+  const [membersById, setMembersById] = useState<Map<string, Member>>(new Map());
   const [watchedSet, setWatchedSet] = useState<Set<string>>(new Set());
+  const [achievementToast, setAchievementToast] = useState<string | null>(null);
+  const [highlightVideoId, setHighlightVideoId] = useState<string | null>(null);
+  const [section2Checklist, setSection2Checklist] = useState({
+    googleFormSubmitted: false,
+    contractSigned: false,
+    lineGroupPosted: false,
+    proKinLoggedIn: false,
+  });
+  const [section3Checklist, setSection3Checklist] = useState({
+    asanaAccessible: false,
+    asanaRecurringTaskSet: false,
+  });
 
   const totalVideoCount = useMemo(() => videos.length, [videos]);
   const totalWatchedCount = useMemo(
@@ -181,6 +204,38 @@ export default function ELearningPage() {
     }
   }, []);
 
+  // localStorage からセクション3チェックリストを復元
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY_SECTION3_CHECKLIST);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<typeof section3Checklist>;
+      setSection3Checklist((prev) => ({
+        ...prev,
+        ...parsed,
+      }));
+    } catch (e) {
+      console.error("failed to load section3 checklist", e);
+    }
+  }, []);
+
+  // localStorage からセクション2チェックリストを復元
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY_SECTION2_CHECKLIST);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<typeof section2Checklist>;
+      setSection2Checklist((prev) => ({
+        ...prev,
+        ...parsed,
+      }));
+    } catch (e) {
+      console.error("failed to load section2 checklist", e);
+    }
+  }, []);
+
   // 視聴済みセットの更新を localStorage に保存
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -192,6 +247,32 @@ export default function ELearningPage() {
     }
   }, [watchedSet]);
 
+  // セクション2チェックリストの更新を localStorage に保存
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY_SECTION2_CHECKLIST,
+        JSON.stringify(section2Checklist)
+      );
+    } catch (e) {
+      console.error("failed to save section2 checklist", e);
+    }
+  }, [section2Checklist]);
+
+  // セクション3チェックリストの更新を localStorage に保存
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY_SECTION3_CHECKLIST,
+        JSON.stringify(section3Checklist)
+      );
+    } catch (e) {
+      console.error("failed to save section3 checklist", e);
+    }
+  }, [section3Checklist]);
+
   // 初回マウント時に DB(API) から最新の一覧を取得
   useEffect(() => {
     const fetchVideos = async () => {
@@ -202,7 +283,11 @@ export default function ELearningPage() {
         if (!Array.isArray(data)) return;
 
         const mapped: Video[] = data.map((v) => {
-          const instructorKey = inferInstructorKey(v.instructorName);
+          const member = v.instructorId ? membersById.get(v.instructorId) : undefined;
+          const resolvedInstructorName = v.instructorId
+            ? member?.name || v.instructorName
+            : v.instructorName;
+          const instructorKey = inferInstructorKey(resolvedInstructorName);
           const updatedAtDate =
             typeof v.updatedAt === "string" && v.updatedAt.length >= 10
               ? v.updatedAt.slice(0, 10)
@@ -222,8 +307,11 @@ export default function ELearningPage() {
                 ? v.durationMinutes
                 : undefined,
             instructorKey,
-            instructorName: v.instructorName ?? undefined,
+            instructorId: v.instructorId ?? undefined,
+            instructorName: resolvedInstructorName ?? undefined,
+            instructorTitle: member?.role || member?.team || undefined,
             coverImageUrl: v.coverImageUrl ?? undefined,
+            instructorAvatarUrl: member?.iconUrl || undefined,
             materials:
               v.materialLabel || v.materialUrl
                 ? [
@@ -245,45 +333,113 @@ export default function ELearningPage() {
     };
 
     void fetchVideos();
+  }, [membersById]);
+
+  // 講師（メンバー）情報を取得
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const res = await fetch("/api/admin/members", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as Member[];
+        if (!Array.isArray(data)) return;
+        const map = new Map<string, Member>();
+        data.forEach((m) => map.set(m.id, m));
+        setMembersById(map);
+      } catch (e) {
+        console.error("failed to fetch members", e);
+      }
+    };
+
+    void fetchMembers();
   }, []);
 
-  const filteredVideos = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-
-    return videos.filter((video) => {
-      if (keyword) {
-        const text = `${video.title} ${video.description || ""} ${
-          video.instructorName || ""
-        } ${video.instructorTitle || ""}`.toLowerCase();
-        if (!text.includes(keyword)) return false;
-      }
-
-      if (category !== "all" && video.category !== category) return false;
-
-      const isWatched = watchedSet.has(video.id);
-      if (status === "watched" && !isWatched) return false;
-      if (status === "unwatched" && isWatched) return false;
-
-      return true;
-    });
-  }, [search, category, status, watchedSet, videos]);
-
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    videos.forEach((v) => set.add(v.category));
-    return Array.from(set).sort();
-  }, [videos]);
+  const filteredVideos = useMemo(() => videos, [videos]);
 
   const toggleWatched = (id: string) => {
     setWatchedSet((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const willBeWatched = !next.has(id);
+      if (willBeWatched) {
+        next.add(id);
+        setHighlightVideoId(id);
+        setAchievementToast("視聴済みにしました！おつかれさまです");
+      } else {
+        next.delete(id);
+      }
       return next;
     });
   };
 
+  // 達成感の演出（カードのハイライト）を一定時間で解除
+  useEffect(() => {
+    if (!highlightVideoId) return;
+    const t = window.setTimeout(() => setHighlightVideoId(null), 800);
+    return () => window.clearTimeout(t);
+  }, [highlightVideoId]);
+
+  // トーストを一定時間で消す
+  useEffect(() => {
+    if (!achievementToast) return;
+    const t = window.setTimeout(() => setAchievementToast(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [achievementToast]);
+
+  const section2Videos = useMemo(
+    () => videos.filter((v) => v.sectionId === 2),
+    [videos]
+  );
+  const isSection2WatchedAll = useMemo(() => {
+    if (section2Videos.length === 0) return false;
+    return section2Videos.every((v) => watchedSet.has(v.id));
+  }, [section2Videos, watchedSet]);
+  const isSection2ChecklistAll = useMemo(() => {
+    return (
+      section2Checklist.googleFormSubmitted &&
+      section2Checklist.contractSigned &&
+      section2Checklist.lineGroupPosted &&
+      section2Checklist.proKinLoggedIn
+    );
+  }, [section2Checklist]);
+  const isSection2Completed = useMemo(() => {
+    return isSection2WatchedAll && isSection2ChecklistAll;
+  }, [isSection2WatchedAll, isSection2ChecklistAll]);
+
+  const section3Videos = useMemo(
+    () => videos.filter((v) => v.sectionId === 3),
+    [videos]
+  );
+  const isSection3WatchedAll = useMemo(() => {
+    if (section3Videos.length === 0) return false;
+    return section3Videos.every((v) => watchedSet.has(v.id));
+  }, [section3Videos, watchedSet]);
+  const isSection3ChecklistAll = useMemo(() => {
+    return section3Checklist.asanaAccessible && section3Checklist.asanaRecurringTaskSet;
+  }, [section3Checklist]);
+  const isSection3Completed = useMemo(() => {
+    return isSection3WatchedAll && isSection3ChecklistAll;
+  }, [isSection3WatchedAll, isSection3ChecklistAll]);
+
+  const isSectionUnlocked = (sectionId: number) => {
+    if (sectionId <= 2) return true;
+    if (sectionId === 3) return isSection2Completed;
+    return isSection2Completed && isSection3Completed;
+  };
+
   const openVideo = (video: Video) => {
+    const sectionId = video.sectionId ?? 0;
+    if (sectionId > 2 && !isSectionUnlocked(sectionId)) {
+      if (sectionId === 3) {
+        alert(
+          "セクション2のチェックリストと動画視聴を完了すると、セクション3が解放されます。"
+        );
+      } else {
+        alert(
+          "セクション2・セクション3のチェックリストと動画視聴を完了すると、このセクションが解放されます。"
+        );
+      }
+      return;
+    }
     // sec1-*** などアプリ内の詳細ページが用意されている動画は、内部遷移させる
     if (video.id.startsWith("sec")) {
       router.push(`/videos/${video.id}`);
@@ -346,12 +502,26 @@ export default function ELearningPage() {
         description:
           "業務で使う主要ツールの初期設定や、コミュニケーションの基本ルールを押さえます。",
       };
+    if (sectionId === 3)
+      return {
+        title: "セクション3：日々の業務のポイント",
+        description: "日々の業務におけるポイントや気を付けるべき点を解説します",
+      };
     return { title: "その他", description: "" };
   };
 
   return (
     <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
+        {achievementToast && (
+          <div className="fixed bottom-5 right-5 z-50">
+            <div className="flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-semibold text-white shadow-lg">
+              <span aria-hidden>✅</span>
+              <span>{achievementToast}</span>
+            </div>
+          </div>
+        )}
+
         <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
             Learning Hub
@@ -426,37 +596,6 @@ export default function ELearningPage() {
           </div>
         </section>
 
-        <section className="mb-6 flex flex-wrap gap-2 rounded-xl border border-neutral-200 bg-white px-3 py-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-          <input
-            type="text"
-            placeholder="キーワード検索"
-            className="min-w-[160px] flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-xs outline-none focus:ring"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="min-w-[140px] rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            <option value="all">すべてのカテゴリ</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <select
-            className="min-w-[140px] rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-xs outline-none focus:ring"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as typeof status)}
-          >
-            <option value="all">すべて</option>
-            <option value="unwatched">未視聴のみ</option>
-            <option value="watched">視聴済みのみ</option>
-          </select>
-        </section>
-
         {sorted.length === 0 && (
           <p className="mt-6 text-xs text-neutral-500">
             条件に合う動画がありません。
@@ -468,6 +607,7 @@ export default function ELearningPage() {
           const watchedCount = videos.filter((v) => watchedSet.has(v.id)).length;
           const totalCount = videos.length;
           const percent = totalCount ? Math.round((watchedCount / totalCount) * 100) : 0;
+          const isUnlocked = sectionId === 0 ? true : isSectionUnlocked(sectionId);
 
           return (
             <section key={sectionId} className="mb-8 pt-2">
@@ -481,6 +621,129 @@ export default function ELearningPage() {
                       {info.description}
                     </p>
                   )}
+
+                  {sectionId === 2 && (
+                    <div className="mt-3 rounded-xl border border-neutral-200 bg-white/70 px-3 py-3 text-[11px] shadow-sm dark:border-neutral-800 dark:bg-neutral-900/50">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                        Section 2 Checklist
+                      </p>
+                      <p className="mt-1 text-[11px] text-neutral-700 dark:text-neutral-200">
+                        4項目 + セクション2の動画を全て視聴すると、次のセクションが解放されます。
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section2Checklist.googleFormSubmitted}
+                            onChange={(e) =>
+                              setSection2Checklist((prev) => ({
+                                ...prev,
+                                googleFormSubmitted: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            インターン登録フォームの提出
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section2Checklist.contractSigned}
+                            onChange={(e) =>
+                              setSection2Checklist((prev) => ({
+                                ...prev,
+                                contractSigned: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            契約書を締結した
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section2Checklist.lineGroupPosted}
+                            onChange={(e) =>
+                              setSection2Checklist((prev) => ({
+                                ...prev,
+                                lineGroupPosted: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            長期インターンLINEグループへ参加して意気込みを投稿できた
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section2Checklist.proKinLoggedIn}
+                            onChange={(e) =>
+                              setSection2Checklist((prev) => ({
+                                ...prev,
+                                proKinLoggedIn: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            プロ勤にログインして出勤できた
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {sectionId === 3 && (
+                    <div className="mt-3 rounded-xl border border-neutral-200 bg-white/70 px-3 py-3 text-[11px] shadow-sm dark:border-neutral-800 dark:bg-neutral-900/50">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                        Section 3 Checklist
+                      </p>
+                      <p className="mt-1 text-[11px] text-neutral-700 dark:text-neutral-200">
+                        2項目 + セクション3の動画を全て視聴すると、次のセクションが解放されます。
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section3Checklist.asanaAccessible}
+                            onChange={(e) =>
+                              setSection3Checklist((prev) => ({
+                                ...prev,
+                                asanaAccessible: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            asanaへPC、スマホからアクセスできましたか？
+                          </span>
+                        </label>
+                        <label className="flex items-start gap-2 rounded-lg border border-neutral-200 bg-white px-2.5 py-2 dark:border-neutral-800 dark:bg-neutral-900">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={section3Checklist.asanaRecurringTaskSet}
+                            onChange={(e) =>
+                              setSection3Checklist((prev) => ({
+                                ...prev,
+                                asanaRecurringTaskSet: e.target.checked,
+                              }))
+                            }
+                          />
+                          <span className="text-[11px] text-neutral-700 dark:text-neutral-200">
+                            出勤日用の「出勤・日報タスク」はAsanaの固定曜日タスクに設定済みですか？
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {totalCount > 0 && (
                     <>
                       <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
@@ -503,6 +766,8 @@ export default function ELearningPage() {
               <div className="flex gap-5 overflow-x-auto pb-2">
                 {videos.map((video) => {
                   const isWatched = watchedSet.has(video.id);
+                  const isLocked = (video.sectionId ?? 0) > 2 && !isUnlocked;
+                  const isHighlighting = highlightVideoId === video.id;
 
                   const tpl = video.instructorKey
                     ? INSTRUCTORS[video.instructorKey]
@@ -517,8 +782,30 @@ export default function ELearningPage() {
                   return (
                     <article
                       key={video.id}
-                      className="flex min-w-[260px] max-w-[320px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white pb-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80 sm:min-w-[280px] lg:min-w-[300px]"
+                      className={`relative flex min-w-[260px] max-w-[320px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white pb-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80 sm:min-w-[280px] lg:min-w-[300px] ${
+                        isLocked ? "opacity-70" : ""
+                      } ${
+                        isHighlighting
+                          ? "ring-2 ring-emerald-400 shadow-[0_10px_30px_rgba(16,185,129,0.25)]"
+                          : ""
+                      }`}
                     >
+                      {isLocked && (
+                        <div className="absolute inset-0 z-20 flex items-center justify-center">
+                          <div className="absolute inset-0 bg-black/35" />
+                          <div className="relative z-10 flex flex-col items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-4 text-center backdrop-blur">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/30 text-[22px] text-white">
+                              🔒
+                            </div>
+                            <p className="text-[12px] font-semibold text-white">ロック中</p>
+                            <p className="max-w-[220px] text-[11px] leading-relaxed text-white/90">
+                              セクションのチェックと視聴完了で解放されます
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={isLocked ? "pointer-events-none" : ""}>
                       {video.coverImageUrl && (
                         <div className="px-2 pt-3">
                           <img
@@ -622,17 +909,29 @@ export default function ELearningPage() {
                         <button
                           type="button"
                           onClick={() => openVideo(video)}
-                          className="flex-1 rounded-full bg-[#ad9c79] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#9b8a65]"
+                          disabled={isLocked}
+                          className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm ${
+                            isLocked
+                              ? "bg-neutral-300 cursor-not-allowed"
+                              : "bg-[#ad9c79] hover:bg-[#9b8a65]"
+                          }`}
                         >
-                          動画を開く
+                          {isLocked ? "ロック中" : "詳細を確認する"}
                         </button>
                         <button
                           type="button"
                           onClick={() => toggleWatched(video.id)}
-                          className="flex-1 rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-700 hover:border-neutral-400"
+                          disabled={isLocked}
+                          className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-sm ${
+                            isWatched
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                              : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+                          }`}
                         >
                           {isWatched ? "未視聴に戻す" : "視聴済みにする"}
                         </button>
+                      </div>
+
                       </div>
                     </article>
                   );

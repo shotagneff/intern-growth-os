@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function Home() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [sheetEvents, setSheetEvents] = useState<Event[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [locationFilter, setLocationFilter] = useState<EventLocation | "all">("all");
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth(); // 0-indexed
@@ -42,20 +46,57 @@ export default function Home() {
   type EventLocation = "online" | "osaka" | "tokyo" | "other";
 
   type Event = {
+    id: string;
     date: string; // YYYY-MM-DD
     title: string;
     type: EventType;
     location: EventLocation;
-    description?: string;
-    applyUrl?: string;
+    conceptSummary?: string;
+    industries?: string;
+    companyCount?: number | null;
+    capacity?: number | null;
+    target?: string;
+    reserveUrl?: string;
     time?: string; // 例: "19:00〜21:00"
+    applyKeyword?: string;
+  };
+
+  type Announcement = {
+    id: string;
+    title: string;
+    body: string;
+    category?: string;
+    linkUrl?: string;
+    publishedAt?: string;
+    authorMemberId?: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
+
+  type Member = {
+    id: string;
+    name: string;
+    team?: string;
+    role?: string;
+    iconUrl?: string;
+    active: boolean;
+  };
+
+  const formatAnnouncementDate = (a: Announcement): string => {
+    const raw = (a.publishedAt || a.updatedAt || a.createdAt || "").trim();
+    if (!raw) return "";
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString("ja-JP");
   };
 
   const typeLabel: Record<EventType, string> = {
     internal: "社内イベント",
     jobfair: "就活イベント",
     training: "定期研修",
-    other: "その他",
+    other: "就活イベント",
   };
 
   const locationLabel: Record<EventLocation, string> = {
@@ -66,93 +107,141 @@ export default function Home() {
   };
 
   const buildApplyKeyword = (event: Event) => {
-    // 応募用キーワード（LINE応答メッセージ用）を自動生成（ダミー）
-    // 現状は就活イベント（jobfair）のみに利用
-    const base = "応募:就活イベント";
-    const loc =
-      event.location === "online"
-        ? "オンライン"
-        : event.location === "osaka"
-        ? "大阪"
-        : event.location === "tokyo"
-        ? "東京"
+    const base = event.applyKeyword?.trim()
+      ? event.applyKeyword.trim()
+      : event.type === "jobfair"
+        ? "応募"
         : "";
+    const loc = event.location === "other"
+      ? ""
+      : ` ${locationLabel[event.location]}`;
     return `${base} ${loc} ${event.title}`.trim();
   };
 
-  const dummyEvents: Event[] = [
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-05`,
-      title: "社内キックオフMTG",
-      type: "internal",
-      location: "online",
-      description: "全メンバー参加の月初キックオフミーティング",
-      applyUrl: "https://example.com/internal-kickoff-form",
-      time: "19:00〜20:30",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-12`,
-      title: "就活イベント（大阪）",
-      type: "jobfair",
-      location: "osaka",
-      description: "インターンも同席する対面就活イベント",
-      time: "13:00〜17:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-12`,
-      title: "内定者向けキャリア相談会",
-      type: "internal",
-      location: "online",
-      description: "就活イベント後に行う社内キャリア相談・振り返り会（ダミー）",
-      applyUrl: "https://example.com/internal-career-meeting",
-      time: "18:00〜19:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-18`,
-      title: "就活イベント（オンライン）",
-      type: "jobfair",
-      location: "online",
-      description: "オンライン開催の就活イベント",
-      time: "16:00〜18:00",
-    },
-    {
-      date: `${year}-${String(month + 1).padStart(2, "0")}-25`,
-      title: "定期研修（ロープレ会）",
-      type: "training",
-      location: "online",
-      description: "営業ロープレとフィードバックの定期研修",
-      time: "10:00〜12:00",
-    },
-    // 来月分のダミーイベント
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-03`,
-      title: "来月 社内共有MTG",
-      type: "internal",
-      location: "online",
-      description: "来月の目標共有とメンバーアップデート（ダミー）",
-      applyUrl: "https://example.com/next-internal-sharing",
-      time: "19:00〜20:00",
-    },
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-10`,
-      title: "来月 就活イベント（東京）",
-      type: "jobfair",
-      location: "tokyo",
-      description: "来月開催予定の就活イベント（東京会場・ダミー）",
-      time: "13:00〜17:00",
-    },
-    {
-      date: `${nextYear}-${String(nextMonth + 1).padStart(2, "0")}-21`,
-      title: "来月 定期研修（ロープレ会）",
-      type: "training",
-      location: "online",
-      description: "来月の営業ロープレとフィードバック研修（ダミー）",
-      time: "10:00〜12:00",
-    },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/events", { cache: "no-store" });
+        if (!res.ok) return;
+        const rows = (await res.json()) as Array<Record<string, unknown>>;
+        if (!Array.isArray(rows)) return;
+
+        const normalizeLocation = (place: string, venue: string): EventLocation => {
+          const v = `${place} ${venue}`.trim();
+          if (v.includes("オンライン") || v.toLowerCase().includes("online")) return "online";
+          if (v.includes("大阪")) return "osaka";
+          if (v.includes("東京")) return "tokyo";
+          return "other";
+        };
+
+        const mapped: Event[] = rows
+          .map((r) => {
+            const id = String(r.id ?? "").trim();
+            const date = String(r.date ?? "").trim();
+            const companyName = String(r.companyName ?? "").trim();
+            const programName = String(r.programName ?? "").trim();
+            const place = String(r.place ?? "").trim();
+            const venue = String(r.venue ?? "").trim();
+            const conceptSummary = String(r.conceptSummary ?? "").trim();
+            const industries = String(r.industries ?? "").trim();
+            const companyCountRaw = String(r.companyCount ?? "").trim();
+            const capacityRaw = String(r.capacity ?? "").trim();
+            const target = String(r.target ?? "").trim();
+            const reserveUrl = String(r.reserveUrl ?? "").trim();
+            const time = String(r.time ?? "").trim();
+            const lineKeyword = String(r.lineKeyword ?? "").trim();
+
+            const isAdmin = id.startsWith("admin:");
+
+            const normalizeType = (raw: string): EventType => {
+              const v = raw.trim().toLowerCase();
+              if (v === "training" || v.includes("研修")) return "training";
+              if (v === "internal" || v.includes("社内")) return "internal";
+              if (v === "jobfair" || v.includes("job")) return "jobfair";
+              return "other";
+            };
+
+            if (!date || !programName) return null;
+
+            const type: EventType = isAdmin ? normalizeType(String(r.type ?? "")) : "jobfair";
+
+            return {
+              id,
+              date,
+              title: isAdmin ? programName : companyName ? `${companyName}｜${programName}` : programName,
+              type,
+              location: normalizeLocation(place, venue),
+              conceptSummary: conceptSummary || undefined,
+              industries: industries || undefined,
+              companyCount: companyCountRaw ? Number(companyCountRaw.replace(/,/g, "")) : null,
+              capacity: capacityRaw ? Number(capacityRaw.replace(/,/g, "")) : null,
+              target: target || undefined,
+              reserveUrl: reserveUrl || undefined,
+              time: time || undefined,
+              applyKeyword: lineKeyword || undefined,
+            } as Event;
+          })
+          .filter((v): v is Event => v != null)
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        setSheetEvents(mapped);
+      } catch (e) {
+        console.error("failed to fetch events", e);
+      }
+    };
+
+    void load();
+  }, []);
+
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      try {
+        const res = await fetch("/api/announcements", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as Announcement[];
+        if (!Array.isArray(data)) return;
+        setAnnouncements(data);
+      } catch (e) {
+        console.error("failed to fetch announcements", e);
+      }
+    };
+
+    void loadAnnouncements();
+  }, []);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        const res = await fetch("/api/admin/members", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as Member[];
+        if (!Array.isArray(data)) return;
+        setMembers(data);
+      } catch (e) {
+        console.error("failed to fetch members", e);
+      }
+    };
+
+    void loadMembers();
+  }, []);
+
+  const membersById = useMemo(() => {
+    const map = new Map<string, Member>();
+    for (const m of members) map.set(m.id, m);
+    return map;
+  }, [members]);
+
+  const allEvents = useMemo(() => {
+    return sheetEvents;
+  }, [sheetEvents]);
+
+  const visibleEvents = useMemo(() => {
+    if (locationFilter === "all") return allEvents;
+    return allEvents.filter((e) => e.location === locationFilter);
+  }, [allEvents, locationFilter]);
 
   const eventsByDate = new Map<string, Event[]>();
-  dummyEvents.forEach((event) => {
+  visibleEvents.forEach((event) => {
     const arr = eventsByDate.get(event.date) ?? [];
     arr.push(event);
     eventsByDate.set(event.date, arr);
@@ -166,7 +255,7 @@ export default function Home() {
     <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 space-y-8">
         {/* ヘッダー */}
-        <header className="border-b border-neutral-200 pb-5 dark:border-neutral-800">
+        <header className="pb-5">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
             intern growth OS
           </p>
@@ -183,23 +272,98 @@ export default function Home() {
               ホーム
             </h1>
           </div>
-          <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
-            intern growth OS の入り口となるホームです。日報・売上/KPI・動画研修・パートナー紹介・ランキング・ドキュメントなど、長期インターンの成長と運営に必要な機能へここからアクセスできます。
-          </p>
         </header>
+
+        {announcements.length > 0 && (
+          <section className="pt-0">
+            <div>
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                  最新ニュース
+                </h2>
+              </div>
+
+              <div className="mt-1 border-t border-neutral-200 dark:border-neutral-800" />
+              <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+              {announcements.map((a) => {
+                const dateText = formatAnnouncementDate(a);
+
+                const author = a.authorMemberId ? membersById.get(a.authorMemberId) : undefined;
+
+                const Wrapper: any = a.linkUrl ? "a" : "div";
+                const wrapperProps = a.linkUrl
+                  ? {
+                      href: a.linkUrl,
+                      target: "_blank",
+                      rel: "noreferrer",
+                    }
+                  : {};
+
+                return (
+                  <Wrapper
+                    key={a.id}
+                    {...wrapperProps}
+                    className="block py-3"
+                  >
+                    <div className="grid gap-2 sm:grid-cols-[160px_1fr] sm:gap-6">
+                      <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 tabular-nums">
+                        {dateText}
+                        {author && (
+                          <div className="mt-1 flex items-center gap-2 text-[11px] font-medium text-neutral-500 dark:text-neutral-400">
+                            {author.iconUrl ? (
+                              <Image
+                                src={author.iconUrl}
+                                alt=""
+                                width={18}
+                                height={18}
+                                className="h-[18px] w-[18px] rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-[18px] w-[18px] rounded-full bg-neutral-200 dark:bg-neutral-800" />
+                            )}
+                            <span>{author.name}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold leading-snug text-neutral-900 dark:text-neutral-50">
+                          {a.title}
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-[12px] leading-snug text-neutral-600 dark:text-neutral-300">
+                          {a.body}
+                        </div>
+                        {a.linkUrl && (
+                          <div className="mt-2 text-[11px] font-semibold text-neutral-700 underline decoration-neutral-300 underline-offset-4 hover:decoration-neutral-500 dark:text-neutral-200 dark:decoration-neutral-700 dark:hover:decoration-neutral-500">
+                            詳細を見る ↗
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Wrapper>
+                );
+              })}
+              </div>
+              <div className="border-b border-neutral-200 dark:border-neutral-800" />
+            </div>
+          </section>
+        )}
 
         {/* カレンダー＋詳細 */}
         <section className="pt-4 text-xs text-neutral-600 dark:text-neutral-300">
           <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-            カレンダー（ダミー）
+            カレンダー
           </h2>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            今月と来月の社内イベント・就活イベント・定期研修の予定をざっくり確認するためのカレンダーです（いまはダミーデータです）。
+            今月と来月の社内イベント・就活イベント・定期研修の予定を確認するためのカレンダーです
+          </p>
+
+          <p className="mt-2 text-[11px] text-neutral-500 dark:text-neutral-400 sm:hidden">
+            日付をタップすると、下にイベントの詳細が表示されます。
           </p>
 
           {/* 凡例 */}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span className="font-semibold text-xs text-neutral-600 dark:text-neutral-300">凡例:</span>
+            <span className="font-semibold text-xs text-neutral-600 dark:text-neutral-300">例:</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-emerald-600 dark:text-white">
               <span className="h-2 w-2 rounded-full bg-emerald-300" />
               社内イベント
@@ -212,6 +376,27 @@ export default function Home() {
               <span className="h-2 w-2 rounded-full bg-amber-300" />
               定期研修
             </span>
+          </div>
+
+          <div className="mt-3 max-w-[240px]">
+            <label className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
+              場所で絞り込み
+            </label>
+            <select
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-2 py-1 text-[11px] outline-none focus:ring dark:border-neutral-700 dark:bg-neutral-900"
+              value={locationFilter}
+              onChange={(e) => {
+                const next = e.target.value as EventLocation | "all";
+                setLocationFilter(next);
+                setSelectedDate(null);
+              }}
+            >
+              <option value="all">すべて</option>
+              <option value="online">オンライン</option>
+              <option value="osaka">大阪</option>
+              <option value="tokyo">東京</option>
+              <option value="other">その他</option>
+            </select>
           </div>
 
           <div className="mt-3 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(260px,1.2fr)]">
@@ -276,11 +461,9 @@ export default function Home() {
                                 const typeColor =
                                   event.type === "internal"
                                     ? "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-600 dark:text-white dark:border-emerald-500"
-                                    : event.type === "jobfair"
-                                    ? "bg-sky-600 text-white border-sky-700 dark:bg-sky-600 dark:text-white dark:border-sky-500"
                                     : event.type === "training"
                                     ? "bg-amber-600 text-white border-amber-700 dark:bg-amber-600 dark:text-white dark:border-amber-500"
-                                    : "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-600";
+                                    : "bg-sky-600 text-white border-sky-700 dark:bg-sky-600 dark:text-white dark:border-sky-500";
                                 return (
                                   <div
                                     key={`${event.title}-${idx}`}
@@ -289,11 +472,9 @@ export default function Home() {
                                     <span className="hidden md:inline">
                                       {event.type === "internal"
                                         ? "社内"
-                                        : event.type === "jobfair"
-                                        ? "就活"
                                         : event.type === "training"
                                         ? "研修"
-                                        : "その他"}
+                                        : "就活"}
                                     </span>
                                     <span className="hidden md:inline text-[8px] text-white/90">
                                       {locationLabel[event.location]}
@@ -371,11 +552,9 @@ export default function Home() {
                                 const typeColor =
                                   event.type === "internal"
                                     ? "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-600 dark:text-white dark:border-emerald-500"
-                                    : event.type === "jobfair"
-                                    ? "bg-sky-600 text-white border-sky-700 dark:bg-sky-600 dark:text-white dark:border-sky-500"
                                     : event.type === "training"
                                     ? "bg-amber-600 text-white border-amber-700 dark:bg-amber-600 dark:text-white dark:border-amber-500"
-                                    : "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-600";
+                                    : "bg-sky-600 text-white border-sky-700 dark:bg-sky-600 dark:text-white dark:border-sky-500";
                                 return (
                                   <div
                                     key={`${event.title}-${idx}`}
@@ -384,11 +563,9 @@ export default function Home() {
                                     <span className="hidden md:inline">
                                       {event.type === "internal"
                                         ? "社内"
-                                        : event.type === "jobfair"
-                                        ? "就活"
                                         : event.type === "training"
                                         ? "研修"
-                                        : "その他"}
+                                        : "就活"}
                                     </span>
                                     <span className="hidden md:inline text-[8px] text-white/90">
                                       {locationLabel[event.location]}
@@ -428,23 +605,37 @@ export default function Home() {
                     </p>
                     <ul className="mt-2 space-y-2">
                       {selectedEvents.map((event) => {
-                        const hasKeyword = event.type === "jobfair";
-                        const keyword = hasKeyword ? buildApplyKeyword(event) : "";
+                        const isJobfair = event.type === "jobfair";
+                        const keyword = isJobfair ? buildApplyKeyword(event) : "";
+                        const concept = event.conceptSummary || "-";
+                        const industries = event.industries || "-";
+                        const counts = `${event.companyCount != null ? `${event.companyCount}社` : "-"} / ${
+                          event.capacity != null ? `${event.capacity}人` : "-"
+                        }`;
+                        const target = event.target || "-";
+                        const reserveUrl = event.reserveUrl || "-";
                         return (
                           <li
-                            key={`${event.date}-${event.title}`}
-                            className={`rounded-lg p-2 text-[11px] shadow-sm border
+                            key={event.id || `${event.date}-${event.title}`}
+                            className={`relative overflow-hidden rounded-lg p-2 text-[11px] shadow-sm border
                               ${
                                 event.type === "internal"
                                   ? "border-emerald-700 bg-emerald-600 text-white dark:border-emerald-500 dark:bg-emerald-600"
                                   : event.type === "jobfair"
-                                  ? "border-sky-700 bg-sky-600 text-white dark:border-sky-500 dark:bg-sky-600"
+                                  ? "border-sky-700 bg-gradient-to-br from-sky-600 via-sky-600 to-indigo-600 text-white ring-1 ring-white/10 dark:border-sky-500"
                                   : event.type === "training"
                                   ? "border-amber-700 bg-amber-600 text-white dark:border-amber-500 dark:bg-amber-600"
                                   : "border-neutral-200 bg-neutral-50 text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                               }
                             `}
                           >
+                            {event.type === "jobfair" && (
+                              <div
+                                aria-hidden
+                                className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-white/20 blur-2xl"
+                              />
+                            )}
+
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex flex-col">
                                 <span className="text-sm font-semibold flex items-center gap-1">
@@ -456,66 +647,97 @@ export default function Home() {
                                   )}
                                 </span>
                                 <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-neutral-800 dark:bg-white dark:text-neutral-900">
-                                  <span className="text-xs">
-                                    {typeLabel[event.type]}
-                                  </span>
+                                  <span className="text-xs">{typeLabel[event.type]}</span>
                                   <span className="text-[11px] text-neutral-500">/</span>
-                                  <span className="text-xs">
-                                    {locationLabel[event.location]}
-                                  </span>
+                                  <span className="text-xs">{locationLabel[event.location]}</span>
                                 </span>
                               </div>
                             </div>
-                            {event.description && (
-                              <p className="mt-1 text-xs text-white/90">
-                                {event.description}
-                              </p>
-                            )}
 
-                            {/* 就活イベントのみ：応募キーワード（LINE用） */}
-                            {hasKeyword && (
-                              <div className="mt-2 space-y-1 text-[11px] text-white/85">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
-                                  応募キーワード
-                                </div>
-                                <div className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
-                                  <div className="relative flex h-6 w-6 items-center justify-center rounded-lg bg-[#06C755] shadow-sm">
-                                    <span className="block h-3 w-4 rounded-full bg-white" />
-                                    <span className="absolute bottom-[6px] left-[8px] h-2 w-2 rotate-45 rounded-[2px] bg-white" />
+                            <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                              <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                コンセプト
+                              </div>
+                              <div className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                {concept}
+                              </div>
+                            </div>
+
+                            {isJobfair && (
+                              <>
+                                <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                    業界
                                   </div>
-                                  <span className="font-semibold truncate">
-                                    {keyword}
-                                  </span>
+                                  <div className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                    {industries}
+                                  </div>
                                 </div>
-                                <p className="text-[10px] text-white/75">
-                                  公式LINEでこのキーワードを送信すると、応募フォームが届きます。
-                                </p>
-                              </div>
+
+                                <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                    参加企業数・定員
+                                  </div>
+                                  <div className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                    {counts}
+                                  </div>
+                                </div>
+
+                                <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                    おすすめの学生像
+                                  </div>
+                                  <div className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                    {target}
+                                  </div>
+                                </div>
+
+                                <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                    応募キーワード
+                                  </div>
+                                  <div className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                    <div className="relative flex h-6 w-6 items-center justify-center rounded-lg bg-[#06C755] shadow-sm">
+                                      <span className="block h-3 w-4 rounded-full bg-white" />
+                                      <span className="absolute bottom-[6px] left-[8px] h-2 w-2 rotate-45 rounded-[2px] bg-white" />
+                                    </div>
+                                    <span className="font-semibold truncate">{keyword}</span>
+                                  </div>
+                                  <p className="text-[10px] text-white/75">
+                                    公式LINEでこのキーワードを送信すると、応募フォームが届きます。
+                                  </p>
+                                </div>
+
+                                <div className="mt-2 space-y-1 text-[11px] text-white/85">
+                                  <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
+                                    予約URL
+                                  </div>
+                                  {event.reserveUrl ? (
+                                    <a
+                                      href={event.reserveUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="flex items-center justify-between gap-2 rounded-lg bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-sky-700 shadow-sm hover:bg-white"
+                                    >
+                                      <span className="truncate">予約URLを開く</span>
+                                      <span className="text-[11px] text-sky-500">↗</span>
+                                    </a>
+                                  ) : (
+                                    <div className="rounded-lg bg-white/10 px-2.5 py-1.5 text-sm text-white/95 shadow-sm">
+                                      {reserveUrl}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
                             )}
 
-                            {/* 社内イベントのみ：応募URL */}
-                            {event.type === "internal" && event.applyUrl && (
-                              <div className="mt-2 space-y-1 text-[11px] text-white/85">
-                                <div className="text-[10px] uppercase tracking-[0.16em] text-white/70">
-                                  応募URL
-                                </div>
-                                <a
-                                  href={event.applyUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center justify-between gap-2 rounded-lg bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-white"
-                                >
-                                  <span className="truncate">応募フォームを開く</span>
-                                  <span className="text-[11px] text-emerald-500">↗</span>
-                                </a>
-                              </div>
-                            )}
                           </li>
                         );
                       })}
                   </ul>
                 </>
               )}
+
             </aside>
           </div>
         </section>

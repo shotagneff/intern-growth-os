@@ -18,6 +18,7 @@ async function ensureTable() {
       section_id INTEGER,
       episode_label TEXT,
       duration_minutes INTEGER,
+      instructor_id TEXT,
       instructor_name TEXT,
       material_label TEXT,
       material_url TEXT,
@@ -31,6 +32,9 @@ async function ensureTable() {
   );
   await pool.query(
     'ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS material_url TEXT;'
+  );
+  await pool.query(
+    'ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS instructor_id TEXT;'
   );
 }
 
@@ -47,6 +51,7 @@ export async function GET() {
       section_id AS "sectionId",
       episode_label AS "episodeLabel",
       duration_minutes AS "durationMinutes",
+      instructor_id AS "instructorId",
       instructor_name AS "instructorName",
       material_label AS "materialLabel",
       material_url AS "materialUrl",
@@ -71,6 +76,7 @@ export async function POST(req: NextRequest) {
     sectionId,
     episodeLabel,
     durationMinutes,
+    instructorId,
     instructorName,
     materialLabel,
     materialUrl,
@@ -90,12 +96,13 @@ export async function POST(req: NextRequest) {
       section_id,
       episode_label,
       duration_minutes,
+      instructor_id,
       instructor_name,
       material_label,
       material_url,
       updated_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
@@ -105,6 +112,7 @@ export async function POST(req: NextRequest) {
       section_id = EXCLUDED.section_id,
       episode_label = EXCLUDED.episode_label,
       duration_minutes = EXCLUDED.duration_minutes,
+      instructor_id = EXCLUDED.instructor_id,
       instructor_name = EXCLUDED.instructor_name,
       material_label = EXCLUDED.material_label,
       material_url = EXCLUDED.material_url,
@@ -118,6 +126,7 @@ export async function POST(req: NextRequest) {
       sectionId,
       episodeLabel,
       durationMinutes,
+      instructorId ?? null,
       instructorName,
       materialLabel,
       materialUrl,
@@ -140,6 +149,7 @@ export async function PUT(req: NextRequest) {
     sectionId,
     episodeLabel,
     durationMinutes,
+    instructorId,
     instructorName,
     materialLabel,
     materialUrl,
@@ -159,9 +169,10 @@ export async function PUT(req: NextRequest) {
        section_id = COALESCE($6, section_id),
        episode_label = COALESCE($7, episode_label),
        duration_minutes = COALESCE($8, duration_minutes),
-       instructor_name = COALESCE($9, instructor_name),
-       material_label = COALESCE($10, material_label),
-       material_url = COALESCE($11, material_url),
+       instructor_id = COALESCE($9, instructor_id),
+       instructor_name = COALESCE($10, instructor_name),
+       material_label = COALESCE($11, material_label),
+       material_url = COALESCE($12, material_url),
        updated_at = NOW()
      WHERE id = $1;`,
     [
@@ -173,6 +184,7 @@ export async function PUT(req: NextRequest) {
       sectionId,
       episodeLabel,
       durationMinutes,
+      instructorId ?? null,
       instructorName,
       materialLabel,
       materialUrl,

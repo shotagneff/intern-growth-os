@@ -54,15 +54,27 @@ const INITIAL_VIDEOS = [
 type AdminVideo = (typeof INITIAL_VIDEOS)[number] & {
   materialLabel?: string;
   materialUrl?: string;
+  instructorId?: string;
+};
+
+type Member = {
+  id: string;
+  name: string;
+  role?: string;
+  team?: string;
+  iconUrl?: string;
+  active: boolean;
 };
 
 export default function AdminELearningPage() {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("スタートガイド");
+  const [instructorId, setInstructorId] = useState<string>("");
   const [instructorName, setInstructorName] = useState("平賀 翔大");
   const [url, setUrl] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
@@ -89,6 +101,43 @@ export default function AdminELearningPage() {
 
     fetchVideos();
   }, []);
+
+  // メンバー一覧を取得（講師選択用）
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const res = await fetch("/api/admin/members", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as Member[];
+        if (Array.isArray(data)) {
+          const active = data.filter((m) => m.active);
+          setMembers(active);
+        }
+      } catch (e) {
+        console.error("failed to fetch members", e);
+      }
+    };
+
+    void fetchMembers();
+  }, []);
+
+  const selectedInstructor = useMemo(() => {
+    return members.find((m) => m.id === instructorId);
+  }, [members, instructorId]);
+
+  // 講師が未選択なら、メンバーが取れたタイミングで先頭をセット
+  useEffect(() => {
+    if (instructorId) return;
+    if (members.length === 0) return;
+    setInstructorId(members[0].id);
+    setInstructorName(members[0].name);
+  }, [members, instructorId]);
+
+  const membersById = useMemo(() => {
+    const map = new Map<string, Member>();
+    members.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [members]);
 
   const sorted = useMemo(() => {
     return [...videos].sort((a, b) => {
@@ -129,7 +178,8 @@ export default function AdminELearningPage() {
         episodeLabel: episodeLabel.trim() || `第${nextIndex}回`,
         updatedAt: new Date().toISOString().slice(0, 10),
         durationMinutes: durationMinutes === "" ? 0 : Number(durationMinutes),
-        instructorName,
+        instructorId: instructorId || undefined,
+        instructorName: selectedInstructor?.name || instructorName,
         materialLabel: materialLabel.trim() || undefined,
         materialUrl: materialUrl.trim() || undefined,
       };
@@ -162,7 +212,8 @@ export default function AdminELearningPage() {
     setDurationMinutes("");
     setSectionId(1);
     setCategory("スタートガイド");
-    setInstructorName("平賀 翔大");
+    setInstructorId(members[0]?.id ?? "");
+    setInstructorName(members[0]?.name ?? "平賀 翔大");
     setMaterialLabel("");
     setMaterialUrl("");
     setEditingId(null);
@@ -172,7 +223,16 @@ export default function AdminELearningPage() {
     setEditingId(video.id);
     setTitle(video.title ?? "");
     setCategory(video.category ?? "スタートガイド");
-    setInstructorName(video.instructorName ?? "平賀 翔大");
+    const byId = video.instructorId ? membersById.get(video.instructorId) : undefined;
+    const byName =
+      !video.instructorId && video.instructorName
+        ? members.find((m) => m.name === video.instructorName)
+        : undefined;
+    const resolvedId = byId?.id || byName?.id || "";
+    setInstructorId(resolvedId);
+    setInstructorName(
+      byId?.name || byName?.name || video.instructorName || "平賀 翔大"
+    );
     setUrl(video.url ?? "");
     setCoverImageUrl(video.coverImageUrl ?? "");
     setSectionId(video.sectionId ?? 1);
@@ -202,7 +262,8 @@ export default function AdminELearningPage() {
         id: editingId,
         title: title.trim(),
         category,
-        instructorName,
+        instructorId: instructorId || undefined,
+        instructorName: selectedInstructor?.name || instructorName,
         url: url.trim(),
         coverImageUrl: coverImageUrl.trim(),
         sectionId,
@@ -231,12 +292,12 @@ export default function AdminELearningPage() {
                   ...v,
                   title: payload.title,
                   category: payload.category,
+                  instructorId: payload.instructorId,
                   instructorName: payload.instructorName,
                   url: payload.url,
                   coverImageUrl: payload.coverImageUrl,
                   sectionId: payload.sectionId,
-                  episodeLabel:
-                    payload.episodeLabel || v.episodeLabel || "",
+                  episodeLabel: payload.episodeLabel || v.episodeLabel || "",
                   durationMinutes: payload.durationMinutes,
                   materialLabel: payload.materialLabel,
                   materialUrl: payload.materialUrl,
@@ -348,14 +409,23 @@ export default function AdminELearningPage() {
                 <label className="text-[11px] font-semibold text-neutral-700 dark:text-neutral-200">講師 *</label>
                 <select
                   className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-[11px] outline-none focus:ring dark:border-neutral-700 dark:bg-neutral-900"
-                  value={instructorName}
-                  onChange={(e) => setInstructorName(e.target.value)}
+                  value={instructorId}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    setInstructorId(nextId);
+                    const next = membersById.get(nextId);
+                    if (next) setInstructorName(next.name);
+                  }}
                 >
-                  <option value="平賀 翔大">平賀 翔大</option>
-                  <option value="宅間 宗太">宅間 宗太</option>
-                  <option value="佐藤 翔永">佐藤 翔永</option>
-                  <option value="教育担当">教育担当</option>
-                  <option value="その他">その他</option>
+                  {members.length > 0 ? (
+                    members.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">（メンバー未取得）</option>
+                  )}
                 </select>
               </div>
 
@@ -485,7 +555,6 @@ export default function AdminELearningPage() {
                   <th className="px-3 py-2 text-left">セクション</th>
                   <th className="px-3 py-2 text-left">回</th>
                   <th className="px-3 py-2 text-left">タイトル</th>
-                  <th className="px-3 py-2 text-left">カテゴリ</th>
                   <th className="px-3 py-2 text-left">講師</th>
                   <th className="px-3 py-2 text-left">時間</th>
                   <th className="px-3 py-2 text-left">最終更新</th>
@@ -522,10 +591,9 @@ export default function AdminELearningPage() {
                       {v.title}
                     </td>
                     <td className="px-3 py-2 align-top text-neutral-600 dark:text-neutral-300">
-                      {v.category}
-                    </td>
-                    <td className="px-3 py-2 align-top text-neutral-600 dark:text-neutral-300">
-                      {v.instructorName}
+                      {v.instructorId
+                        ? membersById.get(v.instructorId)?.name || v.instructorName
+                        : v.instructorName}
                     </td>
                     <td className="px-3 py-2 align-top text-neutral-600 dark:text-neutral-300">
                       {v.durationMinutes ? `${v.durationMinutes}分` : "-"}
