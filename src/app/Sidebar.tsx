@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
@@ -14,7 +15,25 @@ type SidebarLinkProps = {
 };
 
 export default function Sidebar() {
-  const showAdmin = true;
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setShowAdmin(false);
+          return;
+        }
+        const data = (await res.json()) as { role?: string };
+        setShowAdmin(data?.role === "admin");
+      } catch {
+        setShowAdmin(false);
+      }
+    };
+
+    void load();
+  }, []);
 
   return (
     <aside
@@ -59,6 +78,7 @@ export default function Sidebar() {
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
             <SidebarLink href="/admin/announcements" label="お知らせ管理（管理）" />
             <SidebarLink href="/admin/events" label="イベント管理（管理）" />
+            <SidebarLink href="/admin/users" label="ユーザー管理（管理）" />
             <SidebarLink href="/admin/members" label="メンバー管理（管理者用）" />
           </>
         )}
