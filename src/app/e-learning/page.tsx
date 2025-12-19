@@ -204,6 +204,25 @@ export default function ELearningPage() {
     }
   }, []);
 
+  // DB から視聴済み情報を復元（ログインユーザー単位で共有）
+  useEffect(() => {
+    const loadFromServer = async () => {
+      try {
+        const res = await fetch("/api/e-learning/progress", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { watchedVideoIds?: string[] };
+        const ids = Array.isArray(data?.watchedVideoIds) ? data.watchedVideoIds : [];
+        if (ids.length > 0) {
+          setWatchedSet(new Set(ids));
+        }
+      } catch (e) {
+        console.error("failed to load watched progress", e);
+      }
+    };
+
+    void loadFromServer();
+  }, []);
+
   // localStorage からセクション3チェックリストを復元
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -367,6 +386,15 @@ export default function ELearningPage() {
       } else {
         next.delete(id);
       }
+
+      void fetch("/api/e-learning/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: id, watched: willBeWatched }),
+      }).catch(() => {
+        // ignore (localStorage fallback)
+      });
+
       return next;
     });
   };
@@ -444,6 +472,13 @@ export default function ELearningPage() {
     if (video.id.startsWith("sec")) {
       router.push(`/videos/${video.id}`);
       setWatchedSet((prev) => new Set(prev).add(video.id));
+      void fetch("/api/e-learning/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: video.id, watched: true }),
+      }).catch(() => {
+        // ignore
+      });
       return;
     }
 
@@ -451,6 +486,13 @@ export default function ELearningPage() {
     if (typeof window !== "undefined") {
       window.open(video.url, "_blank");
       setWatchedSet((prev) => new Set(prev).add(video.id));
+      void fetch("/api/e-learning/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoId: video.id, watched: true }),
+      }).catch(() => {
+        // ignore
+      });
     }
   };
 

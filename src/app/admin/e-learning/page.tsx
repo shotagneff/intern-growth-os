@@ -66,9 +66,34 @@ type Member = {
   active: boolean;
 };
 
+type ProgressRow = {
+  loginId: string;
+  displayName: string | null;
+  role: string;
+  active: boolean;
+  watchedCount: number;
+  totalVideos: number;
+  percent: number;
+  perSection: Array<{
+    sectionId: number;
+    watchedCount: number;
+    totalVideos: number;
+    percent: number;
+  }>;
+  lastWatched: {
+    videoId: string;
+    videoTitle: string | null;
+    sectionId: number | null;
+    episodeLabel: string | null;
+    updatedAt: string;
+  } | null;
+};
+
 export default function AdminELearningPage() {
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [progressRows, setProgressRows] = useState<ProgressRow[]>([]);
+  const [progressLoading, setProgressLoading] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -100,6 +125,28 @@ export default function AdminELearningPage() {
     };
 
     fetchVideos();
+  }, []);
+
+  useEffect(() => {
+    const fetchProgress = async () => {
+      setProgressLoading(true);
+      try {
+        const res = await fetch("/api/admin/e-learning/progress", { cache: "no-store" });
+        if (!res.ok) {
+          setProgressRows([]);
+          return;
+        }
+        const data = (await res.json()) as ProgressRow[];
+        setProgressRows(Array.isArray(data) ? data : []);
+      } catch (e) {
+        console.error("failed to fetch e-learning progress", e);
+        setProgressRows([]);
+      } finally {
+        setProgressLoading(false);
+      }
+    };
+
+    void fetchProgress();
   }, []);
 
   // メンバー一覧を取得（講師選択用）
@@ -363,6 +410,125 @@ export default function AdminELearningPage() {
             動画コンテンツの一覧を管理者向けに確認するビューです。今後、ここから追加・編集・削除ができるように拡張していきます。
           </p>
         </header>
+
+        <section className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                視聴完了率（ユーザー別）
+              </h2>
+              <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                ユーザーごとの「視聴済み本数 / 全動画本数」を表示します。
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const refresh = async () => {
+                  setProgressLoading(true);
+                  try {
+                    const res = await fetch("/api/admin/e-learning/progress", { cache: "no-store" });
+                    if (!res.ok) {
+                      setProgressRows([]);
+                      return;
+                    }
+                    const data = (await res.json()) as ProgressRow[];
+                    setProgressRows(Array.isArray(data) ? data : []);
+                  } finally {
+                    setProgressLoading(false);
+                  }
+                };
+
+                void refresh();
+              }}
+              className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-[11px] font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
+              disabled={progressLoading}
+            >
+              再読み込み
+            </button>
+          </div>
+
+          {progressLoading && (
+            <p className="mt-2 text-[11px] text-neutral-500">読み込み中...</p>
+          )}
+
+          {progressRows.length === 0 && !progressLoading ? (
+            <p className="mt-3 text-[11px] text-neutral-500">まだ視聴データがありません。</p>
+          ) : (
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full border-collapse text-[11px]">
+                <thead>
+                  <tr className="border-b border-neutral-200 bg-neutral-50 text-[10px] uppercase tracking-[0.14em] text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950">
+                    <th className="px-3 py-2 text-left">ログインID</th>
+                    <th className="px-3 py-2 text-left">名前</th>
+                    <th className="px-3 py-2 text-left">権限</th>
+                    <th className="px-3 py-2 text-left">状態</th>
+                    <th className="px-3 py-2 text-right">視聴済み</th>
+                    <th className="px-3 py-2 text-right">全体</th>
+                    <th className="px-3 py-2 text-left">セクション別</th>
+                    <th className="px-3 py-2 text-left">最終視聴</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progressRows.map((r) => (
+                    <tr
+                      key={r.loginId}
+                      className="border-b border-neutral-100 text-neutral-700 last:border-0 dark:border-neutral-800 dark:text-neutral-200"
+                    >
+                      <td className="px-3 py-2 align-top font-semibold text-neutral-900 dark:text-neutral-50">
+                        {r.loginId}
+                      </td>
+                      <td className="px-3 py-2 align-top text-neutral-600 dark:text-neutral-300">
+                        {r.displayName || "-"}
+                      </td>
+                      <td className="px-3 py-2 align-top">{r.role}</td>
+                      <td className="px-3 py-2 align-top">{r.active ? "active" : "inactive"}</td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums">
+                        {r.watchedCount} / {r.totalVideos}
+                      </td>
+                      <td className="px-3 py-2 align-top text-right tabular-nums">
+                        {r.percent}%
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <div className="flex flex-wrap gap-1">
+                          {(r.perSection ?? []).map((s) => (
+                            <span
+                              key={s.sectionId}
+                              className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-semibold text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
+                            >
+                              Sec{s.sectionId}:{" "}
+                              <span className="tabular-nums">{s.percent}%</span>
+                              <span className="tabular-nums text-neutral-500 dark:text-neutral-400">
+                                ({s.watchedCount}/{s.totalVideos})
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 align-top text-[10px] text-neutral-600 dark:text-neutral-300">
+                        {r.lastWatched ? (
+                          <div className="max-w-[320px]">
+                            <div className="truncate">
+                              {r.lastWatched.sectionId ? `Sec ${r.lastWatched.sectionId} ` : ""}
+                              {r.lastWatched.episodeLabel ? `${r.lastWatched.episodeLabel} ` : ""}
+                              {r.lastWatched.videoTitle || r.lastWatched.videoId}
+                            </div>
+                            <div className="mt-0.5 tabular-nums text-neutral-500 dark:text-neutral-400">
+                              {new Date(r.lastWatched.updatedAt).toLocaleString()}
+                            </div>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
         <section className="rounded-xl border border-neutral-200 bg-white p-4 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
           <div className="mb-4">
