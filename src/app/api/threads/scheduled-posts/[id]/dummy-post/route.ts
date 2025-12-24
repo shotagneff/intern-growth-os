@@ -53,12 +53,16 @@ async function postToThreadsDummy(text: string) {
   console.log("[Dummy Threads Post]", text);
 }
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   const adminUser = await requireAdmin(req);
   if (!adminUser) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  const params = await context.params;
   const id = Number(params.id);
   if (!id || Number.isNaN(id)) {
     return NextResponse.json(
