@@ -348,6 +348,7 @@ function PartnerRankingCard({
 export default function RankingsPage() {
   const [activeTab, setActiveTab] = useState<"person" | "partner">("person");
   const [period, setPeriod] = useState<"monthly" | "total">("monthly");
+  const [activeBusiness, setActiveBusiness] = useState<string>("ALL");
 
   // デバッグ: /rankings ページがクライアント側で実行されているか確認
   console.log("[rankings] RankingsPage render");
@@ -754,6 +755,27 @@ export default function RankingsPage() {
     };
   }, []);
 
+  const sourceForBusinessTabs =
+    personMonthlySales && personMonthlySales.length > 0
+      ? personMonthlySales
+      : dummyPersonRankings.totalSales;
+
+  const businessOptions = Array.from(
+    new Set(
+      sourceForBusinessTabs
+        .map((item) => item.team)
+        .filter((team): team is string => !!team && team.trim().length > 0)
+    )
+  );
+
+  const getPersonItems = (items: PersonRankingItem[] | null, dummyItems: PersonRankingItem[]) => {
+    const base = items === null ? [] : items.length > 0 ? items : dummyItems;
+    if (activeBusiness === "ALL") {
+      return base;
+    }
+    return base.filter((item) => item.team === activeBusiness);
+  };
+
   return (
     <main className="min-h-screen bg-[#f5f5f7] text-neutral-900 dark:bg-neutral-950 dark:text-neutral-50">
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 space-y-6">
@@ -836,59 +858,69 @@ export default function RankingsPage() {
 
           <div className="mt-3">
             {activeTab === "person" ? (
-              <div className="grid gap-4 md:grid-cols-3">
-                {personMonthlySalesError && (
-                  <div className="md:col-span-3">
-                    <p className="text-[11px] text-red-500">
-                      {personMonthlySalesError}
-                    </p>
+              <>
+                {businessOptions.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-300">
+                    <span className="hidden sm:inline">事業別:</span>
+                    <div className="inline-flex flex-wrap gap-1 rounded-full bg-neutral-50 p-1 text-[11px] dark:bg-neutral-900">
+                      <button
+                        type="button"
+                        onClick={() => setActiveBusiness("ALL")}
+                        className={`rounded-full px-3 py-1 ${
+                          activeBusiness === "ALL"
+                            ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
+                            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        }`}
+                      >
+                        全体
+                      </button>
+                      {businessOptions.map((business) => (
+                        <button
+                          key={business}
+                          type="button"
+                          onClick={() => setActiveBusiness(business)}
+                          className={`rounded-full px-3 py-1 ${
+                            activeBusiness === business
+                              ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
+                              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                          }`}
+                        >
+                          {business}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <PersonRankingCard
-                  title="総売上ランキング"
-                  unit="円"
-                  items={
-                    personMonthlySales === null
-                      ? []
-                      : personMonthlySales.length > 0
-                      ? personMonthlySales
-                      : dummyPersonRankings.totalSales
-                  }
-                />
-                <PersonRankingCard
-                  title="登録会員数ランキング"
-                  unit="件"
-                  items={
-                    personMonthlyMembers === null
-                      ? []
-                      : personMonthlyMembers.length > 0
-                      ? personMonthlyMembers
-                      : dummyPersonRankings.membersCount
-                  }
-                />
-                <PersonRankingCard
-                  title="イベント送客数ランキング"
-                  unit="件"
-                  items={
-                    personMonthlyEvents === null
-                      ? []
-                      : personMonthlyEvents.length > 0
-                      ? personMonthlyEvents
-                      : dummyPersonRankings.eventCount
-                  }
-                />
-                <PersonRankingCard
-                  title="パートナー提携数ランキング"
-                  unit="件"
-                  items={
-                    personMonthlyPartnerDeals === null
-                      ? []
-                      : personMonthlyPartnerDeals.length > 0
-                      ? personMonthlyPartnerDeals
-                      : dummyPersonRankings.partnerDeals
-                  }
-                />
-              </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {personMonthlySalesError && (
+                    <div className="md:col-span-3">
+                      <p className="text-[11px] text-red-500">
+                        {personMonthlySalesError}
+                      </p>
+                    </div>
+                  )}
+                  <PersonRankingCard
+                    title="総売上ランキング"
+                    unit="円"
+                    items={getPersonItems(personMonthlySales, dummyPersonRankings.totalSales)}
+                  />
+                  <PersonRankingCard
+                    title="登録会員数ランキング"
+                    unit="件"
+                    items={getPersonItems(personMonthlyMembers, dummyPersonRankings.membersCount)}
+                  />
+                  <PersonRankingCard
+                    title="イベント送客数ランキング"
+                    unit="件"
+                    items={getPersonItems(personMonthlyEvents, dummyPersonRankings.eventCount)}
+                  />
+                  <PersonRankingCard
+                    title="パートナー提携数ランキング"
+                    unit="件"
+                    items={getPersonItems(personMonthlyPartnerDeals, dummyPersonRankings.partnerDeals)}
+                  />
+                </div>
+              </>
             ) : (
               <div className="grid gap-4 md:grid-cols-3">
                 <PartnerRankingCard
