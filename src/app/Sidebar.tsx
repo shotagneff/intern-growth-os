@@ -74,6 +74,7 @@ export default function Sidebar() {
             <SidebarLink href="/docs" label="ドキュメントゾーン（管理）" />
             <SidebarLink href="/admin/partners-mindmap" label="パートナー紹介マインドマップ（管理）" />
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
+            <SidebarLink href="/admin/e-learning/progress" label="動画進捗一覧（管理）" />
             <SidebarLink href="/admin/members" label="メンバー管理（管理者用）" />
             <SidebarLink href="/admin/users" label="ユーザー管理（管理者用）" />
             <SidebarLink href="/admin/threads" label="Threads予約投稿（管理）" />

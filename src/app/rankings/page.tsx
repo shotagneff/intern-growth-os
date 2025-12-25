@@ -6,6 +6,7 @@ import Image from "next/image";
 const MAIN_COLOR = "#9e8d70";
 
 type PersonRankingItem = {
+  id?: string;
   name: string;
   team?: string;
   value: number;
@@ -92,8 +93,17 @@ function parsePersonMonthlySalesCsv(csvText: string): PersonRankingItem[] {
   if (lines.length <= 1) return [];
 
   const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const idxMemberName = header.findIndex((h) => h === "member_name");
-  const idxValue = header.findIndex((h) => h === "value" || h === "sum" || h === "total");
+  const idxMemberId = header.findIndex((h) => h === "member_id" || h === "member_i");
+  const idxMemberName = header.findIndex((h) => h === "member_name" || h === "member_r");
+  const idxValue = header.findIndex(
+    (h) =>
+      h === "value" ||
+      h === "sum" ||
+      h === "total" ||
+      h === "total_sales" ||
+      h === "sales_amount" ||
+      h === "count",
+  );
   const idxTeam = header.findIndex((h) => h === "meta" || h === "team");
 
   if (idxMemberName === -1 || idxValue === -1) {
@@ -107,10 +117,12 @@ function parsePersonMonthlySalesCsv(csvText: string): PersonRankingItem[] {
     if (!line) continue;
     const cols = line.split(",");
 
+    const rawId = idxMemberId >= 0 ? cols[idxMemberId] ?? "" : "";
     const rawName = cols[idxMemberName] ?? "";
     const rawValue = cols[idxValue] ?? "";
     const rawTeam = idxTeam >= 0 ? cols[idxTeam] ?? "" : "";
 
+    const id = rawId.trim();
     const name = rawName.trim();
     if (!name) continue;
 
@@ -120,15 +132,34 @@ function parsePersonMonthlySalesCsv(csvText: string): PersonRankingItem[] {
     const team = rawTeam.trim();
 
     items.push({
+      id: id || undefined,
       name,
       value: num,
       team: team || undefined,
     });
   }
 
+  // 同じメンバーが複数行に分かれている場合は合算する
+  const aggregatedMap = new Map<string, PersonRankingItem>();
+
+  for (const item of items) {
+    const key = item.id && item.id.trim().length > 0 ? `id:${item.id}` : `name:${item.name}`;
+    const existing = aggregatedMap.get(key);
+    if (existing) {
+      aggregatedMap.set(key, {
+        ...existing,
+        value: existing.value + item.value,
+      });
+    } else {
+      aggregatedMap.set(key, { ...item });
+    }
+  }
+
+  const aggregated = Array.from(aggregatedMap.values());
+
   // すでにシート側で並び替え済みの想定だが、念のためここでも降順ソート
-  items.sort((a, b) => b.value - a.value);
-  return items;
+  aggregated.sort((a, b) => b.value - a.value);
+  return aggregated;
 }
 
 // CSV: partner_id,partner_name,value,meta,team
@@ -173,15 +204,24 @@ function parsePartnerRankingCsv(csvText: string): PartnerRankingItem[] {
 function PersonRankingCard({
   title,
   unit,
-  items,
+  itemsMonthly,
+  itemsTotal,
+  period,
   description,
 }: {
   title: string;
   unit: string;
-  items: PersonRankingItem[];
+  itemsMonthly: PersonRankingItem[];
+  itemsTotal?: PersonRankingItem[] | null;
+  period: "monthly" | "total";
   description?: string;
 }) {
-  const sliced = items.slice(0, 7);
+  const monthly = (itemsMonthly ?? []).slice(0, 7);
+  const total = (itemsTotal ?? itemsMonthly ?? []).slice(0, 7);
+  const isMonthlyView = period === "monthly";
+
+  // 表示用の配列（period に応じて今月 or 累計）
+  const displayItems = isMonthlyView ? monthly : total;
 
   return (
     <section className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
@@ -194,12 +234,37 @@ function PersonRankingCard({
         </p>
       )}
       <div className="mt-3 space-y-1.5 text-xs text-neutral-700 dark:text-neutral-200">
-        {sliced.map((item, index) => {
+        {displayItems.map((item, index) => {
           const isTop3 = index < 3;
           const isTop1 = index === 0;
+
+          // id が両方にある場合は id 優先、それ以外は name で対応づけ
+          const findMonthly = () => {
+            if (item.id) {
+              const byId = monthly.find((m) => m.id === item.id);
+              if (byId) return byId;
+            }
+            return monthly.find((m) => m.name === item.name) ?? item;
+          };
+
+          const findTotal = (base: PersonRankingItem) => {
+            if (base.id) {
+              const byId = total.find((t) => t.id === base.id);
+              if (byId) return byId;
+            }
+            return total.find((t) => t.name === base.name) ?? base;
+          };
+
+          const monthlySource = findMonthly();
+          const totalSource = findTotal(monthlySource);
+
+          const monthlyValue = monthlySource.value;
+          const totalValue = totalSource.value;
+          const topValue = isMonthlyView ? monthlyValue : totalValue;
+
           return (
             <div
-              key={item.name}
+              key={monthlySource.id ?? monthlySource.name}
               className={`flex items-center justify-between gap-3 rounded-md ${
                 isTop1
                   ? "bg-gradient-to-r from-amber-50 via-white to-amber-50 border border-amber-200 shadow-md"
@@ -251,14 +316,16 @@ function PersonRankingCard({
                     isTop1 ? "text-lg" : isTop3 ? "text-base" : "text-sm"
                   }`}
                 >
-                  今月：{formatNumber(item.value)}
+                  {isMonthlyView ? "今月" : "累計"}：{formatNumber(topValue)}
                   <span className="ml-0.5 text-[10px] font-normal text-neutral-500">
                     {unit}
                   </span>
                 </p>
-                <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                  累計：{formatNumber(item.value)} {unit}
-                </p>
+                {isMonthlyView && (
+                  <p className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                    累計：{formatNumber(totalValue)} {unit}
+                  </p>
+                )}
               </div>
             </div>
           );
@@ -362,12 +429,26 @@ export default function RankingsPage() {
 
   const [personMonthlySales, setPersonMonthlySales] = useState<PersonRankingItem[] | null>(null);
   const [personMonthlySalesError, setPersonMonthlySalesError] = useState<string | null>(null);
+  const [personTotalSales, setPersonTotalSales] = useState<PersonRankingItem[] | null>(null);
+  const [personTotalSalesError, setPersonTotalSalesError] = useState<string | null>(null);
+  const [personTotalSalesDesigner, setPersonTotalSalesDesigner] = useState<PersonRankingItem[] | null>(null);
+
   const [personMonthlyMembers, setPersonMonthlyMembers] = useState<PersonRankingItem[] | null>(null);
   const [personMonthlyMembersError, setPersonMonthlyMembersError] = useState<string | null>(null);
+  const [personTotalMembers, setPersonTotalMembers] = useState<PersonRankingItem[] | null>(null);
+  const [personTotalMembersError, setPersonTotalMembersError] = useState<string | null>(null);
+  const [personTotalMembersDesigner, setPersonTotalMembersDesigner] = useState<
+    PersonRankingItem[] | null
+  >(null);
+
   const [personMonthlyEvents, setPersonMonthlyEvents] = useState<PersonRankingItem[] | null>(null);
   const [personMonthlyEventsError, setPersonMonthlyEventsError] = useState<string | null>(null);
+  const [personTotalEvents, setPersonTotalEvents] = useState<PersonRankingItem[] | null>(null);
+  const [personTotalEventsError, setPersonTotalEventsError] = useState<string | null>(null);
   const [personMonthlyPartnerDeals, setPersonMonthlyPartnerDeals] = useState<PersonRankingItem[] | null>(null);
   const [personMonthlyPartnerDealsError, setPersonMonthlyPartnerDealsError] = useState<string | null>(null);
+  const [personTotalPartnerDeals, setPersonTotalPartnerDeals] = useState<PersonRankingItem[] | null>(null);
+  const [personTotalPartnerDealsError, setPersonTotalPartnerDealsError] = useState<string | null>(null);
   const [partnerSalesMonthly, setPartnerSalesMonthly] = useState<PartnerRankingItem[] | null>(null);
   const [partnerSalesTotal, setPartnerSalesTotal] = useState<PartnerRankingItem[] | null>(null);
   const [partnerMembersMonthly, setPartnerMembersMonthly] = useState<PartnerRankingItem[] | null>(null);
@@ -408,6 +489,201 @@ export default function RankingsPage() {
         console.error("Failed to load person monthly sales rankings", e);
         if (!cancelled) {
           setPersonMonthlySalesError("ランキングデータの取得に失敗しました");
+        }
+      }
+    };
+
+    fetchCsv();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 個人・登録会員数ランキング（累計） - デザイナー育成事業用（新シート）
+  useEffect(() => {
+    const url =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTaoNvvGnjQtMzIFZuOnZpPQEYkrzpiWd7lFSY9K7VZll4jgnLnNtFGBkwRtCF94tSu5SJXiPTIyglE/pub?gid=1606514369&single=true&output=csv";
+
+    console.log("[rankings] PERSON_RANKING_MEMBERS_TOTAL_CSV_URL (designer)", url);
+
+    let cancelled = false;
+
+    const fetchCsv = async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(
+            `Failed to fetch person total members rankings CSV (designer): ${res.status}`,
+          );
+        }
+        const text = await res.text();
+        if (cancelled) return;
+        const parsed = parsePersonMonthlySalesCsv(text);
+        console.log("[rankings] personTotalMembers (designer) parsed", parsed.slice(0, 5));
+        setPersonTotalMembersDesigner(parsed);
+      } catch (e) {
+        console.error("Failed to load person total members rankings (designer)", e);
+      }
+    };
+
+    fetchCsv();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 個人・イベント送客数ランキング（累計）
+  useEffect(() => {
+    const envUrl = process.env.NEXT_PUBLIC_PERSON_RANKING_EVENTS_TOTAL_CSV_URL;
+    console.log("[rankings] env NEXT_PUBLIC_PERSON_RANKING_EVENTS_TOTAL_CSV_URL", envUrl);
+
+    const fallbackUrlTotalEvents =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOkdbl8VW1tSfPEUWGS_wkenrsPEPCE0NAN3I4PfK7gEThe5663nodMaDdYDrYE0KlnLpzDjPol0du/pub?gid=2032943272&single=true&output=csv";
+
+    const url = envUrl || fallbackUrlTotalEvents;
+    console.log("[rankings] PERSON_RANKING_EVENTS_TOTAL_CSV_URL", url);
+
+    let cancelled = false;
+
+    const fetchCsv = async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch person total events rankings CSV: ${res.status}`);
+        }
+        const text = await res.text();
+        if (cancelled) return;
+        const parsed = parsePersonMonthlySalesCsv(text);
+        console.log("[rankings] personTotalEvents parsed", parsed.slice(0, 5));
+        if (parsed.length === 0) {
+          setPersonTotalEventsError("イベント送客数（累計）ランキングCSVに有効なデータがありません");
+        }
+        setPersonTotalEvents(parsed);
+      } catch (e) {
+        console.error("Failed to load person total events rankings", e);
+        if (!cancelled) {
+          setPersonTotalEventsError("イベント送客数（累計）ランキングデータの取得に失敗しました");
+        }
+      }
+    };
+
+    fetchCsv();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 個人・総売上ランキング（累計） - 就活支援事業用（以前の値）
+  useEffect(() => {
+    const fallbackUrlTotalSales =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOkdbl8VW1tSfPEUWGS_wkenrsPEPCE0NAN3I4PfK7gEThe5663nodMaDdYDrYE0KlnLpzDjPol0du/pub?gid=592524543&single=true&output=csv";
+
+    const url = fallbackUrlTotalSales;
+    console.log("[rankings] PERSON_RANKING_SALES_TOTAL_CSV_URL (job)", url);
+
+    let cancelled = false;
+
+    const fetchCsv = async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch person total sales rankings CSV (job): ${res.status}`);
+        }
+        const text = await res.text();
+        if (cancelled) return;
+        const parsed = parsePersonMonthlySalesCsv(text);
+        console.log("[rankings] personTotalSales (job) parsed", parsed.slice(0, 5));
+        if (parsed.length === 0) {
+          setPersonTotalSalesError("総売上（累計）ランキングCSVに有効なデータがありません");
+        }
+        setPersonTotalSales(parsed);
+      } catch (e) {
+        console.error("Failed to load person total sales rankings (job)", e);
+        if (!cancelled) {
+          setPersonTotalSalesError("総売上（累計）ランキングデータの取得に失敗しました");
+        }
+      }
+    };
+
+    fetchCsv();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 個人・総売上ランキング（累計） - デザイナー育成事業用（新シート）
+  useEffect(() => {
+    const envUrl = process.env.NEXT_PUBLIC_PERSON_RANKING_SALES_TOTAL_CSV_URL;
+    console.log("[rankings] env NEXT_PUBLIC_PERSON_RANKING_SALES_TOTAL_CSV_URL (designer)", envUrl);
+
+    if (!envUrl) {
+      console.log("[rankings] PERSON_RANKING_SALES_TOTAL_CSV_URL (designer) is not set");
+      return;
+    }
+
+    const url = envUrl;
+    console.log("[rankings] PERSON_RANKING_SALES_TOTAL_CSV_URL (designer)", url);
+
+    let cancelled = false;
+
+    const fetchCsv = async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch person total sales rankings CSV (designer): ${res.status}`);
+        }
+        const text = await res.text();
+        if (cancelled) return;
+        const parsed = parsePersonMonthlySalesCsv(text);
+        console.log("[rankings] personTotalSales (designer) parsed", parsed.slice(0, 5));
+        setPersonTotalSalesDesigner(parsed);
+      } catch (e) {
+        console.error("Failed to load person total sales rankings (designer)", e);
+      }
+    };
+
+    fetchCsv();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 個人・累計のパートナー提携数ランキング
+  useEffect(() => {
+    const envUrl = process.env.NEXT_PUBLIC_PERSON_RANKING_PARTNER_DEALS_TOTAL_CSV_URL;
+    console.log("[rankings] env NEXT_PUBLIC_PERSON_RANKING_PARTNER_DEALS_TOTAL_CSV_URL", envUrl);
+
+    const fallbackUrlPartnerDealsTotal =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOkdbl8VW1tSfPEUWGS_wkenrsPEPCE0NAN3I4PfK7gEThe5663nodMaDdYDrYE0KlnLpzDjPol0du/pub?gid=12573588&single=true&output=csv";
+
+    const url = envUrl || fallbackUrlPartnerDealsTotal;
+    console.log("[rankings] PERSON_RANKING_PARTNER_DEALS_TOTAL_CSV_URL", url);
+
+    let cancelled = false;
+
+    const fetchCsv = async () => {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`Failed to fetch partner deals total rankings CSV: ${res.status}`);
+        }
+        const text = await res.text();
+        if (cancelled) return;
+        const parsed = parsePersonMonthlySalesCsv(text);
+        console.log("[rankings] personTotalPartnerDeals parsed", parsed.slice(0, 5));
+        if (parsed.length === 0) {
+          setPersonTotalPartnerDealsError("パートナー提携数（累計）ランキングCSVに有効なデータがありません");
+        }
+        setPersonTotalPartnerDeals(parsed);
+      } catch (e) {
+        console.error("Failed to load person total partner deals rankings", e);
+        if (!cancelled) {
+          setPersonTotalPartnerDealsError("パートナー提携数（累計）ランキングデータの取得に失敗しました");
         }
       }
     };
@@ -765,12 +1041,8 @@ export default function RankingsPage() {
   const businessOptions = ["就活支援事業", "デザイナー育成事業"];
 
   const getPersonItems = (items: PersonRankingItem[] | null, dummyItems: PersonRankingItem[]) => {
-    const base = items === null ? [] : items.length > 0 ? items : dummyItems;
-    if (activeBusiness === "デザイナー育成事業") {
-      return base.filter((item) => item.team === activeBusiness);
-    }
-    // 就活支援事業など、それ以外の事業ではフィルタせず従来どおり全件表示
-    return base;
+    // いったん事業ではフィルタせず、同じ個人ランキングを表示する
+    return items === null ? [] : items.length > 0 ? items : dummyItems;
   };
 
   return (
@@ -862,17 +1134,19 @@ export default function RankingsPage() {
             >
               個人ランキング
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("partner")}
-              className={`rounded-md px-3 py-1.5 text-sm ${
-                activeTab === "partner"
-                  ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-              }`}
-            >
-              パートナーランキング
-            </button>
+            {activeBusiness === "就活支援事業" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("partner")}
+                className={`rounded-md px-3 py-1.5 text-sm ${
+                  activeTab === "partner"
+                    ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
+                    : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                }`}
+              >
+                パートナーランキング
+              </button>
+            )}
             </div>
           </div>
           {/* 今月 / 累計 トグル */}
@@ -905,7 +1179,7 @@ export default function RankingsPage() {
           </div>
 
           <div className="mt-3">
-            {activeTab === "person" ? (
+            {activeTab === "person" || activeBusiness === "デザイナー育成事業" ? (
               <div className="grid gap-4 md:grid-cols-3">
                 {personMonthlySalesError && (
                   <div className="md:col-span-3">
@@ -917,26 +1191,65 @@ export default function RankingsPage() {
                 <PersonRankingCard
                   title="総売上ランキング"
                   unit="円"
-                  description="パートナー経由の成果も含む"
-                  items={getPersonItems(personMonthlySales, dummyPersonRankings.totalSales)}
+                  itemsMonthly={
+                    activeBusiness === "デザイナー育成事業"
+                      ? personTotalSalesDesigner ?? personTotalSales ?? []
+                      : getPersonItems(personMonthlySales, dummyPersonRankings.totalSales)
+                  }
+                  itemsTotal={
+                    activeBusiness === "デザイナー育成事業"
+                      ? personTotalSalesDesigner ?? personTotalSales
+                      : personTotalSales
+                  }
+                  period={activeBusiness === "デザイナー育成事業" ? "total" : period}
                 />
                 <PersonRankingCard
                   title="登録会員数ランキング"
                   unit="件"
-                  description="パートナー経由の成果も含む"
-                  items={getPersonItems(personMonthlyMembers, dummyPersonRankings.membersCount)}
+                  itemsMonthly={
+                    activeBusiness === "デザイナー育成事業"
+                      ? personTotalMembersDesigner ?? personTotalMembers ?? []
+                      : getPersonItems(personMonthlyMembers, dummyPersonRankings.membersCount)
+                  }
+                  itemsTotal={
+                    activeBusiness === "デザイナー育成事業"
+                      ? personTotalMembersDesigner ?? personTotalMembers
+                      : personTotalMembers
+                  }
+                  period={activeBusiness === "デザイナー育成事業" ? "total" : period}
                 />
-                <PersonRankingCard
-                  title="イベント送客数ランキング"
-                  unit="件"
-                  description="パートナー経由の成果も含む"
-                  items={getPersonItems(personMonthlyEvents, dummyPersonRankings.eventCount)}
-                />
-                <PersonRankingCard
-                  title="パートナー提携数ランキング"
-                  unit="件"
-                  items={getPersonItems(personMonthlyPartnerDeals, dummyPersonRankings.partnerDeals)}
-                />
+                {activeBusiness !== "デザイナー育成事業" && (
+                  <PersonRankingCard
+                    title="イベント送客数ランキング"
+                    unit="件"
+                    itemsMonthly={getPersonItems(personMonthlyEvents, dummyPersonRankings.eventCount)}
+                    itemsTotal={personTotalEvents}
+                    period={period}
+                  />
+                )}
+                {period === "monthly" && personMonthlyPartnerDealsError && (
+                  <div className="md:col-span-3">
+                    <p className="text-[11px] text-red-500">
+                      {personMonthlyPartnerDealsError}
+                    </p>
+                  </div>
+                )}
+                {period === "total" && personTotalPartnerDealsError && (
+                  <div className="md:col-span-3">
+                    <p className="text-[11px] text-red-500">
+                      {personTotalPartnerDealsError}
+                    </p>
+                  </div>
+                )}
+                {activeBusiness !== "デザイナー育成事業" && (
+                  <PersonRankingCard
+                    title="パートナー提携数ランキング"
+                    unit="件"
+                    itemsMonthly={personMonthlyPartnerDeals === null ? [] : personMonthlyPartnerDeals}
+                    itemsTotal={personTotalPartnerDeals}
+                    period={period}
+                  />
+                )}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-3">
