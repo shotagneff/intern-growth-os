@@ -174,6 +174,7 @@ function PersonRankingCard({
   title,
   unit,
   items,
+  description,
 }: {
   title: string;
   unit: string;
