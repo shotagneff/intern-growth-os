@@ -693,28 +693,58 @@ export default async function DashboardPage({
           <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
             会員数・パートナー数・売上を月次で追うための、4つの指標ブロックで構成されたダッシュボード（ダミーデータ版）です。
           </p>
-          {/* 事業切り替えタブ（全デバイス共通） */}
-          <div className="mt-4 inline-flex overflow-hidden rounded-full border border-neutral-200 bg-neutral-50 text-xs dark:border-neutral-700 dark:bg-neutral-900/60">
-            <a
-              href="/dashboard?business=career"
-              className={`px-3 py-1 ${
-                business === "career"
-                  ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-              }`}
-            >
-              就活支援事業
-            </a>
-            <a
-              href="/dashboard?business=design"
-              className={`px-3 py-1 ${
-                business === "design"
-                  ? "bg-neutral-900 text-white dark:bg-neutral-50 dark:text-neutral-900"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-              }`}
-            >
-              デザイナー育成事業
-            </a>
+          {/* 事業切り替え（/rankings と同系統のミニマルUI） */}
+          <div className="mt-4 space-y-3 rounded-2xl border border-neutral-200 bg-neutral-50/80 p-3 text-xs dark:border-neutral-700 dark:bg-neutral-900/60">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-neutral-900 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white dark:bg-neutral-100 dark:text-neutral-900">
+                  BUSINESS
+                </span>
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-300">
+                  事業を切り替えて、それぞれのKPIダッシュボードを表示します。
+                </p>
+              </div>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-neutral-800 dark:text-neutral-50">
+              <a
+                href="/dashboard?business=career"
+                className={`group flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                  business === "career"
+                    ? "border-neutral-900 bg-white text-neutral-900 shadow-sm dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900"
+                    : "border-transparent bg-neutral-100/80 text-neutral-700 hover:border-neutral-300 hover:bg-white dark:border-neutral-700/80 dark:bg-neutral-800/80 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
+                    business === "career"
+                      ? "bg-neutral-900 text-white dark:bg-neutral-900 dark:text-neutral-50"
+                      : "bg-neutral-200 text-neutral-700 group-hover:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-100 dark:group-hover:bg-neutral-600"
+                  }`}
+                >
+                  就
+                </span>
+                <span>就活支援事業</span>
+              </a>
+              <a
+                href="/dashboard?business=design"
+                className={`group flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                  business === "design"
+                    ? "border-neutral-900 bg-white text-neutral-900 shadow-sm dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900"
+                    : "border-transparent bg-neutral-100/80 text-neutral-700 hover:border-neutral-300 hover:bg-white dark:border-neutral-700/80 dark:bg-neutral-800/80 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                }`}
+              >
+                <span
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${
+                    business === "design"
+                      ? "bg-neutral-900 text-white dark:bg-neutral-900 dark:text-neutral-50"
+                      : "bg-neutral-200 text-neutral-700 group-hover:bg-neutral-300 dark:bg-neutral-700 dark:text-neutral-100 dark:group-hover:bg-neutral-600"
+                  }`}
+                >
+                  デ
+                </span>
+                <span>デザイナー育成事業</span>
+              </a>
+            </div>
           </div>
         </header>
 
