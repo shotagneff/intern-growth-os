@@ -23,6 +23,7 @@ export async function GET(_req: NextRequest) {
   const result = await pool.query(
     `SELECT id, member_id AS "memberId", name
      FROM users
+     WHERE is_admin = FALSE
      ORDER BY created_at ASC;`
   );
 
