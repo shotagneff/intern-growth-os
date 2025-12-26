@@ -104,6 +104,32 @@ export default function DailyReportsPage() {
   }, []);
 
   useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const user = data?.user;
+        if (!user) return;
+
+        if (!memberName) {
+          const autoName = (user.name as string | null) || (user.memberId as string | null) || "";
+          if (autoName) {
+            setMemberName(autoName);
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem("igos_member_name", autoName);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch /api/auth/me for daily-reports", e);
+      }
+    };
+
+    void fetchMe();
+  }, [memberName]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const raw = window.localStorage.getItem("igos_daily_reports_v1");
