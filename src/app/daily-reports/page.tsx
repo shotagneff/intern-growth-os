@@ -59,6 +59,12 @@ type DailyReport = {
   moodNote: string;
 };
 
+type UserOption = {
+  id: string;
+  memberId: string;
+  name: string | null;
+};
+
 export default function DailyReportsPage() {
   const [memberName, setMemberName] = useState<string>("");
   const [endTime, setEndTime] = useState("");
@@ -72,6 +78,7 @@ export default function DailyReportsPage() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [copyMessage, setCopyMessage] = useState<string>("");
   const [availableMembers, setAvailableMembers] = useState<StoredMember[]>(FALLBACK_MEMBERS);
+  const [availableUsers, setAvailableUsers] = useState<UserOption[]>([]);
 
   const todayLabel = useMemo(() => {
     const now = new Date();
@@ -112,14 +119,12 @@ export default function DailyReportsPage() {
         const user = data?.user;
         if (!user) return;
 
-        if (!memberName) {
-          const autoName = (user.name as string | null) || (user.memberId as string | null) || "";
-          if (autoName) {
-            setMemberName(autoName);
-            if (typeof window !== "undefined") {
-              window.localStorage.setItem("igos_member_name", autoName);
-            }
-          }
+        const autoName = (user.name as string | null) || (user.memberId as string | null) || "";
+        if (!autoName) return;
+
+        setMemberName(autoName);
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("igos_member_name", autoName);
         }
       } catch (e) {
         console.error("Failed to fetch /api/auth/me for daily-reports", e);
@@ -127,7 +132,24 @@ export default function DailyReportsPage() {
     };
 
     void fetchMe();
-  }, [memberName]);
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const res = await fetch("/api/users");
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null) as { users?: UserOption[] } | null;
+        if (data && Array.isArray(data.users)) {
+          setAvailableUsers(data.users);
+        }
+      } catch (e) {
+        console.error("Failed to fetch /api/users for daily-reports", e);
+      }
+    };
+
+    void fetchUsers();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -289,13 +311,23 @@ export default function DailyReportsPage() {
               }}
             >
               <option value="">メンバーを選択</option>
-              {availableMembers
-                .filter((m) => m.active)
-                .map((m) => (
-                  <option key={m.id} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
+              {availableUsers.length > 0
+                ? availableUsers.map((u) => {
+                    const label = (u.name && u.name.trim().length > 0) ? u.name : u.memberId;
+                    if (!label) return null;
+                    return (
+                      <option key={u.id} value={label}>
+                        {label}
+                      </option>
+                    );
+                  })
+                : availableMembers
+                    .filter((m) => m.active)
+                    .map((m) => (
+                      <option key={m.id} value={m.name}>
+                        {m.name}
+                      </option>
+                    ))}
             </select>
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
