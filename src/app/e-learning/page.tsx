@@ -519,6 +519,18 @@ export default function ELearningPage() {
         description:
           "日常の業務におけるポイントや気を付けるべき点を解説します。",
       };
+    if (sectionId === 4)
+      return {
+        title: "セクション4：各種事業理解",
+        description:
+          "会社が展開している各種事業の全体像を理解し、自分のインターン業務がどの事業・どの価値提供につながっているかを把握するセクションです。",
+      };
+    if (sectionId === 5)
+      return {
+        title: "セクション5：SNSマーケティング",
+        description:
+          "主要なSNSチャネルの特徴や役割を理解し、インターン業務で関わるマーケティング施策とのつながりを学ぶセクションです。",
+      };
     return { title: "その他", description: "" };
   };
 
