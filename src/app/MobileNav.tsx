@@ -92,6 +92,12 @@ export function MobileNav() {
               onClick={close}
             />
             <MobileLink
+              href="/attendance"
+              label="勤怠管理"
+              active={isActive("/attendance")}
+              onClick={close}
+            />
+            <MobileLink
               href="/partners/mindmap"
               label="パートナー紹介マインドマップ"
               active={isActive("/partners/mindmap")}
@@ -121,6 +127,12 @@ export function MobileNav() {
                 href="/docs"
                 label="ドキュメントゾーン（管理）"
                 active={isActive("/docs")}
+                onClick={close}
+              />
+              <MobileLink
+                href="/admin/attendance"
+                label="勤怠管理（管理）"
+                active={isActive("/admin/attendance")}
                 onClick={close}
               />
               <MobileLink

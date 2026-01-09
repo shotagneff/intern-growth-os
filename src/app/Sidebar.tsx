@@ -59,6 +59,7 @@ export default function Sidebar() {
 
       <nav className="space-y-1">
         <SidebarLink href="/" label="ホーム" />
+        <SidebarLink href="/attendance" label="勤怠管理" />
         <SidebarLink href="/daily-reports" label="日報・ホウレンソウ" />
         <SidebarLink href="/dashboard" label="売上・KPIダッシュボード" />
         <SidebarLink href="/e-learning" label="動画研修ラーニング" />
@@ -72,6 +73,7 @@ export default function Sidebar() {
               管理メニュー
             </div>
             <SidebarLink href="/docs" label="ドキュメントゾーン（管理）" />
+            <SidebarLink href="/admin/attendance" label="勤怠管理（管理）" />
             <SidebarLink href="/admin/partners-mindmap" label="パートナー紹介マインドマップ（管理）" />
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
             <SidebarLink href="/admin/e-learning/progress" label="動画進捗一覧（管理）" />
