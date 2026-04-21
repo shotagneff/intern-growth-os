@@ -27,10 +27,10 @@ export function MobileNav() {
               className="block text-xs font-semibold uppercase tracking-wide"
               style={{ color: MAIN_COLOR }}
             >
-              intern growth OS
+              シークアドシステム
             </span>
             <span className="text-sm font-bold text-neutral-900 dark:text-neutral-50">
-              インターンダッシュボード
+              SEEKAD 社内統合管理
             </span>
           </div>
         </Link>

@@ -1,45 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/lib/db";
+import { ensureElearningVideosTable } from "@/lib/schema";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-// テーブルがなければ作成するヘルパー
-async function ensureTable() {
-  // ベーステーブルがなければ作成
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS elearning_videos (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT,
-      url TEXT NOT NULL,
-      cover_image_url TEXT,
-      section_id INTEGER,
-      episode_label TEXT,
-      duration_minutes INTEGER,
-      instructor_id TEXT,
-      instructor_name TEXT,
-      material_label TEXT,
-      material_url TEXT,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  // 既存テーブル向けに不足カラムを追加（古い環境でも動くように）
-  await pool.query(
-    'ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS material_label TEXT;'
-  );
-  await pool.query(
-    'ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS material_url TEXT;'
-  );
-  await pool.query(
-    'ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS instructor_id TEXT;'
-  );
-}
 
 export async function GET() {
-  await ensureTable();
+  await ensureElearningVideosTable();
 
   const result = await pool.query(
     `SELECT
@@ -48,6 +13,7 @@ export async function GET() {
       category,
       url,
       cover_image_url AS "coverImageUrl",
+      course,
       section_id AS "sectionId",
       episode_label AS "episodeLabel",
       duration_minutes AS "durationMinutes",
@@ -64,7 +30,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureTable();
+  await ensureElearningVideosTable();
 
   const body = await req.json();
   const {
@@ -73,6 +39,7 @@ export async function POST(req: NextRequest) {
     category,
     url,
     coverImageUrl,
+    course,
     sectionId,
     episodeLabel,
     durationMinutes,
@@ -93,6 +60,7 @@ export async function POST(req: NextRequest) {
       category,
       url,
       cover_image_url,
+      course,
       section_id,
       episode_label,
       duration_minutes,
@@ -102,13 +70,14 @@ export async function POST(req: NextRequest) {
       material_url,
       updated_at
     ) VALUES (
-      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       category = EXCLUDED.category,
       url = EXCLUDED.url,
       cover_image_url = EXCLUDED.cover_image_url,
+      course = EXCLUDED.course,
       section_id = EXCLUDED.section_id,
       episode_label = EXCLUDED.episode_label,
       duration_minutes = EXCLUDED.duration_minutes,
@@ -123,6 +92,7 @@ export async function POST(req: NextRequest) {
       category,
       url,
       coverImageUrl,
+      course ?? 'onboarding',
       sectionId,
       episodeLabel,
       durationMinutes,
@@ -137,7 +107,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureTable();
+  await ensureElearningVideosTable();
 
   const body = await req.json();
   const {
@@ -146,6 +116,7 @@ export async function PUT(req: NextRequest) {
     category,
     url,
     coverImageUrl,
+    course,
     sectionId,
     episodeLabel,
     durationMinutes,
@@ -166,13 +137,14 @@ export async function PUT(req: NextRequest) {
        category = COALESCE($3, category),
        url = COALESCE($4, url),
        cover_image_url = COALESCE($5, cover_image_url),
-       section_id = COALESCE($6, section_id),
-       episode_label = COALESCE($7, episode_label),
-       duration_minutes = COALESCE($8, duration_minutes),
-       instructor_id = COALESCE($9, instructor_id),
-       instructor_name = COALESCE($10, instructor_name),
-       material_label = COALESCE($11, material_label),
-       material_url = COALESCE($12, material_url),
+       course = COALESCE($6, course),
+       section_id = COALESCE($7, section_id),
+       episode_label = COALESCE($8, episode_label),
+       duration_minutes = COALESCE($9, duration_minutes),
+       instructor_id = COALESCE($10, instructor_id),
+       instructor_name = COALESCE($11, instructor_name),
+       material_label = COALESCE($12, material_label),
+       material_url = COALESCE($13, material_url),
        updated_at = NOW()
      WHERE id = $1;`,
     [
@@ -181,6 +153,7 @@ export async function PUT(req: NextRequest) {
       category,
       url,
       coverImageUrl,
+      course,
       sectionId,
       episodeLabel,
       durationMinutes,
@@ -195,7 +168,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureTable();
+  await ensureElearningVideosTable();
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

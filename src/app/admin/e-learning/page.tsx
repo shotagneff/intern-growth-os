@@ -27,7 +27,7 @@ const INITIAL_VIDEOS = [
   },
   {
     id: "sec1-002",
-    title: "SEEKAD長期インターン概要と期待役割",
+    title: "SEEKADメンバー概要と期待役割",
     category: "スタートガイド",
     url: "https://example.com/sec1-002",
     coverImageUrl: "",
@@ -614,7 +614,7 @@ export default function AdminELearningPage() {
                   placeholder="/cover/xxx.png または https://..."
                 />
                 <p className="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
-                  画像は Next.js の public 配下のパスを指定してください（例：/avatar_photo/avatar_hiraga.jpg や /training-banners/intern-onboarding-01.png と指定してください）。インターンOS用の外部URL（https://intern-growth-os/...）を使うこともできます。
+                  画像は Next.js の public 配下のパスを指定してください（例：/images/avatars/avatar_hiraga.jpg や /images/banners/training-banners/intern-onboarding-01.png と指定してください）。外部URL（https://...）を使うこともできます。
                 </p>
               </div>
 

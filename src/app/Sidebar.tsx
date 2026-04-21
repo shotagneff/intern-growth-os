@@ -43,17 +43,17 @@ export default function Sidebar() {
       <div className="mb-5 pb-4 border-b border-neutral-200/70 dark:border-neutral-800/70">
         <Link href="/daily-reports" className="flex items-center gap-3.5">
           <div className="relative h-9 w-9 overflow-hidden rounded-full border border-neutral-200 bg-white shadow-sm dark:border-neutral-700">
-            <Image src="/logoseekad.png" alt="SEEKAD ロゴ" fill className="object-contain" />
+            <Image src="/images/logo/logoseekad.png" alt="SEEKAD ロゴ" fill className="object-contain" />
           </div>
           <div>
             <span
               className="block text-sm font-semibold uppercase tracking-wide"
               style={{ color: MAIN_COLOR }}
             >
-              intern growth OS
+              シークアドシステム
             </span>
             <span className="text-lg font-bold text-neutral-900 dark:text-neutral-50">
-              インターンダッシュボード
+              SEEKAD 社内統合管理
             </span>
           </div>
         </Link>

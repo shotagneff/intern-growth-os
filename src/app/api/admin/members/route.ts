@@ -1,38 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS members (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      team TEXT,
-      role TEXT,
-      icon_url TEXT,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS team TEXT;');
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS role TEXT;');
-  await pool.query(
-    'ALTER TABLE members ADD COLUMN IF NOT EXISTS icon_url TEXT;'
-  );
-  await pool.query(
-    'ALTER TABLE members ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;'
-  );
-  await pool.query(
-    'ALTER TABLE members ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();'
-  );
-}
+import { pool } from "@/lib/db";
+import { ensureMembersTable } from "@/lib/schema";
 
 export async function GET() {
-  await ensureTable();
+  await ensureMembersTable();
 
   const result = await pool.query(
     `SELECT
@@ -51,7 +22,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureTable();
+  await ensureMembersTable();
 
   const body = await req.json();
   const members = (body?.members ?? []) as Array<{
@@ -109,7 +80,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureTable();
+  await ensureMembersTable();
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

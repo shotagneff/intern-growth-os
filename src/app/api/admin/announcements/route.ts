@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/lib/db";
+import { ensureAnnouncementsTable } from "@/lib/schema";
 import { randomUUID } from "crypto";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 type AdminAnnouncement = {
   id: string;
@@ -20,37 +17,8 @@ type AdminAnnouncement = {
   updatedAt?: string;
 };
 
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS announcements (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      body TEXT NOT NULL,
-      category TEXT,
-      cover_image_url TEXT,
-      link_url TEXT,
-      published_at DATE,
-      author_member_id TEXT,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT \'\';');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS body TEXT NOT NULL DEFAULT \'\';');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS category TEXT;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS cover_image_url TEXT;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS link_url TEXT;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS published_at DATE;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS author_member_id TEXT;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();');
-  await pool.query('ALTER TABLE announcements ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();');
-}
-
 export async function GET() {
-  await ensureTable();
+  await ensureAnnouncementsTable();
   const result = await pool.query(
     `SELECT
       id,
@@ -72,7 +40,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureTable();
+  await ensureAnnouncementsTable();
   const body = (await req.json()) as Partial<AdminAnnouncement>;
 
   const title = String(body.title ?? "").trim();
@@ -113,7 +81,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureTable();
+  await ensureAnnouncementsTable();
   const body = (await req.json()) as Partial<AdminAnnouncement>;
   const id = String(body.id ?? "").trim();
   if (!id) {
@@ -155,7 +123,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureTable();
+  await ensureAnnouncementsTable();
   const { searchParams } = new URL(req.url);
   const id = (searchParams.get("id") ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id is required" }, { status: 400 });

@@ -8,8 +8,8 @@ export type Member = {
   id: string;
   name: string; // 表示名
   team?: string; // 所属
-  role?: string; // 役割（インターン / メンターなど）
-  iconUrl?: string; // /avatar_photo/avatar_hiraga.jpg など
+  role?: string; // 役割（シークアドメンバー / メンターなど）
+  iconUrl?: string; // /images/avatars/avatar_hiraga.jpg など
   active: boolean;
 };
 
@@ -18,24 +18,24 @@ const initialMembers: Member[] = [
     id: "hiraga",
     name: "平賀　翔大",
     team: "営業",
-    role: "長期インターン",
-    iconUrl: "/avatar_photo/avatar_hiraga.jpg",
+    role: "シークアドメンバー",
+    iconUrl: "/images/avatars/avatar_hiraga.jpg",
     active: true,
   },
   {
     id: "takuma",
     name: "宅間　宗大",
     team: "営業",
-    role: "長期インターン",
-    iconUrl: "/avatar_photo/avatar_takuma.jpg",
+    role: "シークアドメンバー",
+    iconUrl: "/images/avatars/avatar_takuma.jpg",
     active: true,
   },
   {
     id: "sato",
     name: "佐藤　翔永",
     team: "営業",
-    role: "長期インターン",
-    iconUrl: "/avatar_photo/avatar_sato.png",
+    role: "シークアドメンバー",
+    iconUrl: "/images/avatars/avatar_sato.png",
     active: true,
   },
 ];
@@ -232,7 +232,7 @@ export default function MembersAdminPage() {
                 type="text"
                 value={iconUrl}
                 onChange={(e) => setIconUrl(e.target.value)}
-                placeholder="例：/avatar_photo/avatar_hiraga.jpg"
+                placeholder="例：/images/avatars/avatar_hiraga.jpg"
                 className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
               />
             </div>
@@ -296,7 +296,7 @@ export default function MembersAdminPage() {
                       type="text"
                       value={m.iconUrl || ""}
                       onChange={(e) => updateMember(m.id, { iconUrl: e.target.value })}
-                      placeholder="/avatar_photo/..."
+                      placeholder="/images/avatars/..."
                       className="min-w-[160px] flex-1 rounded-full border border-neutral-200 bg-white px-2 py-1 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
                     />
                     <label className="flex items-center gap-1 text-[11px] text-neutral-600">

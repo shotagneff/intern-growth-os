@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/lib/db";
+import { ensureAdminEventsTable } from "@/lib/schema";
 import { randomUUID } from "crypto";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 type AdminEvent = {
   id: string;
@@ -24,47 +21,6 @@ type AdminEvent = {
   lineKeyword?: string;
   updatedAt?: string;
 };
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS admin_events (
-      id TEXT PRIMARY KEY,
-      company_name TEXT,
-      program_name TEXT,
-      date TEXT,
-      place TEXT,
-      venue TEXT,
-      type TEXT,
-      industries TEXT,
-      concept_summary TEXT,
-      company_count INTEGER,
-      capacity INTEGER,
-      target TEXT,
-      reserve_url TEXT,
-      time TEXT,
-      line_keyword TEXT,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS company_name TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS program_name TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS date TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS place TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS venue TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS type TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS industries TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS concept_summary TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS company_count INTEGER;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS capacity INTEGER;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS target TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS reserve_url TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS time TEXT;');
-  await pool.query('ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS line_keyword TEXT;');
-  await pool.query(
-    'ALTER TABLE admin_events ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();'
-  );
-}
 
 function toRowPatch(body: Partial<AdminEvent>) {
   return {
@@ -86,7 +42,7 @@ function toRowPatch(body: Partial<AdminEvent>) {
 }
 
 export async function GET() {
-  await ensureTable();
+  await ensureAdminEventsTable();
   const result = await pool.query(
     `SELECT
       id,
@@ -113,7 +69,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureTable();
+  await ensureAdminEventsTable();
   const body = (await req.json()) as Partial<AdminEvent>;
   const id = body.id?.trim() || randomUUID();
   const patch = toRowPatch(body);
@@ -178,7 +134,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  await ensureTable();
+  await ensureAdminEventsTable();
   const body = (await req.json()) as Partial<AdminEvent>;
   const id = body.id?.trim();
   if (!id) return NextResponse.json({ ok: false, error: "id is required" }, { status: 400 });
@@ -226,7 +182,7 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureTable();
+  await ensureAdminEventsTable();
   const { searchParams } = new URL(req.url);
   const id = (searchParams.get("id") ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id is required" }, { status: 400 });

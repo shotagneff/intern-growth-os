@@ -1,60 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool, hasDatabase } from "@/lib/db";
+import { ensureElearningProgressTable, ensureElearningVideosTable } from "@/lib/schema";
 
 export const runtime = "nodejs";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureTables() {
-  if (!process.env.DATABASE_URL) return;
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS elearning_progress (
-      login_id TEXT NOT NULL,
-      video_id TEXT NOT NULL,
-      watched BOOLEAN NOT NULL DEFAULT FALSE,
-      updated_at TIMESTAMPTZ DEFAULT NOW(),
-      PRIMARY KEY (login_id, video_id)
-    );
-  `);
-
-  await pool.query(
-    "ALTER TABLE elearning_progress ADD COLUMN IF NOT EXISTS watched BOOLEAN NOT NULL DEFAULT FALSE;"
-  );
-  await pool.query(
-    "ALTER TABLE elearning_progress ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();"
-  );
-
-  // videos table exists already via /api/e-learning/videos
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS elearning_videos (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT,
-      url TEXT NOT NULL,
-      cover_image_url TEXT,
-      section_id INTEGER,
-      episode_label TEXT,
-      duration_minutes INTEGER,
-      instructor_id TEXT,
-      instructor_name TEXT,
-      material_label TEXT,
-      material_url TEXT,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query(
-    "ALTER TABLE elearning_videos ADD COLUMN IF NOT EXISTS section_id INTEGER;"
-  );
-}
 
 export async function GET() {
-  if (!process.env.DATABASE_URL) return NextResponse.json([]);
+  if (!hasDatabase()) return NextResponse.json([]);
 
-  await ensureTables();
+  await ensureElearningProgressTable();
+  await ensureElearningVideosTable();
 
   const totalRes = await pool.query(
     `SELECT COUNT(*)::int AS total FROM elearning_videos;`
@@ -62,13 +17,14 @@ export async function GET() {
   const totalVideos = Number((totalRes.rows?.[0] as any)?.total ?? 0);
 
   const sectionTotalsRes = await pool.query(
-    `SELECT section_id AS "sectionId", COUNT(*)::int AS "total"
+    `SELECT section_id AS "sectionId", course, COUNT(*)::int AS "total"
      FROM elearning_videos
-     GROUP BY section_id
+     GROUP BY section_id, course
      ORDER BY section_id NULLS LAST;`
   );
   const sectionTotals = (sectionTotalsRes.rows as Array<any>).map((r) => ({
     sectionId: r.sectionId === null ? null : Number(r.sectionId),
+    course: r.course ?? 'onboarding',
     total: Number(r.total ?? 0),
   }));
 
@@ -97,10 +53,11 @@ export async function GET() {
     `SELECT
       p.login_id AS "loginId",
       v.section_id AS "sectionId",
+      v.course,
       COUNT(*) FILTER (WHERE p.watched = TRUE)::int AS "watchedCount"
      FROM elearning_progress p
      JOIN elearning_videos v ON v.id = p.video_id
-     GROUP BY p.login_id, v.section_id;`
+     GROUP BY p.login_id, v.section_id, v.course;`
   );
   const watchedByLoginIdSection = new Map<string, Map<number | null, number>>();
   (watchedPerSectionRes.rows as Array<any>).forEach((r) => {
@@ -118,6 +75,7 @@ export async function GET() {
       p.video_id AS "videoId",
       p.updated_at AS "updatedAt",
       v.title AS "videoTitle",
+      v.course,
       v.section_id AS "sectionId",
       v.episode_label AS "episodeLabel"
      FROM elearning_progress p
@@ -130,6 +88,7 @@ export async function GET() {
     {
       videoId: string;
       videoTitle: string | null;
+      course: string;
       sectionId: number | null;
       episodeLabel: string | null;
       updatedAt: string;
@@ -140,6 +99,7 @@ export async function GET() {
     lastWatchedByLoginId.set(loginId, {
       videoId: String(r.videoId),
       videoTitle: r.videoTitle ?? null,
+      course: r.course ?? 'onboarding',
       sectionId: r.sectionId === null ? null : Number(r.sectionId),
       episodeLabel: r.episodeLabel ?? null,
       updatedAt: (r.updatedAt instanceof Date ? r.updatedAt.toISOString() : String(r.updatedAt)) as string,

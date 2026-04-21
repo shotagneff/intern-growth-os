@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from "pg";
+import { pool } from "@/lib/db";
+import { ensureDocumentsTable } from "@/lib/schema";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS documents (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      category TEXT,
-      note TEXT,
-      url TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-}
 
 export async function GET() {
-  await ensureTable();
+  await ensureDocumentsTable();
 
   const result = await pool.query(
     `SELECT
@@ -37,7 +22,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  await ensureTable();
+  await ensureDocumentsTable();
 
   const body = await req.json();
   const { id, title, category, note, url, createdAt } = body ?? {};
@@ -70,7 +55,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  await ensureTable();
+  await ensureDocumentsTable();
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

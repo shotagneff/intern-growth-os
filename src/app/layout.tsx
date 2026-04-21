@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 const MAIN_COLOR = "#9e8d70";
 
 export const metadata: Metadata = {
-  title: "intern growth OS",
-  description: "長期インターンの成長と成果を可視化する OS",
+  title: "シークアドシステム",
+  description: "株式会社SEEKADの社内統合管理システム",
 };
 
 export default function RootLayout({

@@ -1,30 +1,13 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS members (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      team TEXT,
-      role TEXT,
-      icon_url TEXT,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-}
+import { pool } from "@/lib/db";
+import { ensureMembersTable } from "@/lib/schema";
 
 export async function GET() {
   if (!process.env.DATABASE_URL) {
     return NextResponse.json([]);
   }
 
-  await ensureTable();
+  await ensureMembersTable();
 
   const result = await pool.query(
     `SELECT

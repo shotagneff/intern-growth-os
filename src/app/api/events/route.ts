@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
+import { pool, hasDatabase } from "@/lib/db";
+import { ensureAdminEventsTable } from "@/lib/schema";
 function normalizeGoogleSheetsCsvUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
@@ -48,31 +44,8 @@ type SheetEventRow = {
   lineKeyword?: string;
 };
 
-async function ensureAdminEventsTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS admin_events (
-      id TEXT PRIMARY KEY,
-      company_name TEXT,
-      program_name TEXT,
-      date TEXT,
-      place TEXT,
-      venue TEXT,
-      type TEXT,
-      industries TEXT,
-      concept_summary TEXT,
-      company_count INTEGER,
-      capacity INTEGER,
-      target TEXT,
-      reserve_url TEXT,
-      time TEXT,
-      line_keyword TEXT,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-}
-
 async function fetchAdminEvents(): Promise<SheetEventRow[]> {
-  if (!process.env.DATABASE_URL) return [];
+  if (!hasDatabase()) return [];
   await ensureAdminEventsTable();
 
   const result = await pool.query(

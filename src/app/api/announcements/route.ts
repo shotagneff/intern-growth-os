@@ -1,34 +1,13 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS announcements (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      body TEXT NOT NULL,
-      category TEXT,
-      cover_image_url TEXT,
-      link_url TEXT,
-      published_at DATE,
-      author_member_id TEXT,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-}
+import { pool, hasDatabase } from "@/lib/db";
+import { ensureAnnouncementsTable } from "@/lib/schema";
 
 export async function GET() {
-  if (!process.env.DATABASE_URL) {
+  if (!hasDatabase()) {
     return NextResponse.json([]);
   }
 
-  await ensureTable();
+  await ensureAnnouncementsTable();
 
   const result = await pool.query(
     `SELECT

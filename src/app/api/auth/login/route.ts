@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signSessionToken } from "@/lib/auth-token";
-import { Pool } from "pg";
+import { pool } from "@/lib/db";
+import { ensureUsersTable } from "@/lib/schema";
 import { verifyPassword, hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
@@ -9,32 +10,7 @@ const COOKIE_NAME = "igos_session";
 
 const USERS_TABLE = "igos_users";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
 type Role = "admin" | "user";
-
-async function ensureUsersTable() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS ${USERS_TABLE} (
-      login_id TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
-      display_name TEXT,
-      role TEXT NOT NULL DEFAULT 'user',
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS password_hash TEXT;`);
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS display_name TEXT;`);
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS role TEXT;`);
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS active BOOLEAN;`);
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;`);
-  await pool.query(`ALTER TABLE ${USERS_TABLE} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;`);
-}
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
