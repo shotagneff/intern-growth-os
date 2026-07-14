@@ -167,20 +167,28 @@ const VIDEOS: Video[] = [
   // 必要に応じて script.js の残りも追記できます
 ];
 
+type SectionInfo = { title: string; description: string };
+
 type Props = {
-  courseId: string;        // "onboarding" | "sales" | "ai"
-  courseTitle: string;     // "入社直後研修" | "法人営業研修" | "AI研修"
+  courseId: string;        // "onboarding" | "sales" | "ai" | "callforce"
+  courseTitle: string;     // "入社直後研修" | "法人営業研修" | "AI研修" | "コールフォース（商談記録）"
   courseSubtitle: string;  // 説明文
   showCourseNav?: boolean; // コース選択ナビを表示するか（デフォルトtrue）
+  // コース固有のセクション定義（sectionId → タイトル・説明）。
+  // 指定すると getSectionInfo より優先され、動画が無いセクションも見出しを表示する。
+  sections?: Record<number, SectionInfo>;
+  // false にするとセクションのロック（チェックリスト未完了で非表示）を無効化する。デフォルト true。
+  lockSections?: boolean;
 };
 
 const courses = [
   { id: "onboarding", title: "入社直後研修", subtitle: "基礎を学ぶ", icon: "📚", href: "/e-learning" },
   { id: "sales", title: "法人営業研修", subtitle: "営業スキルを磨く", icon: "💼", href: "/e-learning/sales-training" },
   { id: "ai", title: "AI研修", subtitle: "AI活用を学ぶ", icon: "🤖", href: "/e-learning/ai-training" },
+  { id: "callforce", title: "コールフォース（商談記録）", subtitle: "商談動画アーカイブ", icon: "📞", href: "/e-learning/callforce" },
 ];
 
-export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, showCourseNav = true }: Props) {
+export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, showCourseNav = true, sections, lockSections = true }: Props) {
   const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
   const [membersById, setMembersById] = useState<Map<string, Member>>(new Map());
@@ -467,6 +475,7 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
   }, [isSection3WatchedAll, isSection3ChecklistAll]);
 
   const isSectionUnlocked = (sectionId: number) => {
+    if (lockSections === false) return true;
     if (sectionId <= 2) return true;
     if (sectionId === 3) return isSection2Completed;
     return isSection2Completed && isSection3Completed;
@@ -549,7 +558,19 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
     return map;
   }, [sorted]);
 
-  const getSectionInfo = (sectionId: number) => {
+  // sections（コース固有定義）がある場合は、動画が無いセクションも含めて
+  // 定義順に見出しを表示する。無い場合は従来どおり動画のあるセクションのみ。
+  const sectionIdsToRender = useMemo(() => {
+    if (sections) {
+      return Object.keys(sections)
+        .map((k) => Number(k))
+        .sort((a, b) => a - b);
+    }
+    return [...groupedBySection.keys()];
+  }, [sections, groupedBySection]);
+
+  const getSectionInfo = (sectionId: number): SectionInfo => {
+    if (sections && sections[sectionId]) return sections[sectionId];
     if (sectionId === 1)
       return {
         title: "セクション1：はじめに（スタートガイド）",
@@ -681,13 +702,14 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
           </div>
         </section>
 
-        {sorted.length === 0 && (
+        {sorted.length === 0 && !sections && (
           <p className="mt-6 text-xs text-neutral-500">
             条件に合う動画がありません。
           </p>
         )}
 
-        {[...groupedBySection.entries()].map(([sectionId, videos]) => {
+        {sectionIdsToRender.map((sectionId) => {
+          const videos = groupedBySection.get(sectionId) ?? [];
           const info = getSectionInfo(sectionId);
           const watchedCount = videos.filter((v) => watchedSet.has(v.id)).length;
           const totalCount = videos.length;
