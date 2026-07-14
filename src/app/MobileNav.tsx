@@ -2,13 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 const MAIN_COLOR = "#9e8d70";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
   const pathname = usePathname();
+
+  // TEMP: ランキングボードを host(admin) のみ表示するためロールを取得。解除時はこの useEffect と showAdmin 判定を削除。
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setShowAdmin(false);
+          return;
+        }
+        const data = (await res.json()) as { role?: string };
+        setShowAdmin(data?.role === "admin");
+      } catch {
+        setShowAdmin(false);
+      }
+    };
+    void load();
+  }, []);
 
   const toggle = () => setOpen((prev) => !prev);
   const close = () => setOpen(false);
@@ -75,12 +94,15 @@ export function MobileNav() {
             active={isActive("/partners/mindmap")}
             onClick={close}
           />
-          <MobileLink
-            href="/rankings"
-            label="ランキングボード"
-            active={isActive("/rankings")}
-            onClick={close}
-          />
+          {/* TEMP: ランキングボードは host(admin) のみ表示。解除時は showAdmin 条件を外す。 */}
+          {showAdmin && (
+            <MobileLink
+              href="/rankings"
+              label="ランキングボード"
+              active={isActive("/rankings")}
+              onClick={close}
+            />
+          )}
           <MobileLink
             href="/documents"
             label="ドキュメント"
