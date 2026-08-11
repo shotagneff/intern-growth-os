@@ -1,0 +1,197 @@
+// Callforce（AI架電サービス）の反響リードを読み書きする。
+//
+// リードの記録は Callforce 側の Supabase にある。こちらに複製すると
+// 「どちらが正か」が曖昧になり、LINE通知の対応済み判定とズレる。
+// そのため同期はせず、必要なときに直接読みに行く。
+//
+// 必要な環境変数:
+//   CALLFORCE_SUPABASE_URL          例 https://xxxx.supabase.co
+//   CALLFORCE_SUPABASE_SERVICE_KEY  service_role キー（サーバー側だけで使う）
+
+export type LeadStatus = "未対応" | "対応中" | "アポ獲得" | "追客中" | "失注" | "対象外";
+
+export const LEAD_STATUSES: LeadStatus[] = [
+  "未対応",
+  "対応中",
+  "アポ獲得",
+  "追客中",
+  "失注",
+  "対象外",
+];
+
+export type Lead = {
+  id: string;
+  /** demo_call / ad_form / web_estimate */
+  source: string;
+  /** 受電デモ / 架電デモ / 見積もり など */
+  demoType: string | null;
+  /** 流入元（Retell受電デモ / homepage / Meta広告 など） */
+  inflow: string | null;
+  phoneNumber: string;
+  companyName: string | null;
+  /** 新規 / 既存 / 身内 */
+  callerType: string | null;
+  durationSeconds: number | null;
+  recordingUrl: string | null;
+  assignedTo: string;
+  status: LeadStatus;
+  note: string | null;
+  createdAt: string;
+  /** 架電した時刻。null なら未架電 */
+  respondedAt: string | null;
+  respondedHow: string | null;
+  /** 通知を出した時刻。初動の速さはここからの差で測る */
+  notifiedAt: string | null;
+};
+
+type Row = Record<string, unknown>;
+
+function config(): { url: string; key: string } | null {
+  const url = process.env.CALLFORCE_SUPABASE_URL;
+  const key = process.env.CALLFORCE_SUPABASE_SERVICE_KEY;
+  if (!url || !key) return null;
+  return { url: url.replace(/\/$/, ""), key };
+}
+
+export function hasCallforce(): boolean {
+  return !!config();
+}
+
+async function callforceFetch(path: string, init?: RequestInit): Promise<Response> {
+  const cfg = config();
+  if (!cfg) throw new Error("CALLFORCE_SUPABASE_URL / CALLFORCE_SUPABASE_SERVICE_KEY が未設定です");
+  return fetch(`${cfg.url}/rest/v1/${path}`, {
+    ...init,
+    headers: {
+      apikey: cfg.key,
+      Authorization: `Bearer ${cfg.key}`,
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    cache: "no-store",
+  });
+}
+
+function toLead(r: Row): Lead {
+  return {
+    id: String(r.id),
+    source: String(r.source ?? ""),
+    demoType: (r.demo_type as string) ?? null,
+    inflow: (r.inflow as string) ?? null,
+    phoneNumber: String(r.phone_number ?? ""),
+    companyName: (r.company_name as string) ?? null,
+    callerType: (r.caller_type as string) ?? null,
+    durationSeconds: (r.duration_seconds as number) ?? null,
+    recordingUrl: (r.recording_url as string) ?? null,
+    assignedTo: String(r.assigned_to ?? ""),
+    status: (r.status as LeadStatus) ?? "未対応",
+    note: (r.note as string) ?? null,
+    createdAt: String(r.created_at ?? ""),
+    respondedAt: (r.responded_at as string) ?? null,
+    respondedHow: (r.responded_how as string) ?? null,
+    notifiedAt: (r.notified_at as string) ?? null,
+  };
+}
+
+/** 反響リードを新しい順に取得する */
+export async function listLeads(limit = 500): Promise<Lead[]> {
+  const res = await callforceFetch(
+    `lead_alerts?select=*&order=created_at.desc&limit=${limit}`
+  );
+  if (!res.ok) {
+    throw new Error(`Callforce の取得に失敗しました (${res.status})`);
+  }
+  return ((await res.json()) as Row[]).map(toLead);
+}
+
+/** 対応状況・担当・メモを更新する */
+export async function updateLead(
+  id: string,
+  patch: { status?: LeadStatus; assignedTo?: string; note?: string }
+): Promise<void> {
+  const body: Row = { updated_at: new Date().toISOString() };
+  if (patch.status !== undefined) body.status = patch.status;
+  if (patch.assignedTo !== undefined) body.assigned_to = patch.assignedTo;
+  if (patch.note !== undefined) body.note = patch.note;
+
+  const res = await callforceFetch(`lead_alerts?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`Callforce の更新に失敗しました (${res.status})`);
+  }
+}
+
+/** 担当者の候補。Callforce 側の名簿をそのまま使う */
+export async function listResponders(): Promise<string[]> {
+  const res = await callforceFetch(`lead_responders?select=name&is_active=eq.true&order=name`);
+  if (!res.ok) return [];
+  return ((await res.json()) as Row[]).map((r) => String(r.name));
+}
+
+// ---------------------------------------------------------------------------
+// 集計
+// ---------------------------------------------------------------------------
+
+export type WeeklyRow = {
+  /** 週の始まり（月曜）。YYYY-MM-DD */
+  weekStart: string;
+  total: number;
+  responded: number;
+  /** 5分以内に架電できた件数 */
+  withinFive: number;
+  appointments: number;
+};
+
+/** JST の日付文字列にする */
+function jstDate(iso: string): Date {
+  return new Date(new Date(iso).getTime() + 9 * 3600 * 1000);
+}
+
+/** その日を含む週の月曜日（JST）を YYYY-MM-DD で返す */
+function weekStartOf(iso: string): string {
+  const d = jstDate(iso);
+  const dow = (d.getUTCDay() + 6) % 7; // 月曜=0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 初動の分数。通知から架電までの差 */
+export function firstResponseMinutes(lead: Lead): number | null {
+  if (!lead.respondedAt || !lead.notifiedAt) return null;
+  const diff = new Date(lead.respondedAt).getTime() - new Date(lead.notifiedAt).getTime();
+  return Math.max(0, Math.round(diff / 60000));
+}
+
+/** 週ごとに集計する。新しい週が先頭 */
+export function weeklySummary(leads: Lead[]): WeeklyRow[] {
+  const map = new Map<string, WeeklyRow>();
+  for (const lead of leads) {
+    if (!lead.createdAt) continue;
+    const key = weekStartOf(lead.createdAt);
+    const row =
+      map.get(key) ??
+      { weekStart: key, total: 0, responded: 0, withinFive: 0, appointments: 0 };
+    row.total++;
+    if (lead.respondedAt) row.responded++;
+    const m = firstResponseMinutes(lead);
+    if (m !== null && m <= 5) row.withinFive++;
+    if (lead.status === "アポ獲得") row.appointments++;
+    map.set(key, row);
+  }
+  return [...map.values()].sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1));
+}
+
+/** 流入元ごとの件数。多い順 */
+export function byInflow(leads: Lead[]): { name: string; count: number }[] {
+  const map = new Map<string, number>();
+  for (const lead of leads) {
+    const key = lead.inflow || "（不明）";
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+}

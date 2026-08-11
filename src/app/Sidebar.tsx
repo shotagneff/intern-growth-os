@@ -74,6 +74,7 @@ export default function Sidebar() {
             <div className="mt-3 border-t border-dashed border-neutral-200 pt-2 text-[10px] uppercase tracking-[0.16em] text-neutral-400 dark:border-neutral-800">
               管理メニュー
             </div>
+            <SidebarLink href="/admin/leads" label="反響リード（管理）" />
             <SidebarLink href="/docs" label="ドキュメントゾーン（管理）" />
             <SidebarLink href="/admin/partners-mindmap" label="パートナー紹介マインドマップ（管理）" />
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />

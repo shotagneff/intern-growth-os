@@ -1,9 +1,15 @@
+// Next.js 16 で middleware.ts → proxy.ts に改名された（関数名も middleware → proxy）。
+//
+// 2026-08-11 まで middleware.ts のままだったため、このファイルは読み込まれておらず
+// /admin/* と /api/admin/* が誰でも開ける状態だった。
+// ログイン画面も認証APIも正常に動いて見えるため、気づきにくい壊れ方だった。
+// 触ったときは「認証なしで /api/admin/* が 401 を返すこと」を必ず確かめる。
 import { NextRequest, NextResponse } from "next/server";
-import { verifySessionToken } from "./src/lib/auth-token";
+import { verifySessionToken } from "@/lib/auth-token";
 
 const COOKIE_NAME = "igos_session";
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isLoginPage = pathname === "/login";
