@@ -59,7 +59,20 @@ export default function LeadsAdminPage() {
     setError(null);
     try {
       const res = await fetch("/api/leads");
-      const json = await res.json();
+      // JSON 以外が返ることがある。ブラウザに古い画面が残っていて
+      // 移動前のURLを叩くと404のHTMLが返り、そのまま JSON.parse すると
+      // 「Unexpected token '<'」という原因の分からない文言になる。
+      const text = await res.text();
+      let json: { leads?: Lead[]; responders?: string[]; error?: string };
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(
+          res.status === 404
+            ? "画面が古くなっています。ページを再読み込みしてください（⌘+Shift+R）"
+            : `サーバーから予期しない応答が返りました (${res.status})`
+        );
+      }
       if (!res.ok) throw new Error(json?.error ?? `取得に失敗しました (${res.status})`);
       setLeads(json.leads ?? []);
       setResponders(json.responders ?? []);
@@ -136,7 +149,7 @@ export default function LeadsAdminPage() {
   }, [leads]);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-8 p-6">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">反響リード</h1>
@@ -144,16 +157,19 @@ export default function LeadsAdminPage() {
             デモ通話・広告フォームから入ったリード。5分以内の折り返しが目標です。
           </p>
         </div>
-        <button
-          onClick={() => void load()}
-          className="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-medium transition hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
-        >
-          最新にする
-        </button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-neutral-400">20秒ごとに自動更新</span>
+          <button
+            onClick={() => void load()}
+            className="rounded-2xl border border-neutral-200 bg-white/90 px-4 py-2 text-sm font-medium shadow-sm transition hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900/80 dark:hover:bg-neutral-800"
+          >
+            最新にする
+          </button>
+        </div>
       </header>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-sm dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
           {error}
         </p>
       )}
@@ -161,15 +177,16 @@ export default function LeadsAdminPage() {
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="総リード数" value={String(kpi.total)} />
         <Kpi label="未対応" value={String(kpi.未対応)} tone={kpi.未対応 > 0 ? "warn" : "normal"} />
-        <Kpi label="アポ獲得" value={String(kpi.アポ)} />
+        <Kpi label="アポ獲得" value={String(kpi.アポ)} tone={kpi.アポ > 0 ? "good" : "normal"} />
         <Kpi
           label="初動の中央値"
           value={kpi.中央値 === null ? "—" : `${kpi.中央値}分`}
+          hint="目標 5分以内"
           tone={kpi.中央値 !== null && kpi.中央値 > 5 ? "warn" : "normal"}
         />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-2">
         <Card title="週次">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[26rem] text-sm">
@@ -223,27 +240,27 @@ export default function LeadsAdminPage() {
         </Card>
       </section>
 
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap gap-2">
+      <section className="flex flex-col rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+        <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800">
           {(["すべて", "未対応", "受電デモ", "架電デモ", "広告・Web"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-full px-4 py-1.5 text-sm transition ${
+              className={`rounded-full px-3.5 py-1.5 text-sm transition ${
                 filter === f
-                  ? "bg-[#9e8d70] text-white"
-                  : "border border-neutral-200 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                  ? "bg-[#9e8d70] text-white shadow-sm"
+                  : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
               }`}
             >
               {f}
             </button>
           ))}
-          <span className="self-center text-sm text-neutral-400">{shown.length}件</span>
+          <span className="ml-auto text-sm tabular-nums text-neutral-400">{shown.length}件</span>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+        <div className="overflow-x-auto">
           <table className="w-full min-w-[62rem] text-sm">
-            <thead className="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-500 dark:bg-neutral-900">
+            <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:border-neutral-800">
               <tr>
                 <th className="px-4 py-3">日時</th>
                 <th className="px-4 py-3">種別</th>
@@ -277,12 +294,24 @@ export default function LeadsAdminPage() {
                 return (
                   <tr
                     key={lead.id}
-                    className={`border-t border-neutral-100 dark:border-neutral-800 ${
+                    className={`border-t border-neutral-100 transition hover:bg-neutral-50/70 dark:border-neutral-800 dark:hover:bg-neutral-800/40 ${
                       saving === lead.id ? "opacity-60" : ""
                     }`}
                   >
-                    <td className="whitespace-nowrap px-4 py-3 tabular-nums text-neutral-600 dark:text-neutral-300">
-                      {formatDateTime(lead.createdAt)}
+                    <td className="whitespace-nowrap py-3 pl-4 pr-4 tabular-nums text-neutral-600 dark:text-neutral-300">
+                      {/* 未対応は左端の帯で示す。行数が増えても目に留まる */}
+                      <span className="flex items-center gap-2.5">
+                        <span
+                          className={`h-8 w-1 shrink-0 rounded-full ${
+                            lead.status === "未対応"
+                              ? "bg-red-400"
+                              : lead.status === "アポ獲得"
+                                ? "bg-emerald-400"
+                                : "bg-transparent"
+                          }`}
+                        />
+                        {formatDateTime(lead.createdAt)}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-neutral-500">{lead.demoType ?? "—"}</td>
                     <td className="max-w-[10rem] truncate px-4 py-3 text-neutral-500">{lead.inflow ?? "—"}</td>
@@ -356,26 +385,48 @@ export default function LeadsAdminPage() {
   );
 }
 
-function Kpi({ label, value, tone = "normal" }: { label: string; value: string; tone?: "normal" | "warn" }) {
+function Kpi({
+  label,
+  value,
+  hint,
+  tone = "normal",
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "normal" | "warn" | "good";
+}) {
+  const accent =
+    tone === "warn"
+      ? "text-red-600 dark:text-red-400"
+      : tone === "good"
+        ? "text-emerald-600 dark:text-emerald-400"
+        : "";
   return (
-    <div className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-      <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-semibold tabular-nums ${
-          tone === "warn" ? "text-red-600 dark:text-red-400" : ""
-        }`}
-      >
-        {value}
-      </p>
+    <div className="rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">{label}</p>
+      <p className={`mt-2 text-3xl font-semibold tabular-nums ${accent}`}>{value}</p>
+      {hint && <p className="mt-1 text-xs text-neutral-400">{hint}</p>}
     </div>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="rounded-xl border border-neutral-200 p-5 dark:border-neutral-800">
-      <h2 className="mb-4 text-sm font-semibold">{title}</h2>
-      {children}
+    <div className="flex flex-col rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+      <div className="flex items-center justify-between border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {action}
+      </div>
+      <div className="p-5">{children}</div>
     </div>
   );
 }
