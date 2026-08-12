@@ -3,7 +3,10 @@ import { hasCallforce, listLeads, listResponders, updateLead, LEAD_STATUSES, typ
 
 // 反響リード（Callforce のデモ通話・広告フォーム）の一覧と更新。
 // データは Callforce 側の Supabase にあり、ここでは持たない。
-// /api/admin/* は middleware.ts で admin のみに制限されている。
+//
+// 管理者限定にはしない。反響は手が空いている人が拾うのが一番早く、
+// 担当に指名された人しか見られないと初動が遅れる。
+// ただしログインは必須（proxy.ts が /login と /api/auth 以外を保護している）。
 
 export const dynamic = "force-dynamic";
 

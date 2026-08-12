@@ -58,7 +58,7 @@ export default function LeadsAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/leads");
+      const res = await fetch("/api/leads");
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error ?? `取得に失敗しました (${res.status})`);
       setLeads(json.leads ?? []);
@@ -72,8 +72,10 @@ export default function LeadsAdminPage() {
 
   useEffect(() => {
     void load();
-    // 1分ごとに取り直す。反響は入った直後に見たい
-    const t = setInterval(() => void load(), 60_000);
+    // 20秒ごとに取り直す。5分以内に架電するのが目標なので、
+    // 1分待たせると持ち時間の2割を気づくまでに使ってしまう。
+    // 「最新にする」ボタンは、それを待たずに今すぐ見たいときのため。
+    const t = setInterval(() => void load(), 20_000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -89,7 +91,7 @@ export default function LeadsAdminPage() {
     );
     setSaving(id);
     try {
-      const res = await fetch("/api/admin/leads", {
+      const res = await fetch("/api/leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...patchBody }),
