@@ -165,6 +165,45 @@ export function firstResponseMinutes(lead: Lead): number | null {
   return Math.max(0, Math.round(diff / 60000));
 }
 
+export type DailyRow = {
+  /** YYYY-MM-DD（JST） */
+  date: string;
+  total: number;
+  responded: number;
+  withinFive: number;
+  appointments: number;
+};
+
+/**
+ * 日ごとに集計する。新しい日が先頭。
+ * リードが1件も無かった日も 0 で埋める。抜けたまま並べると
+ * 「反響が途切れた日」が見えず、勢いを読み違える。
+ */
+export function dailySummary(leads: Lead[], days = 14): DailyRow[] {
+  const map = new Map<string, DailyRow>();
+  for (const lead of leads) {
+    if (!lead.createdAt) continue;
+    const key = jstDate(lead.createdAt).toISOString().slice(0, 10);
+    const row = map.get(key) ?? { date: key, total: 0, responded: 0, withinFive: 0, appointments: 0 };
+    row.total++;
+    if (lead.respondedAt) row.responded++;
+    const m = firstResponseMinutes(lead);
+    if (m !== null && m <= 5) row.withinFive++;
+    if (lead.status === "アポ獲得") row.appointments++;
+    map.set(key, row);
+  }
+
+  // 直近 days 日を、空の日も含めて並べる
+  const out: DailyRow[] = [];
+  const cursor = jstDate(new Date().toISOString());
+  for (let i = 0; i < days; i++) {
+    const key = cursor.toISOString().slice(0, 10);
+    out.push(map.get(key) ?? { date: key, total: 0, responded: 0, withinFive: 0, appointments: 0 });
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return out;
+}
+
 /** 週ごとに集計する。新しい週が先頭 */
 export function weeklySummary(leads: Lead[]): WeeklyRow[] {
   const map = new Map<string, WeeklyRow>();

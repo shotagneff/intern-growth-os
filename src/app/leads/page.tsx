@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   LEAD_STATUSES,
   byInflow,
+  dailySummary,
   firstResponseMinutes,
   weeklySummary,
   type Lead,
@@ -53,6 +54,7 @@ export default function LeadsAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const [filter, setFilter] = useState<"すべて" | "未対応" | "受電デモ" | "架電デモ" | "広告・Web">("すべて");
+  const [period, setPeriod] = useState<"日別" | "週次">("日別");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +136,7 @@ export default function LeadsAdminPage() {
   }, [leads, filter]);
 
   const weekly = useMemo(() => weeklySummary(leads), [leads]);
+  const daily = useMemo(() => dailySummary(leads, 14), [leads]);
   const inflows = useMemo(() => byInflow(leads).slice(0, 8), [leads]);
 
   const kpi = useMemo(() => {
@@ -187,38 +190,37 @@ export default function LeadsAdminPage() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card title="週次">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[26rem] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-neutral-500">
-                <tr>
-                  <th className="pb-2">週（月曜〜）</th>
-                  <th className="pb-2 text-right">件数</th>
-                  <th className="pb-2 text-right">架電済み</th>
-                  <th className="pb-2 text-right">5分以内</th>
-                  <th className="pb-2 text-right">アポ</th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {weekly.map((w) => (
-                  <tr key={w.weekStart} className="border-t border-neutral-100 dark:border-neutral-800">
-                    <td className="py-2">{w.weekStart}</td>
-                    <td className="py-2 text-right">{w.total}</td>
-                    <td className="py-2 text-right">{w.responded}</td>
-                    <td className="py-2 text-right">{w.withinFive}</td>
-                    <td className="py-2 text-right">{w.appointments}</td>
-                  </tr>
-                ))}
-                {weekly.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-6 text-center text-neutral-400">
-                      まだデータがありません
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <Card
+          title="件数の推移"
+          action={
+            <div className="flex gap-1 rounded-full bg-neutral-100 p-0.5 dark:bg-neutral-800">
+              {(["日別", "週次"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    period === p
+                      ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-white"
+                      : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          <TrendTable
+            rows={
+              period === "日別"
+                ? daily.map((d) => ({ key: d.date, label: d.date.slice(5).replace("-", "/"), ...d }))
+                : weekly.map((w) => ({
+                    key: w.weekStart,
+                    label: `${w.weekStart.slice(5).replace("-", "/")} 週`,
+                    ...w,
+                  }))
+            }
+          />
         </Card>
 
         <Card title="流入元">
@@ -262,15 +264,17 @@ export default function LeadsAdminPage() {
           <table className="w-full min-w-[62rem] text-sm">
             <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:border-neutral-800">
               <tr>
+                {/* 「いま誰が対応できているか」が一番大事なので、
+                    対応状況と担当を日時のすぐ隣に置く */}
                 <th className="px-4 py-3">日時</th>
-                <th className="px-4 py-3">種別</th>
-                <th className="px-4 py-3">流入元</th>
+                <th className="px-4 py-3">対応状況</th>
+                <th className="px-4 py-3">担当</th>
                 <th className="px-4 py-3">電話番号</th>
                 <th className="px-4 py-3">会社名</th>
+                <th className="px-4 py-3">種別</th>
+                <th className="px-4 py-3">流入元</th>
                 <th className="px-4 py-3 text-right">通話</th>
                 <th className="px-4 py-3 text-right">初動</th>
-                <th className="px-4 py-3">担当</th>
-                <th className="px-4 py-3">対応状況</th>
                 <th className="px-4 py-3">録音</th>
               </tr>
             </thead>
@@ -313,8 +317,32 @@ export default function LeadsAdminPage() {
                         {formatDateTime(lead.createdAt)}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-neutral-500">{lead.demoType ?? "—"}</td>
-                    <td className="max-w-[10rem] truncate px-4 py-3 text-neutral-500">{lead.inflow ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={lead.status}
+                        onChange={(e) => void patch(lead.id, { status: e.target.value as LeadStatus })}
+                        className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${STATUS_STYLE[lead.status]}`}
+                      >
+                        {LEAD_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={lead.assignedTo}
+                        onChange={(e) => void patch(lead.id, { assignedTo: e.target.value })}
+                        className="cursor-pointer rounded-xl border border-neutral-200 bg-white/70 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-800/60"
+                      >
+                        {[lead.assignedTo, ...responders.filter((r) => r !== lead.assignedTo)].map((r) => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums">
                       <a href={`tel:${lead.phoneNumber}`} className="hover:underline">
                         {formatPhone(lead.phoneNumber)}
@@ -324,6 +352,8 @@ export default function LeadsAdminPage() {
                       )}
                     </td>
                     <td className="max-w-[12rem] truncate px-4 py-3">{lead.companyName ?? "—"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-neutral-500">{lead.demoType ?? "—"}</td>
+                    <td className="max-w-[10rem] truncate px-4 py-3 text-neutral-500">{lead.inflow ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-neutral-500">
                       {lead.durationSeconds !== null ? `${lead.durationSeconds}秒` : "—"}
                     </td>
@@ -333,32 +363,6 @@ export default function LeadsAdminPage() {
                       }`}
                     >
                       {mins === null ? "—" : `${mins}分`}
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={lead.assignedTo}
-                        onChange={(e) => void patch(lead.id, { assignedTo: e.target.value })}
-                        className="rounded-lg border border-neutral-200 bg-transparent px-2 py-1 text-sm dark:border-neutral-700"
-                      >
-                        {[lead.assignedTo, ...responders.filter((r) => r !== lead.assignedTo)].map((r) => (
-                          <option key={r} value={r}>
-                            {r}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={lead.status}
-                        onChange={(e) => void patch(lead.id, { status: e.target.value as LeadStatus })}
-                        className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ${STATUS_STYLE[lead.status]}`}
-                      >
-                        {LEAD_STATUSES.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
                     </td>
                     <td className="px-4 py-3">
                       {lead.recordingUrl ? (
@@ -381,6 +385,72 @@ export default function LeadsAdminPage() {
           </table>
         </div>
       </section>
+    </div>
+  );
+}
+
+type TrendRow = {
+  key: string;
+  label: string;
+  total: number;
+  responded: number;
+  withinFive: number;
+  appointments: number;
+};
+
+/**
+ * 日別・週次の共通表。
+ * 件数は数字だけだと増減が読み取りにくいので、背景に棒を敷いて量を見せる。
+ */
+function TrendTable({ rows }: { rows: TrendRow[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.total));
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[26rem] text-sm">
+        <thead className="text-left text-[11px] uppercase tracking-[0.1em] text-neutral-400">
+          <tr>
+            <th className="pb-2 font-medium">期間</th>
+            <th className="pb-2 font-medium">件数</th>
+            <th className="pb-2 text-right font-medium">架電済み</th>
+            <th className="pb-2 text-right font-medium">5分以内</th>
+            <th className="pb-2 text-right font-medium">アポ</th>
+          </tr>
+        </thead>
+        <tbody className="tabular-nums">
+          {rows.map((r) => (
+            <tr key={r.key} className="border-t border-neutral-100 dark:border-neutral-800">
+              <td className="whitespace-nowrap py-2 pr-3 text-neutral-600 dark:text-neutral-300">{r.label}</td>
+              <td className="py-2 pr-3">
+                <span className="flex items-center gap-2">
+                  <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+                    <span
+                      className="block h-full rounded-full bg-[#9e8d70]"
+                      style={{ width: `${(r.total / max) * 100}%` }}
+                    />
+                  </span>
+                  <span className={r.total === 0 ? "text-neutral-300" : "font-medium"}>{r.total}</span>
+                </span>
+              </td>
+              <td className="py-2 text-right text-neutral-500">{r.responded}</td>
+              <td className="py-2 text-right text-neutral-500">{r.withinFive}</td>
+              <td
+                className={`py-2 text-right ${
+                  r.appointments > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-neutral-500"
+                }`}
+              >
+                {r.appointments}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr>
+              <td colSpan={5} className="py-6 text-center text-neutral-400">
+                まだデータがありません
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 }
