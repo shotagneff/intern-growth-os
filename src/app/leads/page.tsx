@@ -213,10 +213,10 @@ export default function LeadsAdminPage() {
           <TrendTable
             rows={
               period === "日別"
-                ? daily.map((d) => ({ key: d.date, label: d.date.slice(5).replace("-", "/"), ...d }))
+                ? daily.map((d) => ({ key: d.date, ...labelWithWeekday(d.date), ...d }))
                 : weekly.map((w) => ({
                     key: w.weekStart,
-                    label: `${w.weekStart.slice(5).replace("-", "/")} 週`,
+                    label: `${w.weekStart.slice(5).replace("-", "/")}(月) 〜`,
                     ...w,
                   }))
             }
@@ -392,11 +392,25 @@ export default function LeadsAdminPage() {
 type TrendRow = {
   key: string;
   label: string;
+  /** 土日。休みの日に件数が少ないのは当然なので、平日と見分けられるようにする */
+  weekend?: boolean;
   total: number;
   responded: number;
   withinFive: number;
   appointments: number;
 };
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/** "2026-08-11" → "08/11 (火)" */
+function labelWithWeekday(date: string): { label: string; weekend: boolean } {
+  // YYYY-MM-DD は UTC 深夜として解釈されるので、getUTCDay がそのままその日の曜日になる
+  const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return {
+    label: `${date.slice(5).replace("-", "/")} (${WEEKDAYS[dow]})`,
+    weekend: dow === 0 || dow === 6,
+  };
+}
 
 /**
  * 日別・週次の共通表。
@@ -418,8 +432,19 @@ function TrendTable({ rows }: { rows: TrendRow[] }) {
         </thead>
         <tbody className="tabular-nums">
           {rows.map((r) => (
-            <tr key={r.key} className="border-t border-neutral-100 dark:border-neutral-800">
-              <td className="whitespace-nowrap py-2 pr-3 text-neutral-600 dark:text-neutral-300">{r.label}</td>
+            <tr
+              key={r.key}
+              className={`border-t border-neutral-100 dark:border-neutral-800 ${
+                r.weekend ? "bg-neutral-50/60 dark:bg-neutral-800/30" : ""
+              }`}
+            >
+              <td
+                className={`whitespace-nowrap py-2 pr-3 ${
+                  r.weekend ? "text-neutral-400" : "text-neutral-600 dark:text-neutral-300"
+                }`}
+              >
+                {r.label}
+              </td>
               <td className="py-2 pr-3">
                 <span className="flex items-center gap-2">
                   <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
