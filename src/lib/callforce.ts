@@ -223,14 +223,121 @@ export function weeklySummary(leads: Lead[]): WeeklyRow[] {
   return [...map.values()].sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1));
 }
 
-/** 流入元ごとの件数。多い順 */
-export function byInflow(leads: Lead[]): { name: string; count: number }[] {
-  const map = new Map<string, number>();
+export type Breakdown = {
+  name: string;
+  count: number;
+  /** アポ獲得の件数 */
+  appointments: number;
+  /** 架電済みの件数 */
+  responded: number;
+};
+
+/** 任意のキーで割る。件数の多い順 */
+function groupBy(leads: Lead[], keyOf: (l: Lead) => string): Breakdown[] {
+  const map = new Map<string, Breakdown>();
   for (const lead of leads) {
-    const key = lead.inflow || "（不明）";
-    map.set(key, (map.get(key) ?? 0) + 1);
+    const key = keyOf(lead);
+    const row = map.get(key) ?? { name: key, count: 0, appointments: 0, responded: 0 };
+    row.count++;
+    if (lead.status === "アポ獲得") row.appointments++;
+    if (lead.respondedAt) row.responded++;
+    map.set(key, row);
   }
-  return [...map.entries()]
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+  return [...map.values()].sort((a, b) => b.count - a.count);
+}
+
+/** 流入元ごと */
+export function byInflow(leads: Lead[]): Breakdown[] {
+  return groupBy(leads, (l) => l.inflow || "（不明）");
+}
+
+/** 対応状況ごと */
+export function byStatus(leads: Lead[]): Breakdown[] {
+  return groupBy(leads, (l) => l.status);
+}
+
+/** 担当者ごと */
+export function byAssignee(leads: Lead[]): Breakdown[] {
+  return groupBy(leads, (l) => l.assignedTo || "（未割当）");
+}
+
+/** 新規 / 既存 などの発信者区分ごと */
+export function byCallerType(leads: Lead[]): Breakdown[] {
+  return groupBy(leads, (l) => l.callerType || "（不明）");
+}
+
+/** 受電デモ / 架電デモ などの種別ごと */
+export function byDemoType(leads: Lead[]): Breakdown[] {
+  return groupBy(leads, (l) => l.demoType || "（不明）");
+}
+
+/**
+ * 曜日 × 時間帯の件数（JST）。
+ * どの曜日・何時に反響が来るかが分かれば、人を張る時間を決められる。
+ * 時間は 9時〜20時（通知を出す時間帯）に絞る。
+ */
+export type Heatmap = {
+  hours: number[];
+  /** rows[曜日][時間] の件数。曜日は 月=0 〜 日=6 */
+  rows: number[][];
+  max: number;
+};
+
+export function byWeekdayHour(leads: Lead[], fromHour = 9, toHour = 20): Heatmap {
+  const hours: number[] = [];
+  for (let h = fromHour; h <= toHour; h++) hours.push(h);
+
+  const rows = Array.from({ length: 7 }, () => new Array(hours.length).fill(0));
+  let max = 0;
+  for (const lead of leads) {
+    if (!lead.createdAt) continue;
+    const d = jstDate(lead.createdAt);
+    const dow = (d.getUTCDay() + 6) % 7; // 月曜=0
+    const idx = hours.indexOf(d.getUTCHours());
+    if (idx < 0) continue; // 時間外に来たものはここでは数えない
+    rows[dow][idx]++;
+    if (rows[dow][idx] > max) max = rows[dow][idx];
+  }
+  return { hours, rows, max };
+}
+
+/**
+ * デモ通話の長さの分布。
+ * 短いほど途中で切られている。何秒まで聞いてもらえているかは
+ * トークの出来を測る手がかりになる。
+ */
+export function durationBuckets(leads: Lead[]): { name: string; count: number }[] {
+  const buckets = [
+    { name: "〜30秒", max: 30 },
+    { name: "30〜60秒", max: 60 },
+    { name: "60〜90秒", max: 90 },
+    { name: "90〜120秒", max: 120 },
+    { name: "120秒〜", max: Infinity },
+  ];
+  const out = buckets.map((b) => ({ name: b.name, count: 0 }));
+  for (const lead of leads) {
+    if (lead.durationSeconds === null) continue;
+    const i = buckets.findIndex((b) => lead.durationSeconds! <= b.max);
+    out[i < 0 ? out.length - 1 : i].count++;
+  }
+  return out;
+}
+
+/** 初動のまとめ。母数が小さいうちは中央値を鵜呑みにしない */
+export function responseStats(leads: Lead[]): {
+  /** 初動を計算できた件数。これが小さいうちは中央値に意味がない */
+  sample: number;
+  median: number | null;
+  withinFive: number;
+  withinFiveRate: number | null;
+} {
+  const times = leads.map(firstResponseMinutes).filter((m): m is number => m !== null);
+  const sorted = [...times].sort((a, b) => a - b);
+  const withinFive = times.filter((m) => m <= 5).length;
+  return {
+    sample: times.length,
+    median: sorted.length ? sorted[Math.floor(sorted.length / 2)] : null,
+    withinFive,
+    withinFiveRate: times.length ? Math.round((withinFive / times.length) * 100) : null,
+  };
 }
