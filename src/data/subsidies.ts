@@ -8,6 +8,15 @@
 //   - 締切が過ぎたものは消さず status を "closed" にする。来期の先回りリストとして使う。
 //   - 予算上限で期日前に止まった制度は "suspended"。再開時は初動勝負なので消さない。
 //   - 調査基準日を LEDGER_UPDATED_AT に必ず入れる。UI がこの日付を出して鮮度を伝える。
+//
+// 和暦の変換に注意。令和7年=2025年、令和8年=2026年。
+// 実際に、令和7年度の制度（令和7年10月〜令和8年1月）を丸ごと1年ずらして
+// 「令和8年10月〜令和9年1月に開く予定」として登録してしまった事故が起きている（石川県）。
+// 「10月開始」のように月だけ見て未来の制度だと判断しないこと。必ず年度を確認する。
+//
+// 締切のない open も危ない。締切が null のまま放置すると、実際には
+// 春に終わっていた制度が永遠に「受付中」で残る（山口県・医療分野の業務効率化で発生）。
+// 締切が読み取れないときは status を暫定で closed 側に倒し、deadlineNote に理由を書く。
 
 /** この台帳を最後に人が確認した日。UI に出して「いつ時点の情報か」を明示する */
 export const LEDGER_UPDATED_AT = "2026-08-13";
@@ -197,9 +206,12 @@ export const SUBSIDIES: Subsidy[] = [
     prefectures: "all",
     url: "https://shoryokuka.smrj.go.jp/ippan/",
     status: "upcoming",
+    // 公式は「10月中旬締切予定」までしか出しておらず、確定日は8/18の公募要領で公表される。
+    // 10-16 は「中旬」の内側に置いた仮置きで、確定日ではない。営業には日付を断定させないこと
     deadline: "2026-10-16",
     opensAt: "2026-08-18",
-    deadlineNote: "公募開始8/18、申請受付9月中旬、締切10月中旬（予定）",
+    deadlineNote:
+      "公募開始8/18（要領公開）、申請受付9月中旬、締切10月中旬。受付・締切とも公式表記は「予定」で確定日は未公表",
     rate: "中小1/2（最低賃金引上特例で2/3）、小規模事業者2/3",
     maxAmount: 100_000_000,
     minAmount: null,
@@ -229,8 +241,10 @@ export const SUBSIDIES: Subsidy[] = [
     url: "https://shinjigyou-monodukuri.smrj.go.jp/",
     status: "upcoming",
     deadline: "2026-10-30",
-    opensAt: "2026-09-30",
-    deadlineNote: "申請受付9/30〜10/30 18:00。当初9/30締切だったが7/17付で後ろ倒しされた",
+    // 公募開始6/29、申請受付開始8/31、締切10/30。opensAt に 9/30（当初の締切日）が
+    // 入っていたのを修正した（2026-08-13 公式サイトで確認）
+    opensAt: "2026-08-31",
+    deadlineNote: "公募開始6/29、申請受付8/31〜10/30 18:00。当初9/30締切だったが7/17付で後ろ倒しされた",
     rate: "1/2〜2/3",
     maxAmount: 90_000_000,
     minAmount: 7_500_000,
@@ -309,11 +323,15 @@ export const SUBSIDIES: Subsidy[] = [
     authority: "各都道府県（厚労省事業）",
     category: "補助金",
     prefectures: "all",
-    url: "https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/iryou/index.html",
-    status: "open",
-    deadline: null,
+    url: "https://www.pref.kanagawa.jp/docs/t3u/iryo-gyoumukourituka.html",
+    // 令和8年度は 5〜6月に県が意向調査、7月に業務効率化計画の提出で締切済み。
+    // 神奈川県は「令和8年7月17日17時、これ以降の提出は一切認められません」と明記。
+    // 台帳が「締切なしのopen」になっていたのを修正（2026-08-13 実地確認）。
+    // 次は令和9年度、県の意向調査が3〜4月に動くのでそこが仕込みどき
+    status: "closed",
+    deadline: "2026-07-17",
     opensAt: null,
-    deadlineNote: "実施主体は都道府県のため募集時期は県ごとに異なる",
+    deadlineNote: "令和8年度は各県7月で締切済み（神奈川は7/17 17時）。次は令和9年度の3〜4月",
     rate: "4/5（国2/3・都道府県1/3）",
     maxAmount: 80_000_000,
     minAmount: null,
@@ -469,9 +487,11 @@ export const SUBSIDIES: Subsidy[] = [
     prefectures: ["高知県"],
     url: "https://kochi-chinginkojo.jp/",
     status: "open",
-    deadline: null,
-    opensAt: null,
-    deadlineNote: "申請フォームは6月10日から利用開始。予算終了次第",
+    // 公式ページに「令和8年6月10日〜令和8年12月14日」と明記されている（2026-08-13 確認）
+    deadline: "2026-12-14",
+    opensAt: "2026-06-10",
+    deadlineNote:
+      "令和8年6月10日〜12月14日。8/7時点の申請額4億9,748万円／予算8億8,000万円（約57%消化）。予算上限で早期終了あり",
     rate: "従業員1人あたり10万円",
     maxAmount: 10_000_000,
     minAmount: null,
@@ -677,10 +697,12 @@ export const SUBSIDIES: Subsidy[] = [
     category: "補助金",
     prefectures: ["山口県"],
     url: "https://www.pref.yamaguchi.lg.jp/press/341080.html",
-    status: "open",
-    deadline: null,
-    opensAt: null,
-    deadlineNote: "締切は県の公表を要確認",
+    // 公式ページは「令和8年4月1日〜4月30日 消印有効」。既に終了している。
+    // 台帳が「締切なしのopen」になっていたのを修正（2026-08-13 実地確認）
+    status: "closed",
+    deadline: "2026-04-30",
+    opensAt: "2026-04-01",
+    deadlineNote: "令和8年4月1日〜4月30日 消印有効で終了。第2回の告知なし",
     rate: "要確認",
     maxAmount: 5_000_000,
     minAmount: null,
@@ -754,10 +776,13 @@ export const SUBSIDIES: Subsidy[] = [
     category: "助成金",
     prefectures: ["石川県"],
     url: "https://www.isico.or.jp/support/dgnet/d41190107.html",
-    status: "upcoming",
-    deadline: "2027-01-16",
-    opensAt: "2026-10-17",
-    deadlineNote: "10/17〜2027年1月16日 消印有効",
+    // 令和7年度の事業。2026-01-16（R8.1.16）で終了済み。令和8年度版の告知は
+    // 2026-08-13 時点でなし。台帳に「2026-10-17〜2027-01-16 のupcoming」と
+    // 1年ずらして入っていたのを修正した（和暦の令和7→2025を2026と誤変換）
+    status: "closed",
+    deadline: "2026-01-16",
+    opensAt: "2025-10-17",
+    deadlineNote: "令和7年10月17日〜令和8年1月16日 消印有効。令和8年度版の告知なし",
     rate: "中小3/4、小規模事業者4/5",
     maxAmount: 1_000_000,
     minAmount: null,
@@ -943,7 +968,9 @@ export const SUBSIDIES: Subsidy[] = [
     prefectures: ["東京都"],
     url: "https://www.koyokankyo.shigotozaidan.or.jp/jigyo/skillup/boshu/skill-R8dx-risk.html",
     status: "open",
-    deadline: "2027-03-31",
+    // 申請受付は令和8年3月1日〜令和9年2月28日。2027-03-31 が入っていたが、
+    // それは「対象となる研修の開始期間」の終わりで申請締切ではない（2026-08-13 確認）
+    deadline: "2027-02-28",
     opensAt: null,
     deadlineNote: "研修開始日の1か月前までに申請。令和8年4月1日〜令和9年3月31日に開始する研修が対象",
     rate: "3/4",
