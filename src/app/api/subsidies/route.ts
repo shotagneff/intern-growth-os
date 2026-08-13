@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { LEDGER_UPDATED_AT, PREFECTURES, type Prefecture, type Industry } from "@/data/subsidies";
+import { PREFECTURES, type Prefecture, type Industry } from "@/data/subsidies";
 import {
   findCandidates,
   toPromptPayload,
   estimateGyomuKaizen,
+  ledgerFreshness,
   type CompanyProfile,
 } from "@/lib/subsidies";
 
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
 
   if (candidates.length === 0) {
     return NextResponse.json({
-      ledgerUpdatedAt: LEDGER_UPDATED_AT,
+      ledger: ledgerFreshness(),
       candidateCount: 0,
       result: {
         summary: `${profile.prefecture}で今すぐ使える制度は、台帳の中には見つかりませんでした。`,
@@ -242,7 +243,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      ledgerUpdatedAt: LEDGER_UPDATED_AT,
+      ledger: ledgerFreshness(),
       candidateCount: candidates.length,
       result,
       estimate,

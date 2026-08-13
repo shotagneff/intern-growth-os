@@ -48,8 +48,10 @@ type Estimate = {
   notes: string[];
 };
 
+type Ledger = { updatedAt: string; ageDays: number; stale: boolean };
+
 type ApiResponse = {
-  ledgerUpdatedAt: string;
+  ledger: Ledger;
   candidateCount: number;
   result: {
     summary: string;
@@ -58,6 +60,29 @@ type ApiResponse = {
   };
   estimate: Estimate | null;
   candidates?: Candidate[];
+};
+
+/** 公式ページを見に行った結果。台帳の締切だけでは予算上限による早期終了を検知できない */
+type VerifyResult = {
+  id: string;
+  status: "open" | "closed" | "unknown";
+  evidence: string;
+  deadlineOnPage: string;
+};
+
+const VERIFY_STYLE: Record<VerifyResult["status"], { label: string; className: string }> = {
+  open: {
+    label: "受付中",
+    className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  },
+  closed: {
+    label: "受付終了",
+    className: "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300",
+  },
+  unknown: {
+    label: "要確認",
+    className: "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+  },
 };
 
 const PRIORITY_STYLE: Record<Recommendation["priority"], { label: string; className: string }> = {
@@ -85,13 +110,38 @@ export default function SubsidyFinder() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ApiResponse | null>(null);
 
+  // 公式ページの確認は後追いで走らせる。提案を出すまでの時間を延ばさないため
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState<Map<string, VerifyResult>>(new Map());
+
   const candidateById = new Map((data?.candidates ?? []).map((c) => [c.id, c]));
+
+  /** 提案が出たあとに、上位の制度が今も受付中かを公式ページで確認する */
+  const runVerify = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setVerifying(true);
+    try {
+      const res = await fetch("/api/subsidies/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) return; // 確認できなくても提案は残す。バッジが出ないだけ
+      const json = (await res.json()) as { results: VerifyResult[] };
+      setVerified(new Map(json.results.map((r) => [r.id, r])));
+    } catch {
+      // 同上。黙って諦める
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setData(null);
+    setVerified(new Map());
 
     try {
       const res = await fetch("/api/subsidies", {
@@ -113,7 +163,11 @@ export default function SubsidyFinder() {
         setError(json.error ?? "取得に失敗しました");
         return;
       }
-      setData(json as ApiResponse);
+      const payload = json as ApiResponse;
+      setData(payload);
+
+      // 提案を画面に出してから確認を始める（await しない）
+      void runVerify(payload.result.recommendations.slice(0, 3).map((r) => r.id));
     } catch {
       setError("通信に失敗しました");
     } finally {
@@ -265,11 +319,25 @@ export default function SubsidyFinder() {
 
       {data && (
         <>
+          {/* 古い台帳を黙って使い続けるのが一番危ない。締切の過ぎた制度を案内してしまう */}
+          {data.ledger.stale && (
+            <Panel className="border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                台帳が {data.ledger.ageDays} 日前の情報です
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+                補助金の公募は1〜2か月で入れ替わります。この状態では締切の過ぎた制度が
+                含まれている可能性が高いので、顧客に伝える前に必ず公式ページを確認してください。
+                台帳の更新を依頼してください。
+              </p>
+            </Panel>
+          )}
+
           <Card
             title="打ち手"
             action={
               <span className="text-[11px] text-neutral-400">
-                候補 {data.candidateCount} 件／台帳 {data.ledgerUpdatedAt} 時点
+                候補 {data.candidateCount} 件／台帳 {data.ledger.updatedAt} 時点
               </span>
             }
           >
@@ -308,18 +376,36 @@ export default function SubsidyFinder() {
             </Card>
           )}
 
+          {verifying && (
+            <p className="px-1 text-xs text-neutral-400">
+              上位3件について、公式ページで今も受付中か確認しています…
+            </p>
+          )}
+
           {data.result.recommendations.map((rec) => {
             const c = candidateById.get(rec.id);
             const style = PRIORITY_STYLE[rec.priority];
+            const v = verified.get(rec.id);
             return (
-              <Panel key={rec.id} className="p-5">
+              <Panel
+                key={rec.id}
+                className={`p-5 ${v?.status === "closed" ? "border-red-300 dark:border-red-800" : ""}`}
+              >
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${style.className}`}>
                         {style.label}
                       </span>
                       <h3 className="text-base font-semibold">{c?.name ?? rec.id}</h3>
+                      {v && (
+                        <span
+                          className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${VERIFY_STYLE[v.status].className}`}
+                          title={v.evidence}
+                        >
+                          公式確認: {VERIFY_STYLE[v.status].label}
+                        </span>
+                      )}
                       {c && (
                         <span className="text-[11px] text-neutral-400">
                           {c.authority}／{c.category}
@@ -342,6 +428,25 @@ export default function SubsidyFinder() {
                       </div>
                     )}
                   </div>
+
+                  {/* 公式ページの記載。台帳の締切より、こちらが実態に近い */}
+                  {v && v.status !== "open" && (
+                    <div
+                      className={`rounded-lg p-3 text-xs leading-relaxed ${
+                        v.status === "closed"
+                          ? "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200"
+                          : "bg-neutral-50 text-neutral-600 dark:bg-neutral-800/50 dark:text-neutral-300"
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        {v.status === "closed"
+                          ? "公式ページでは受付が終了しています。"
+                          : "公式ページから受付状況を判断できませんでした。"}
+                      </span>{" "}
+                      {v.evidence}
+                      {v.deadlineOnPage && `（ページ上の締切: ${v.deadlineOnPage}）`}
+                    </div>
+                  )}
 
                   <p className="text-sm font-medium">{rec.headline}</p>
 
@@ -418,8 +523,9 @@ export default function SubsidyFinder() {
           )}
 
           <p className="px-1 text-xs leading-relaxed text-neutral-400">
-            台帳は {data.ledgerUpdatedAt} 時点の情報です。補助金は予算上限に達すると期日前でも締め切られるため、
-            架電の直前に公式ページで受付状況を確認してください。金額や要件を顧客に伝える前に、公募要領の原本で裏を取ってください。
+            制度の一覧は {data.ledger.updatedAt} 時点の台帳です（{data.ledger.ageDays} 日前）。
+            上位3件は公式ページで受付状況を確認していますが、それ以外は台帳の締切日のままです。
+            金額や要件を顧客に伝える前に、公募要領の原本で裏を取ってください。
           </p>
         </>
       )}

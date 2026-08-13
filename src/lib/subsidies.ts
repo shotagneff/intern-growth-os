@@ -6,6 +6,7 @@
 
 import {
   SUBSIDIES,
+  LEDGER_UPDATED_AT,
   type Subsidy,
   type Prefecture,
   type Industry,
@@ -316,6 +317,32 @@ export function findCandidates(
   }
 
   return out.sort((a, b) => b.score - a.score);
+}
+
+// ---------------------------------------------------------------------------
+// 台帳の鮮度
+// ---------------------------------------------------------------------------
+
+/** これを超えたら画面で警告する。補助金の公募サイクルは1〜2か月単位で動くため */
+export const LEDGER_STALE_DAYS = 60;
+
+/** 台帳を最後に人が確認してから何日経ったか */
+export function ledgerAgeDays(now = new Date()): number {
+  return daysBetween(parseDate(LEDGER_UPDATED_AT), todayJst(now));
+}
+
+/**
+ * 台帳が古くなっていないか。
+ * 古い台帳を黙って使い続けるのが一番危ない——締切の過ぎた制度を
+ * 顧客に案内してしまう。気づけるように画面へ出す。
+ */
+export function ledgerFreshness(now = new Date()): {
+  updatedAt: string;
+  ageDays: number;
+  stale: boolean;
+} {
+  const ageDays = ledgerAgeDays(now);
+  return { updatedAt: LEDGER_UPDATED_AT, ageDays, stale: ageDays > LEDGER_STALE_DAYS };
 }
 
 /** 候補を AI に渡すための、余計な情報を落とした形 */
