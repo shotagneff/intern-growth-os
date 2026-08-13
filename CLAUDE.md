@@ -33,6 +33,7 @@
 | 言語 | TypeScript 5 |
 | DB | PostgreSQL（`pg` ライブラリ、`DATABASE_URL` 環境変数） |
 | 認証 | 独自実装（HMAC-SHA256トークン + httpOnly Cookie `igos_session`、scryptハッシュ） |
+| AI | Claude API（`@anthropic-ai/sdk`、モデル `claude-opus-5`、`ANTHROPIC_API_KEY` 環境変数） |
 | デプロイ | Vercel（`@vercel/postgres` 依存） |
 | デザイン | Apple風ミニマル。角丸カード・微細シャドウ・ダークモード対応 |
 
@@ -46,6 +47,8 @@
 |------|------|------|-------------|
 | ホーム（カレンダー・お知らせ） | `/` | 実装済み | API + Google スプレッドシート |
 | 日報・ホウレンソウ | `/daily-reports` | 実装済み | **localStorage のみ**（要改善） |
+| 反響リード | `/leads` | 実装済み | Callforce 側の Supabase（複製しない） |
+| 補助金・助成金 | `/subsidies` | 実装済み | `src/data/subsidies.ts` の台帳（手動更新）+ Claude API |
 | 売上・KPIダッシュボード | `/dashboard` | 実装済み | Google スプレッドシートCSV |
 | 動画研修ラーニング | `/e-learning` | 実装済み | DB（動画）/ localStorage（視聴履歴） |
 | パートナー紹介マインドマップ | `/partners/mindmap` | 実装済み | **localStorage のみ** |
@@ -95,13 +98,14 @@
 
 ## 6. 進捗（常に最新の状態を反映する）
 
-最終更新: 2026-04-20
+最終更新: 2026-08-13
 
 ### 現在の状態
 
-- `intern-growth-os` リポジトリをクローン完了
-- CLAUDE.md を作成し、既存コードの全体像を整理
-- リブランディング・新機能追加はこれから着手
+- `intern-growth-os` リポジトリをクローン完了、CLAUDE.md で全体像を整理
+- 反響リード管理（`/leads`）を追加。Callforce の Supabase を直接読む構成
+- 補助金・助成金の提案（`/subsidies`）を追加。Claude API の初導入
+- リブランディング（名称・Cookie 名）は未着手
 
 ### 進め方（マイルストーン）
 
@@ -116,6 +120,21 @@
 ---
 
 ## 7. 変更ログ（新しいものを上に書く）
+
+### 2026-08-13（補助金・助成金の提案を追加）
+
+- `/subsidies` を追加。営業が架電前に相手企業の情報を入れると、その会社が今使える
+  補助金・助成金と、そのまま読み上げられる切り出しが出る
+- **設計判断: 制度の絞り込みは台帳、提案の組み立てだけを AI に任せる。**
+  全部 AI に投げると存在しない制度を作ったり締切を取り違えたりするため、
+  事実（都道府県・締切・金額・要件）は `src/data/subsidies.ts` に持ち、
+  AI には絞り込み済みの候補だけを渡す。返ってきた id が候補外なら API 側で除外する
+- **設計判断: 台帳は手動更新。** 補助金は年度途中の補正で増え、名称も毎年変わる。
+  毎回 Web 検索させると取りこぼすため、人が確認した内容を持ち、
+  `LEDGER_UPDATED_AT` を UI に出して鮮度を伝える
+- Claude API（`@anthropic-ai/sdk`）を初導入。モデルは `claude-opus-5`、
+  出力は structured outputs で固定。システムプロンプトは毎回同じなのでキャッシュする
+- `ANTHROPIC_API_KEY` が新たに必要。未設定なら API は 503 を返す
 
 ### 2026-04-20（プロジェクト開始）
 
@@ -193,6 +212,18 @@
     │   │   ├── documents/page.tsx         → /documents
     │   │   └── docs/page.tsx              → /docs
     │   │
+    │   │  ── Route Group なし（そのまま URL になる）──
+    │   │
+    │   ├── leads/                     反響リード（→ /leads）。
+    │   │   ├── page.tsx               ダッシュボード／一覧のタブ切り替え。
+    │   │   ├── Dashboard.tsx          反響の集計・分析パネル。
+    │   │   ├── LeadList.tsx           一覧と対応状況・担当の更新。
+    │   │   └── ui.tsx                 Card / Panel / Kpi。他画面からも再利用する。
+    │   │
+    │   ├── subsidies/                 補助金・助成金の提案（→ /subsidies）。
+    │   │   ├── page.tsx               ページ枠。
+    │   │   └── SubsidyFinder.tsx      入力フォームと提案結果の表示。
+    │   │
     │   │  ── 管理者・API（グルーピング不要、そのまま）──
     │   │
     │   ├── admin/                     管理者向けページ群。
@@ -214,14 +245,22 @@
     │       ├── threads/               スレッド投稿・予約投稿。
     │       ├── users/                 ユーザー取得。
     │       ├── home/                  ホーム用カレンダーイベント。
+    │       ├── leads/                 反響リードの取得・更新（Callforce の Supabase を直接読む）。
+    │       ├── subsidies/             補助金の提案。台帳で絞り込み → Claude API で提案文を生成。
     │       └── admin/                 管理者用API（members / users / e-learning / announcements / events）。
     │
     ├── lib/                           共通ロジック。
     │   ├── auth-token.ts              セッショントークンの生成・検証。
-    │   └── password.ts                パスワードのハッシュ化・照合。
+    │   ├── password.ts                パスワードのハッシュ化・照合。
+    │   ├── db.ts                      PostgreSQL の接続プール（`DATABASE_URL`）。
+    │   ├── schema.ts                  DB スキーマ定義。
+    │   ├── callforce.ts               Callforce（AI架電）の反響リード取得・集計。
+    │   └── subsidies.ts               補助金の絞り込みと業務改善助成金の助成額試算。
     │
     └── data/
-        └── videos.ts                  動画データ型定義・初期データ（videos/[id] で使用）。
+        ├── videos.ts                  動画データ型定義・初期データ（videos/[id] で使用）。
+        └── subsidies.ts               補助金・助成金の台帳。**手動更新**。締切が過ぎても消さず
+                                       status を closed にする（来期の先回りリストとして使うため）。
 ```
 
 > **運用ルール**: ファイルやフォルダを追加・削除したら、このツリーと定義も必ず更新する。
