@@ -21,6 +21,11 @@ const CALLFORCE_SECTIONS = {
     title: "AI架電",
     description: "AI音声による自動架電に関する商談記録。",
   },
+  5: {
+    title: "業務効率化（AI業務改善）",
+    description:
+      "事務・経理・現場業務などのAI自動化・業務効率化に関するヒアリング商談記録。",
+  },
 } as const;
 
 export default function CallforcePage() {
