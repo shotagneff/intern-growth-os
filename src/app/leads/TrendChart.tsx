@@ -62,9 +62,12 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
     return <p className="py-10 text-center text-sm text-neutral-400">まだデータがありません</p>;
   }
 
-  // 目盛りは実データの最大値から決める。固定にすると件数が伸びたとき振り切れる
+  // 目盛りは実データの最大値から決める。固定にすると件数が伸びたとき振り切れる。
+  // 刻みは「線が5本を超えない中でいちばん細かいもの」を選ぶ。
+  // 粗い刻みに寄せると、1日数件の時期に棒が軸の下半分しか使わず、
+  // 日ごとの差がほとんど見えなくなる（6件を 0〜10 の軸で描くと潰れる）
   const rawMax = Math.max(1, ...points.map((p) => p.total));
-  const step = rawMax <= 5 ? 1 : rawMax <= 20 ? 5 : 10;
+  const step = [1, 2, 5, 10, 20, 50, 100].find((s) => rawMax / s <= 5) ?? 200;
   const max = Math.ceil(rawMax / step) * step;
   const ticks: number[] = [];
   for (let v = 0; v <= max; v += step) ticks.push(v);
@@ -221,9 +224,11 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
             )}
           </g>
 
-          {/* X軸の文字。本数が多いと重なるので、多いときは1つおきに出す */}
+          {/* X軸の文字。本数が多いと重なるので、多いときは1つおきに出す。
+              間引きは右端（＝最新）から数える。左から数えると本数が偶数のときに
+              今日のラベルが消え、いちばん見たい日付が読めなくなる */}
           {points.map((p, i) => {
-            const thin = points.length > 10 && i % 2 === 1;
+            const thin = points.length > 10 && (points.length - 1 - i) % 2 === 1;
             if (thin) return null;
             return (
               <text
