@@ -10,7 +10,7 @@
 // 複製すると「どちらが正か」が曖昧になり、LINE通知の対応済み判定とズレる。
 
 import React, { useCallback, useEffect, useState } from "react";
-import type { Lead, LeadStatus } from "@/lib/callforce";
+import { phoneKey, type Lead, type LeadStatus } from "@/lib/callforce";
 import { Dashboard } from "./Dashboard";
 import { LeadList } from "./LeadList";
 
@@ -85,6 +85,29 @@ export default function LeadsPage() {
     [leads]
   );
 
+  /**
+   * 電話番号に紐づくメモを保存する。
+   * 同じ番号の行はすべて同じメモなので、画面上でもまとめて書き換える。
+   */
+  const saveNote = useCallback(async (phoneNumber: string, note: string) => {
+    const key = phoneKey(phoneNumber);
+    const before = leads;
+    setLeads((prev) =>
+      prev.map((l) => (phoneKey(l.phoneNumber) === key ? { ...l, contactNote: note || null } : l))
+    );
+    try {
+      const res = await fetch("/api/leads", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber, note }),
+      });
+      if (!res.ok) throw new Error("メモの保存に失敗しました");
+    } catch (e) {
+      setLeads(before);
+      setError((e as Error).message);
+    }
+  }, [leads]);
+
   const 未対応 = leads.filter((l) => l.status === "未対応").length;
 
   return (
@@ -148,6 +171,7 @@ export default function LeadsPage() {
           loading={loading}
           savingId={savingId}
           onPatch={(id, p) => void patch(id, p)}
+          onSaveNote={saveNote}
         />
       )}
     </div>

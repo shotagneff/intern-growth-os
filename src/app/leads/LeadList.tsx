@@ -5,7 +5,7 @@
 // 「いま誰が対応できているか」が一番大事なので、
 // 対応状況と担当を日時のすぐ隣に置いている。
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { LEAD_STATUSES, firstResponseMinutes, type Lead, type LeadStatus } from "@/lib/callforce";
 
 /** +818012345678 → 080-1234-5678 */
@@ -43,18 +43,67 @@ const STATUS_STYLE: Record<LeadStatus, string> = {
 const FILTERS = ["すべて", "未対応", "受電デモ", "架電デモ", "広告・Web"] as const;
 type Filter = (typeof FILTERS)[number];
 
+/**
+ * 電話番号に紐づくメモ。
+ *
+ * 保存先は電話番号なので、同じ番号から次に着信したときも同じメモが出る。
+ * 入力中は手元の値を優先し、離れたタイミングで保存する。
+ * 1文字ごとに保存すると、打っている最中に再取得が走って書きかけが消える。
+ */
+function NoteCell({
+  lead,
+  onSave,
+}: {
+  lead: Lead;
+  onSave: (phoneNumber: string, note: string) => Promise<void>;
+}) {
+  const [value, setValue] = useState(lead.contactNote ?? "");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // 自分が編集していないときだけ、取得し直した値に追従する
+  useEffect(() => {
+    if (!editing) setValue(lead.contactNote ?? "");
+  }, [lead.contactNote, editing]);
+
+  async function commit() {
+    setEditing(false);
+    if ((lead.contactNote ?? "") === value) return;
+    setSaving(true);
+    await onSave(lead.phoneNumber, value);
+    setSaving(false);
+  }
+
+  return (
+    <textarea
+      value={value}
+      rows={1}
+      placeholder="メモ"
+      onFocus={() => setEditing(true)}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => void commit()}
+      disabled={saving}
+      className={`w-full resize-y rounded-lg border border-transparent bg-transparent px-2 py-1 text-xs leading-relaxed transition hover:border-neutral-200 focus:border-[#9e8d70] focus:bg-white focus:outline-none dark:hover:border-neutral-700 dark:focus:bg-neutral-900 ${
+        saving ? "opacity-50" : ""
+      }`}
+    />
+  );
+}
+
 export function LeadList({
   leads,
   responders,
   loading,
   savingId,
   onPatch,
+  onSaveNote,
 }: {
   leads: Lead[];
   responders: string[];
   loading: boolean;
   savingId: string | null;
   onPatch: (id: string, patch: { status?: LeadStatus; assignedTo?: string }) => void;
+  onSaveNote: (phoneNumber: string, note: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<Filter>("すべて");
 
@@ -100,6 +149,7 @@ export function LeadList({
               <th className="px-4 py-3">対応状況</th>
               <th className="px-4 py-3">担当</th>
               <th className="px-4 py-3">電話番号</th>
+              <th className="px-4 py-3 min-w-[14rem]">メモ（番号ごとに引き継ぎ）</th>
               <th className="px-4 py-3">会社名</th>
               <th className="px-4 py-3">種別</th>
               <th className="px-4 py-3">流入元</th>
@@ -111,14 +161,14 @@ export function LeadList({
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={11} className="px-4 py-10 text-center text-neutral-400">
                   読み込んでいます…
                 </td>
               </tr>
             )}
             {!loading && shown.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={11} className="px-4 py-10 text-center text-neutral-400">
                   該当するリードがありません
                 </td>
               </tr>
@@ -180,6 +230,15 @@ export function LeadList({
                       {formatPhone(lead.phoneNumber)}
                     </a>
                     {lead.callerType && <span className="ml-2 text-xs text-neutral-400">{lead.callerType}</span>}
+                    {/* 2回目以降は、引き継いだメモを読む価値がある相手 */}
+                    {lead.callCount > 1 && (
+                      <span className="ml-2 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+                        {lead.callCount}回目
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-2 align-top">
+                    <NoteCell lead={lead} onSave={onSaveNote} />
                   </td>
                   <td className="max-w-[12rem] truncate px-4 py-3">{lead.companyName ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-neutral-500">{lead.demoType ?? "—"}</td>

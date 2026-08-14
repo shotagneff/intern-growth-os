@@ -55,7 +55,16 @@ export type Lead = {
   respondedHow: string | null;
   /** 通知を出した時刻。初動の速さはここからの差で測る */
   notifiedAt: string | null;
+  /** この電話番号に紐づくメモ。同じ番号の着信すべてで共有される */
+  contactNote: string | null;
+  /** この番号からの着信が通算で何回目か。1 なら初めて */
+  callCount: number;
 };
+
+/** 電話番号の末尾9桁。表記ゆれを吸収して同じ相手だと判定するためのキー */
+export function phoneKey(phone: string): string {
+  return String(phone).replace(/[^0-9]/g, "").slice(-9);
+}
 
 type Row = Record<string, unknown>;
 
@@ -103,10 +112,17 @@ function toLead(r: Row): Lead {
     respondedAt: (r.responded_at as string) ?? null,
     respondedHow: (r.responded_how as string) ?? null,
     notifiedAt: (r.notified_at as string) ?? null,
+    contactNote: null,
+    callCount: 1,
   };
 }
 
-/** 反響リードを新しい順に取得する */
+/**
+ * 反響リードを新しい順に取得する。
+ *
+ * メモは電話番号に紐づくので、番号ごとのメモを引いて各行に貼る。
+ * 着信の回数も同じ番号で数えて入れる（2回目以降は「既存」として扱いたいため）。
+ */
 export async function listLeads(limit = 500): Promise<Lead[]> {
   const res = await callforceFetch(
     `lead_alerts?select=*&order=created_at.desc&limit=${limit}`
@@ -114,7 +130,61 @@ export async function listLeads(limit = 500): Promise<Lead[]> {
   if (!res.ok) {
     throw new Error(`Callforce の取得に失敗しました (${res.status})`);
   }
-  return ((await res.json()) as Row[]).map(toLead);
+  const leads = ((await res.json()) as Row[]).map(toLead);
+
+  const notes = await fetchContactNotes();
+  const counts = new Map<string, number>();
+  for (const l of leads) {
+    const k = phoneKey(l.phoneNumber);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
+
+  for (const l of leads) {
+    const k = phoneKey(l.phoneNumber);
+    l.contactNote = notes.get(k) ?? null;
+    l.callCount = counts.get(k) ?? 1;
+  }
+  return leads;
+}
+
+/** 電話番号ごとのメモをまとめて引く */
+async function fetchContactNotes(): Promise<Map<string, string>> {
+  const res = await callforceFetch(`lead_contacts?select=phone_key,note`);
+  if (!res.ok) return new Map();
+  const rows = (await res.json()) as Row[];
+  const map = new Map<string, string>();
+  for (const r of rows) {
+    if (r.note) map.set(String(r.phone_key), String(r.note));
+  }
+  return map;
+}
+
+/**
+ * 電話番号に紐づくメモを保存する。
+ * 同じ番号から次に着信したときも、このメモが見える。
+ */
+export async function saveContactNote(
+  phoneNumber: string,
+  note: string,
+  by?: string
+): Promise<void> {
+  const key = phoneKey(phoneNumber);
+  if (!key) throw new Error("電話番号が不正です");
+
+  const res = await callforceFetch(`lead_contacts?on_conflict=phone_key`, {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({
+      phone_key: key,
+      phone_number: phoneNumber,
+      note: note.trim() || null,
+      updated_by: by ?? null,
+      updated_at: new Date().toISOString(),
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`メモの保存に失敗しました (${res.status})`);
+  }
 }
 
 /**

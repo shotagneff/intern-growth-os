@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasCallforce, listLeads, listResponders, updateLead, LEAD_STATUSES, type LeadStatus } from "@/lib/callforce";
+import {
+  hasCallforce,
+  listLeads,
+  listResponders,
+  updateLead,
+  saveContactNote,
+  LEAD_STATUSES,
+  type LeadStatus,
+} from "@/lib/callforce";
 
 // 反響リード（Callforce のデモ通話・広告フォーム）の一覧と更新。
 // データは Callforce 側の Supabase にあり、ここでは持たない。
@@ -35,22 +43,36 @@ export async function PATCH(req: NextRequest) {
     id?: string;
     status?: string;
     assignedTo?: string;
+    /** 電話番号に紐づくメモ。phoneNumber とセットで送る */
     note?: string;
+    phoneNumber?: string;
   } | null;
 
-  if (!body?.id) {
-    return NextResponse.json({ error: "id が必要です" }, { status: 400 });
+  if (!body) {
+    return NextResponse.json({ error: "本文が読めません" }, { status: 400 });
   }
   if (body.status && !LEAD_STATUSES.includes(body.status as LeadStatus)) {
     return NextResponse.json({ error: "対応状況の値が不正です" }, { status: 400 });
   }
 
   try {
-    await updateLead(body.id, {
-      status: body.status as LeadStatus | undefined,
-      assignedTo: body.assignedTo,
-      note: body.note,
-    });
+    // メモは電話番号に紐づく。1件のリードではなく、その番号に対して保存する
+    if (body.note !== undefined) {
+      if (!body.phoneNumber) {
+        return NextResponse.json({ error: "電話番号が必要です" }, { status: 400 });
+      }
+      await saveContactNote(body.phoneNumber, body.note);
+    }
+
+    if (body.status !== undefined || body.assignedTo !== undefined) {
+      if (!body.id) {
+        return NextResponse.json({ error: "id が必要です" }, { status: 400 });
+      }
+      await updateLead(body.id, {
+        status: body.status as LeadStatus | undefined,
+        assignedTo: body.assignedTo,
+      });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[leads] 更新に失敗:", e);
