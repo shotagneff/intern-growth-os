@@ -138,13 +138,19 @@ export async function updateLead(
 
   if (patch.status !== undefined && patch.status !== "未対応") {
     const res = await callforceFetch(
-      `lead_alerts?select=responded_at&id=eq.${encodeURIComponent(id)}`
+      `lead_alerts?select=responded_at,notified_at,created_at&id=eq.${encodeURIComponent(id)}`
     );
     const rows = res.ok ? ((await res.json()) as Row[]) : [];
-    if (rows[0] && !rows[0].responded_at) {
+    const row = rows[0];
+    if (row && !row.responded_at) {
       body.responded_at = new Date().toISOString();
       body.responded_how = "manual";
       if (patch.by) body.responded_by = patch.by;
+
+      // 通知が出る前に自分で見つけて対応した場合、通知時刻が無いままだと
+      // 初動が計算できず空欄になる。リードが入った時刻を起点として立てておく。
+      // （営業時間外に入った分は翌朝まで通知されないため、実際に起こる）
+      if (!row.notified_at) body.notified_at = row.created_at;
     }
   }
 
