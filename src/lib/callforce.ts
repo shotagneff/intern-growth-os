@@ -284,6 +284,111 @@ export type DailyRow = {
   appointments: number;
 };
 
+// ---------------------------------------------------------------------------
+// 種別ごとの内訳つき集計（グラフ用）
+// ---------------------------------------------------------------------------
+
+/** グラフで積み上げる3つの区分 */
+export const LEAD_KINDS = ["受電デモ", "架電デモ", "広告・Web"] as const;
+export type LeadKind = (typeof LEAD_KINDS)[number];
+
+/**
+ * リードを3区分に振り分ける。
+ *
+ * demo_type が入っていない古い行があるため、source から補う。
+ * 一覧の絞り込み（LeadList の shown）と同じ判定にしてある。
+ * ここがズレると「グラフの本数と一覧の件数が合わない」になる。
+ */
+export function leadKind(lead: Lead): LeadKind {
+  if (lead.demoType === "受電デモ") return "受電デモ";
+  if (lead.demoType === "架電デモ") return "架電デモ";
+  if (lead.source === "demo_call") return "架電デモ";
+  return "広告・Web";
+}
+
+export type TrendPoint = {
+  /** 集計の単位を表すキー。日別なら YYYY-MM-DD、週次なら週の月曜 */
+  key: string;
+  /** 軸に出す文字。日別は「08/14(木)」、週次は「08/10(月)〜」 */
+  label: string;
+  /** 土日。休みの日に件数が少ないのは当然なので、平日と見分ける */
+  weekend: boolean;
+  total: number;
+  /** 種別ごとの件数。積み上げ棒はこれを使う */
+  byKind: Record<LeadKind, number>;
+  /** 折り返し済み。折れ線はこれを使う */
+  responded: number;
+};
+
+const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+function emptyByKind(): Record<LeadKind, number> {
+  return { 受電デモ: 0, 架電デモ: 0, "広告・Web": 0 };
+}
+
+/**
+ * 日ごとの推移。新しい日が先頭ではなく、**古い日が先頭**で返す。
+ * グラフは左から右に時間が進むため、表とは並びが逆になる。
+ *
+ * リードが1件も無かった日も 0 で埋める。抜いて並べると
+ * 「反響が途切れた日」が見えず、勢いを読み違える。
+ */
+export function dailyTrend(leads: Lead[], days = 14): TrendPoint[] {
+  const map = new Map<string, TrendPoint>();
+
+  // 先に days 日ぶんの箱を作る（0件の日を落とさないため）
+  const cursor = jstDate(new Date().toISOString());
+  for (let i = 0; i < days; i++) {
+    const key = cursor.toISOString().slice(0, 10);
+    const dow = new Date(`${key}T00:00:00Z`).getUTCDay();
+    map.set(key, {
+      key,
+      label: `${key.slice(5).replace("-", "/")}(${WEEKDAY_LABELS[dow]})`,
+      weekend: dow === 0 || dow === 6,
+      total: 0,
+      byKind: emptyByKind(),
+      responded: 0,
+    });
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+
+  for (const lead of leads) {
+    if (!lead.createdAt) continue;
+    const key = jstDate(lead.createdAt).toISOString().slice(0, 10);
+    const p = map.get(key);
+    if (!p) continue; // 期間外は数えない
+    p.total++;
+    p.byKind[leadKind(lead)]++;
+    if (lead.respondedAt) p.responded++;
+  }
+
+  return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+}
+
+/** 週ごとの推移。日別と同じく古い週が先頭 */
+export function weeklyTrend(leads: Lead[]): TrendPoint[] {
+  const map = new Map<string, TrendPoint>();
+  for (const lead of leads) {
+    if (!lead.createdAt) continue;
+    const key = weekStartOf(lead.createdAt);
+    const p =
+      map.get(key) ??
+      {
+        key,
+        label: `${key.slice(5).replace("-", "/")}(月)〜`,
+        weekend: false,
+        total: 0,
+        byKind: emptyByKind(),
+        responded: 0,
+      };
+    p.total++;
+    p.byKind[leadKind(lead)]++;
+    if (lead.respondedAt) p.responded++;
+    map.set(key, p);
+  }
+  return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+}
+
 /**
  * 日ごとに集計する。新しい日が先頭。
  * リードが1件も無かった日も 0 で埋める。抜けたまま並べると

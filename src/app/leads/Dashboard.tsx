@@ -13,33 +13,23 @@ import {
   byInflow,
   byStatus,
   byWeekdayHour,
-  dailySummary,
+  dailyTrend,
   durationBuckets,
   responseStats,
-  weeklySummary,
+  weeklyTrend,
   type Breakdown,
   type Lead,
 } from "@/lib/callforce";
 import { Card, Kpi } from "./ui";
+import { TrendChart } from "./TrendChart";
 
 const WEEKDAYS = ["月", "火", "水", "木", "金", "土", "日"];
-const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-
-/** "2026-08-11" → { label: "08/11 (火)", weekend: false } */
-function labelWithWeekday(date: string): { label: string; weekend: boolean } {
-  // YYYY-MM-DD は UTC 深夜として解釈されるので getUTCDay がその日の曜日になる
-  const dow = new Date(`${date}T00:00:00Z`).getUTCDay();
-  return {
-    label: `${date.slice(5).replace("-", "/")} (${DAY_LABELS[dow]})`,
-    weekend: dow === 0 || dow === 6,
-  };
-}
 
 export function Dashboard({ leads }: { leads: Lead[] }) {
   const [period, setPeriod] = useState<"日別" | "週次">("日別");
 
-  const daily = useMemo(() => dailySummary(leads, 14), [leads]);
-  const weekly = useMemo(() => weeklySummary(leads), [leads]);
+  const dailyPoints = useMemo(() => dailyTrend(leads, 14), [leads]);
+  const weeklyPoints = useMemo(() => weeklyTrend(leads), [leads]);
   const heat = useMemo(() => byWeekdayHour(leads), [leads]);
   const stats = useMemo(() => responseStats(leads), [leads]);
   const inflows = useMemo(() => byInflow(leads), [leads]);
@@ -72,7 +62,8 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
         />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
+      {/* 推移は横に長いほど読みやすいので、1枚で幅を使い切る */}
+      <section>
         <Card
           title="件数の推移"
           action={
@@ -93,19 +84,11 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
             </div>
           }
         >
-          <TrendTable
-            rows={
-              period === "日別"
-                ? daily.map((d) => ({ key: d.date, ...labelWithWeekday(d.date), ...d }))
-                : weekly.map((w) => ({
-                    key: w.weekStart,
-                    label: `${w.weekStart.slice(5).replace("-", "/")}(月) 〜`,
-                    ...w,
-                  }))
-            }
-          />
+          <TrendChart points={period === "日別" ? dailyPoints : weeklyPoints} />
         </Card>
+      </section>
 
+      <section>
         <Card title="曜日 × 時間帯" action={<span className="text-xs text-neutral-400">濃いほど多い</span>}>
           <HeatGrid heat={heat} />
         </Card>
@@ -142,81 +125,6 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
 }
 
 // ---------------------------------------------------------------------------
-
-type TrendRow = {
-  key: string;
-  label: string;
-  weekend?: boolean;
-  total: number;
-  responded: number;
-  withinFive: number;
-  appointments: number;
-};
-
-/** 日別・週次の共通表。件数は背景の棒で量を見せる */
-function TrendTable({ rows }: { rows: TrendRow[] }) {
-  const max = Math.max(1, ...rows.map((r) => r.total));
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[26rem] text-sm">
-        <thead className="text-left text-[11px] uppercase tracking-[0.1em] text-neutral-400">
-          <tr>
-            <th className="pb-2 font-medium">期間</th>
-            <th className="pb-2 font-medium">件数</th>
-            <th className="pb-2 text-right font-medium">架電済み</th>
-            <th className="pb-2 text-right font-medium">5分以内</th>
-            <th className="pb-2 text-right font-medium">アポ</th>
-          </tr>
-        </thead>
-        <tbody className="tabular-nums">
-          {rows.map((r) => (
-            <tr
-              key={r.key}
-              className={`border-t border-neutral-100 dark:border-neutral-800 ${
-                r.weekend ? "bg-neutral-50/60 dark:bg-neutral-800/30" : ""
-              }`}
-            >
-              <td
-                className={`whitespace-nowrap py-2 pr-3 ${
-                  r.weekend ? "text-neutral-400" : "text-neutral-600 dark:text-neutral-300"
-                }`}
-              >
-                {r.label}
-              </td>
-              <td className="py-2 pr-3">
-                <span className="flex items-center gap-2">
-                  <span className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-                    <span
-                      className="block h-full rounded-full bg-[#9e8d70]"
-                      style={{ width: `${(r.total / max) * 100}%` }}
-                    />
-                  </span>
-                  <span className={r.total === 0 ? "text-neutral-300" : "font-medium"}>{r.total}</span>
-                </span>
-              </td>
-              <td className="py-2 text-right text-neutral-500">{r.responded}</td>
-              <td className="py-2 text-right text-neutral-500">{r.withinFive}</td>
-              <td
-                className={`py-2 text-right ${
-                  r.appointments > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "text-neutral-500"
-                }`}
-              >
-                {r.appointments}
-              </td>
-            </tr>
-          ))}
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan={5} className="py-6 text-center text-neutral-400">
-                まだデータがありません
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 /** 曜日 × 時間帯の濃淡。人を張る時間を決めるために使う */
 function HeatGrid({ heat }: { heat: ReturnType<typeof byWeekdayHour> }) {
