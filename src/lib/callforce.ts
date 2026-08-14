@@ -117,15 +117,36 @@ export async function listLeads(limit = 500): Promise<Lead[]> {
   return ((await res.json()) as Row[]).map(toLead);
 }
 
-/** 対応状況・担当・メモを更新する */
+/**
+ * 対応状況・担当・メモを更新する。
+ *
+ * 対応状況を「未対応」から動かしたら、それを対応の記録として扱う。
+ * 通知のリンク先をこの一覧に統一したため、ここで記録しないと
+ * responded_at がいつまでも入らず、5分超過のアラートが鳴り続ける。
+ *
+ * 先に入っている responded_at は上書きしない。最初に動いた時刻が初動なので、
+ * 後から状況を変えた人の時刻で塗り替えると指標が甘くなる。
+ */
 export async function updateLead(
   id: string,
-  patch: { status?: LeadStatus; assignedTo?: string; note?: string }
+  patch: { status?: LeadStatus; assignedTo?: string; note?: string; by?: string }
 ): Promise<void> {
   const body: Row = { updated_at: new Date().toISOString() };
   if (patch.status !== undefined) body.status = patch.status;
   if (patch.assignedTo !== undefined) body.assigned_to = patch.assignedTo;
   if (patch.note !== undefined) body.note = patch.note;
+
+  if (patch.status !== undefined && patch.status !== "未対応") {
+    const res = await callforceFetch(
+      `lead_alerts?select=responded_at&id=eq.${encodeURIComponent(id)}`
+    );
+    const rows = res.ok ? ((await res.json()) as Row[]) : [];
+    if (rows[0] && !rows[0].responded_at) {
+      body.responded_at = new Date().toISOString();
+      body.responded_how = "manual";
+      if (patch.by) body.responded_by = patch.by;
+    }
+  }
 
   const res = await callforceFetch(`lead_alerts?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH",
