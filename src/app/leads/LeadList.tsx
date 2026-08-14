@@ -31,9 +31,12 @@ const STATUS_STYLE: Record<LeadStatus, string> = {
   未対応: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30",
   留守番電話:
     "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30",
-  対応中: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
+  // アポ獲得を黄色にしたため、対応中はオレンジへずらす。
+  // 琥珀のままだと両方が黄系になり、進行中と成果が見分けられない。
+  対応中:
+    "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
   アポ獲得:
-    "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
+    "bg-yellow-50 text-yellow-800 ring-yellow-300 dark:bg-yellow-400/10 dark:text-yellow-200 dark:ring-yellow-400/30",
   追客中: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
   失注: "bg-neutral-100 text-neutral-600 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-400 dark:ring-neutral-500/30",
   対象外:
@@ -192,7 +195,7 @@ export function LeadList({
                             : lead.status === "留守番電話"
                               ? "bg-violet-400" // かけ直しが要る
                               : lead.status === "アポ獲得"
-                                ? "bg-emerald-400"
+                                ? "bg-yellow-400"
                                 : "bg-transparent"
                         }`}
                       />

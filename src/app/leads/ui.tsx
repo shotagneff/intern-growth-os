@@ -53,7 +53,7 @@ export function Kpi({
     tone === "warn"
       ? "text-red-600 dark:text-red-400"
       : tone === "good"
-        ? "text-emerald-600 dark:text-emerald-400"
+        ? "text-yellow-700 dark:text-yellow-300"
         : "";
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">

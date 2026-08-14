@@ -64,12 +64,6 @@ export function MobileNav() {
             onClick={close}
           />
           <MobileLink
-            href="/subsidies"
-            label="補助金・助成金"
-            active={isActive("/subsidies")}
-            onClick={close}
-          />
-          <MobileLink
             href="/dashboard"
             label="売上・KPIダッシュボード"
             active={isActive("/dashboard")}

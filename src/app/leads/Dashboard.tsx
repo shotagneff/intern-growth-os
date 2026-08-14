@@ -199,7 +199,7 @@ function BarList({ rows, showRate = false }: { rows: Breakdown[]; showRate?: boo
           {showRate && (
             <span
               className={`w-14 text-right text-xs tabular-nums ${
-                r.appointments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-neutral-300"
+                r.appointments > 0 ? "text-yellow-700 dark:text-yellow-300" : "text-neutral-300"
               }`}
               title="アポ獲得の件数"
             >
