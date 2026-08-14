@@ -8,10 +8,23 @@
 //   CALLFORCE_SUPABASE_URL          例 https://xxxx.supabase.co
 //   CALLFORCE_SUPABASE_SERVICE_KEY  service_role キー（サーバー側だけで使う）
 
-export type LeadStatus = "未対応" | "対応中" | "アポ獲得" | "追客中" | "失注" | "対象外";
+export type LeadStatus =
+  | "未対応"
+  | "留守番電話"
+  | "対応中"
+  | "アポ獲得"
+  | "追客中"
+  | "失注"
+  | "対象外";
 
+/**
+ * 並び順は「対応が進んだ順」。プルダウンでもこの順に出る。
+ * 留守番電話は「こちらは架電したが、まだ会話が成立していない」状態。
+ * かけ直しが要るので、未対応の次に置く。
+ */
 export const LEAD_STATUSES: LeadStatus[] = [
   "未対応",
+  "留守番電話",
   "対応中",
   "アポ獲得",
   "追客中",

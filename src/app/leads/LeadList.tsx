@@ -29,6 +29,8 @@ function formatDateTime(iso: string): string {
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
   未対応: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30",
+  留守番電話:
+    "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30",
   対応中: "bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30",
   アポ獲得:
     "bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30",
@@ -131,15 +133,17 @@ export function LeadList({
                   }`}
                 >
                   <td className="whitespace-nowrap py-3 pl-4 pr-4 tabular-nums text-neutral-600 dark:text-neutral-300">
-                    {/* 未対応は左端の帯で示す。行数が増えても目に留まる */}
+                    {/* 手が要る行を左端の帯で示す。行数が増えても目に留まる */}
                     <span className="flex items-center gap-2.5">
                       <span
                         className={`h-8 w-1 shrink-0 rounded-full ${
                           lead.status === "未対応"
                             ? "bg-red-400"
-                            : lead.status === "アポ獲得"
-                              ? "bg-emerald-400"
-                              : "bg-transparent"
+                            : lead.status === "留守番電話"
+                              ? "bg-violet-400" // かけ直しが要る
+                              : lead.status === "アポ獲得"
+                                ? "bg-emerald-400"
+                                : "bg-transparent"
                         }`}
                       />
                       {formatDateTime(lead.createdAt)}
