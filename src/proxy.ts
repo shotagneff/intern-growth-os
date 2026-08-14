@@ -52,14 +52,6 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // TEMP: ランキングボードを host(admin) のみに制限（一般ユーザーは非表示）。解除時はこのブロックを削除。
-  const isRankingsPage = pathname === "/rankings" || pathname.startsWith("/rankings/");
-  if (isRankingsPage && payload.role !== "admin") {
-    const url = req.nextUrl.clone();
-    url.pathname = "/";
-    return NextResponse.redirect(url);
-  }
-
   return NextResponse.next();
 }
 

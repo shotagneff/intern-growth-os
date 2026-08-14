@@ -295,14 +295,21 @@ export type LeadKind = (typeof LEAD_KINDS)[number];
 /**
  * リードを3区分に振り分ける。
  *
- * demo_type が入っていない古い行があるため、source から補う。
- * 一覧の絞り込み（LeadList の shown）と同じ判定にしてある。
- * ここがズレると「グラフの本数と一覧の件数が合わない」になる。
+ * デモ2種の条件は一覧の絞り込み（LeadList の shown）と1文字まで揃える。
+ * ここがズレると「一覧では架電デモ3件なのにグラフは2件」になり、
+ * どちらが正しいのか分からなくなって数字全体が信用されなくなる。
+ * demo_type が空の demo_call を架電デモに寄せているのは、種別を記録し始める前に
+ * 入った行が架電デモしか無いため（一覧側も同じ理由で同じ条件になっている）。
+ *
+ * 残りは全部「広告・Web」に落とす。一覧は「どの絞り込みにも入らない行」を
+ * 許せるが、積み上げ棒は内訳の合計が件数と一致していないと棒の高さ自体が
+ * 嘘になるので、取りこぼしを作らないほうを優先した。
  */
 export function leadKind(lead: Lead): LeadKind {
   if (lead.demoType === "受電デモ") return "受電デモ";
-  if (lead.demoType === "架電デモ") return "架電デモ";
-  if (lead.source === "demo_call") return "架電デモ";
+  if (lead.demoType === "架電デモ" || (!lead.demoType && lead.source === "demo_call")) {
+    return "架電デモ";
+  }
   return "広告・Web";
 }
 

@@ -13,15 +13,45 @@ import { LEAD_KINDS, type LeadKind, type TrendPoint } from "@/lib/callforce";
 /**
  * 種別の色。アクセント #9e8d70 を基調に、濃淡ではなく色相で分ける。
  * 濃淡だけだと、棒が細いときに隣と見分けられない。
+ *
+ * 3色は目で選ばず、OKLab 上の距離を測って決めてある。見た目で
+ * 「十分違う」と思った色でも、P型・D型色覚では重なって1本の棒に見えることがある。
+ * 実際、最初に置いた砂色（#c4a86a）はアクセントとの距離が足りず、
+ * 白地でのコントラストも 2.2:1 しか無かったので差し替えた。
+ * いまの3色は隣り合わせでも全組み合わせでも距離が足り、
+ * 白地・暗い地のどちらでも 3:1 以上ある。
  */
 const KIND_COLOR: Record<LeadKind, string> = {
   受電デモ: "#9e8d70",
-  架電デモ: "#5b7c8d",
-  "広告・Web": "#c4a86a",
+  架電デモ: "#1d6f80",
+  "広告・Web": "#94532f",
 };
 
-/** 対応済みの折れ線 */
-const LINE_COLOR = "#d4645f";
+/**
+ * 対応済みの折れ線は、棒の3色とは別枠の「地の文字色」で引く。
+ *
+ * 4色目を足すと棒のどれかと必ず近くなる（赤系にしたところ、D型色覚で
+ * アクセントとほぼ同じ色になった）。線は棒の上を横切る一本なので、
+ * 色で仲間分けするより、明暗で浮かせたほうが追える。
+ */
+const LINE_CLASS = "text-neutral-800 dark:text-neutral-100";
+
+/** 段の境目に空ける隙間（viewBox の単位＝ほぼ1px） */
+const SEG_GAP = 2;
+
+/**
+ * 上端だけ角を丸めた棒を返す。
+ * 下端は軸に接している辺なので角のままにする。両端を丸めると、
+ * 棒が短い日に軸から浮いて見えて「0件なのか1件なのか」が読めなくなる。
+ */
+function barPath(x: number, y: number, w: number, h: number, r: number): string {
+  const rr = Math.max(0, Math.min(r, w / 2, h));
+  if (rr === 0) return `M${x},${y}h${w}v${h}h${-w}Z`;
+  return (
+    `M${x},${y + h}L${x},${y + rr}Q${x},${y} ${x + rr},${y}` +
+    `L${x + w - rr},${y}Q${x + w},${y} ${x + w},${y + rr}L${x + w},${y + h}Z`
+  );
+}
 
 export function TrendChart({ points }: { points: TrendPoint[] }) {
   // 同じページに複数置いても id が衝突しないようにする
@@ -69,7 +99,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
           </span>
         ))}
         <span className="flex items-center gap-1.5 text-neutral-600 dark:text-neutral-300">
-          <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: LINE_COLOR }} />
+          <span className="h-0.5 w-4 rounded-full bg-neutral-800 dark:bg-neutral-100" />
           対応済み
         </span>
       </div>
@@ -132,24 +162,29 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
           {/* 積み上げ棒 */}
           <g clipPath={`url(#${clipId})`}>
             {points.map((p, i) => {
+              // 0件の種別は段そのものを作らない。段として置くと、
+              // 境目の隙間だけが残って「何か乗っている」ように見える
+              const segs: { kind: LeadKind; from: number; to: number }[] = [];
               let acc = 0;
+              for (const k of LEAD_KINDS) {
+                const v = p.byKind[k];
+                if (v > 0) segs.push({ kind: k, from: acc, to: acc + v });
+                acc += v;
+              }
               return (
-                <g key={p.key}>
-                  {LEAD_KINDS.map((k) => {
-                    const v = p.byKind[k];
-                    if (v === 0) return null;
-                    const top = y(acc + v);
-                    const h = y(acc) - top;
-                    acc += v;
+                <g key={p.key} opacity={hover === null || hover === i ? 1 : 0.35}>
+                  {segs.map((s, si) => {
+                    const bottom = y(s.from);
+                    const isTop = si === segs.length - 1;
+                    // 段の境目は線で仕切らず、地の色を2px覗かせる。
+                    // 線を1本足すより軽く、色が近くても段の数を目で追える
+                    const drawTop = y(s.to) + (isTop ? 0 : SEG_GAP);
+                    const h = Math.max(1.5, bottom - drawTop);
                     return (
-                      <rect
-                        key={k}
-                        x={cx(i) - barW / 2}
-                        y={top}
-                        width={barW}
-                        height={h}
-                        fill={KIND_COLOR[k]}
-                        opacity={hover === null || hover === i ? 1 : 0.35}
+                      <path
+                        key={s.kind}
+                        d={barPath(cx(i) - barW / 2, bottom - h, barW, h, isTop ? 3 : 0)}
+                        fill={KIND_COLOR[s.kind]}
                       />
                     );
                   })}
@@ -159,10 +194,32 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
           </g>
 
           {/* 対応済みの折れ線 */}
-          <path d={linePath} fill="none" stroke={LINE_COLOR} strokeWidth={1.8} strokeLinejoin="round" />
-          {points.map((p, i) => (
-            <circle key={`d-${p.key}`} cx={cx(i)} cy={y(p.responded)} r={2.4} fill={LINE_COLOR} />
-          ))}
+          <g className={LINE_CLASS}>
+            <path
+              d={linePath}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {/* 点は0件の日には打たない。0が続く期間は軸の上に点が並ぶだけになり、
+                実際に対応した日がどこなのかがかえって見えなくなる */}
+            {points.map((p, i) =>
+              p.responded > 0 ? (
+                <circle
+                  key={`d-${p.key}`}
+                  cx={cx(i)}
+                  cy={y(p.responded)}
+                  r={3}
+                  fill="currentColor"
+                  // 棒に重なる位置に来るので、地の色で縁取って輪郭を残す
+                  stroke="var(--background)"
+                  strokeWidth={1.5}
+                />
+              ) : null
+            )}
+          </g>
 
           {/* X軸の文字。本数が多いと重なるので、多いときは1つおきに出す */}
           {points.map((p, i) => {

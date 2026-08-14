@@ -67,8 +67,6 @@ export default function Sidebar() {
         <SidebarLink href="/dashboard" label="売上・KPIダッシュボード" />
         <SidebarLink href="/e-learning" label="動画研修ラーニング" />
         <SidebarLink href="/partners/mindmap" label="パートナー紹介マインドマップ" />
-        {/* TEMP: ランキングボードは host(admin) のみ表示。解除時は showAdmin 条件を外す。 */}
-        {showAdmin && <SidebarLink href="/rankings" label="ランキングボード" />}
         <SidebarLink href="/documents" label="ドキュメント" />
 
         {showAdmin && (
