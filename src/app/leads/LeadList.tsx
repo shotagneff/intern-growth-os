@@ -20,7 +20,7 @@ import {
   CELL_INPUT,
   FILL,
   FilterChip,
-  Pill,
+  ToneSelect,
   ROW_HOVER,
   TD,
   TH,
@@ -302,12 +302,12 @@ export function LeadList({
                     </span>
                   </td>
                   <td className={`${TD} ${W.phase}`}>
-                    <div className="flex items-center gap-1.5">
-                    <Pill text={lead.status} tone={STATUS_STYLE[lead.status]} />
-                    <select
+                    <ToneSelect
                       value={lead.status}
-                      onChange={(e) => {
-                        const next = e.target.value as LeadStatus;
+                      options={LEAD_STATUSES}
+                      tone={STATUS_STYLE[lead.status]}
+                      onChange={(v) => {
+                        const next = v as LeadStatus;
                         // アポ獲得にするには流入経路が要る。
                         // サーバーでも弾いているが、押した直後に理由が分かるほうが直せる。
                         if (next === CHANNEL_REQUIRED_STATUS && !lead.acquisitionChannel) {
@@ -317,15 +317,7 @@ export function LeadList({
                         setNeedChannel(null);
                         onPatch(lead.id, { status: next });
                       }}
-                      className={`${CELL_INPUT} cursor-pointer`}
-                    >
-                      {LEAD_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    </div>
+                    />
                   </td>
                   <td className={`${TD} ${W.channel}`}>
                     <select

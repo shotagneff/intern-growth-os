@@ -57,7 +57,7 @@ export const FILL = {
  */
 export const W = {
   owner: "min-w-[7.5rem]",
-  phase: "min-w-[13.5rem]", // バッジ＋選択欄が横に並ぶぶん広く取る
+  phase: "min-w-[9.5rem]", // 色付きの選択欄1つぶん
   grade: "min-w-[8rem]",
   person: "min-w-[9.5rem]",
   title: "min-w-[9rem]",
@@ -112,6 +112,39 @@ export function Kpi({ label, value, hint }: { label: string; value: string; hint
       <p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p>
       {hint && <p className="mt-1 text-xs text-neutral-400">{hint}</p>}
     </div>
+  );
+}
+
+/**
+ * 色の付いた選択欄。
+ *
+ * バッジと選択欄を横に並べると、同じことを2回見せることになり幅も食う。
+ * 選択欄そのものに色を敷いて1つにまとめる。
+ * 確度や担当と同じく「押せば変わる」1個の部品として扱える。
+ */
+export function ToneSelect({
+  value,
+  options,
+  tone,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  tone: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full cursor-pointer rounded-full py-1.5 pl-3 pr-2 text-xs font-semibold ring-1 ring-inset outline-none ${tone}`}
+    >
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   );
 }
 

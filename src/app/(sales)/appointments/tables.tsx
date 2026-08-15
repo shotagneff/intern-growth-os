@@ -20,7 +20,7 @@ import {
   type Lead,
   type LeadPhase,
 } from "@/lib/sales-types";
-import { CELL_INPUT, FILL, Pill, ROW_HOVER, TD, TH, TONE, TableFrame, W, yen } from "@/components/table-ui";
+import { CELL_INPUT, FILL, ROW_HOVER, TD, TH, TONE, TableFrame, ToneSelect, W, yen } from "@/components/table-ui";
 
 const LEAD_PHASE_TONE: Record<LeadPhase, string> = {
   リード: TONE.gray,
@@ -214,14 +214,12 @@ export function LeadTable({
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
                 </td>
                 <td className={`${TD} ${W.phase}`}>
-                  <div className="flex items-center gap-1.5">
-                    <Pill text={l.phase} tone={LEAD_PHASE_TONE[l.phase]} />
-                    <Select
-                      value={l.phase}
-                      options={LEAD_PHASES}
-                      onChange={(v) => patch("lead", l.id, { phase: v })}
-                    />
-                  </div>
+                  <ToneSelect
+                    value={l.phase}
+                    options={LEAD_PHASES}
+                    tone={LEAD_PHASE_TONE[l.phase]}
+                    onChange={(v) => patch("lead", l.id, { phase: v })}
+                  />
                 </td>
                 <td className={`${TD} ${W.grade}`}>
                   <Select value={l.grade} options={GRADES} blank="—" onChange={(v) => patch("lead", l.id, { grade: v })} />
@@ -343,10 +341,12 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
                   <Select value={d.owner} options={owners} blank="—" onChange={(v) => patch("deal", d.id, { owner: v })} />
                 </td>
                 <td className={`${TD} ${W.phase}`}>
-                  <div className="flex items-center gap-1.5">
-                    <Pill text={d.phase} tone={DEAL_PHASE_TONE[d.phase]} />
-                    <Select value={d.phase} options={DEAL_PHASES} onChange={(v) => patch("deal", d.id, { phase: v })} />
-                  </div>
+                  <ToneSelect
+                    value={d.phase}
+                    options={DEAL_PHASES}
+                    tone={DEAL_PHASE_TONE[d.phase]}
+                    onChange={(v) => patch("deal", d.id, { phase: v })}
+                  />
                 </td>
                 <td className={`${TD} text-right tabular-nums text-neutral-500`}>
                   {d.winProbability === null ? "" : `${d.winProbability}%`}
@@ -464,15 +464,13 @@ export function CustomerTable({
                     onChange={(v) => patch("customer", c.id, { owner: v })}
                   />
                 </td>
-                <td className={`${TD} min-w-[11rem]`}>
-                  <div className="flex items-center gap-1.5">
-                    <Pill text={c.status} tone={CUSTOMER_STATUS_TONE[c.status] ?? TONE.gray} />
-                    <Select
-                      value={c.status}
-                      options={CUSTOMER_STATUSES}
-                      onChange={(v) => patch("customer", c.id, { status: v })}
-                    />
-                  </div>
+                <td className={`${TD} ${W.phase}`}>
+                  <ToneSelect
+                    value={c.status}
+                    options={CUSTOMER_STATUSES}
+                    tone={CUSTOMER_STATUS_TONE[c.status] ?? TONE.gray}
+                    onChange={(v) => patch("customer", c.id, { status: v })}
+                  />
                 </td>
                 <td className={TD}>
                   <Text type="date" value={c.startedOn} onCommit={(v) => patch("customer", c.id, { startedOn: v })} />
