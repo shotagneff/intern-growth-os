@@ -16,6 +16,17 @@ import {
   type Lead,
   type LeadStatus,
 } from "@/lib/callforce";
+import {
+  CELL_INPUT,
+  FILL,
+  FilterChip,
+  Pill,
+  ROW_HOVER,
+  TD,
+  TH,
+  TONE,
+  W,
+} from "@/components/table-ui";
 
 /** +818012345678 → 080-1234-5678 */
 function formatPhone(raw: string): string {
@@ -36,20 +47,16 @@ function formatDateTime(iso: string): string {
   });
 }
 
+// バッジの色。共通の決まり（TONE）から選ぶだけにする。
+// ここで新しい色を作ると、アポ獲得管理と意味がずれる。
 const STATUS_STYLE: Record<LeadStatus, string> = {
-  未対応: "bg-red-200 text-red-900 ring-red-300 dark:bg-red-500/25 dark:text-red-100 dark:ring-red-400/40",
-  留守番電話:
-    "bg-violet-200 text-violet-900 ring-violet-300 dark:bg-violet-500/25 dark:text-violet-100 dark:ring-violet-400/40",
-  // アポ獲得を黄色にしたため、対応中はオレンジへずらす。
-  // 琥珀のままだと両方が黄系になり、進行中と成果が見分けられない。
-  対応中:
-    "bg-orange-200 text-orange-900 ring-orange-300 dark:bg-orange-500/25 dark:text-orange-100 dark:ring-orange-400/40",
-  アポ獲得:
-    "bg-yellow-300 text-yellow-900 ring-yellow-400 dark:bg-yellow-400/25 dark:text-yellow-100 dark:ring-yellow-400/40",
-  追客中: "bg-sky-200 text-sky-900 ring-sky-300 dark:bg-sky-500/25 dark:text-sky-100 dark:ring-sky-400/40",
-  失注: "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
-  対象外:
-    "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
+  未対応: TONE.red,
+  留守番電話: TONE.violet,
+  対応中: TONE.orange,
+  アポ獲得: TONE.yellow,
+  追客中: TONE.sky,
+  失注: TONE.gray,
+  対象外: TONE.gray,
 };
 
 const FILTERS = ["すべて", "未対応", "本日の追客", "期日超過", "受電デモ", "架電デモ", "広告・Web"] as const;
@@ -161,13 +168,14 @@ function NextActionCell({
  * 暗い画面は地が黒く同じ数字だと沈むため、別の値を当てる。
  */
 function rowTone(lead: Lead): string {
-  if (lead.status === "未対応") return "bg-red-300/40 dark:bg-red-500/15";
-  if (lead.status === "留守番電話") return "bg-violet-300/40 dark:bg-violet-500/15";
-  if (lead.status === "アポ獲得") return "bg-yellow-300/40 dark:bg-yellow-400/15";
+  if (lead.status === "未対応") return FILL.red;
+  if (lead.status === "留守番電話") return FILL.violet;
+  if (lead.status === "アポ獲得") return FILL.yellow;
+  if (lead.status === "失注" || lead.status === "対象外") return FILL.gray;
   // 期日を過ぎた追客は、状況の色より優先して赤で出す
   const d = daysUntil(lead.nextActionAt);
-  if (d !== null && d < 0) return "bg-red-300/40 dark:bg-red-500/15";
-  return "";
+  if (d !== null && d < 0) return FILL.red;
+  return FILL.none;
 }
 
 export function LeadList({
@@ -228,38 +236,28 @@ export function LeadList({
     <section className="flex flex-col rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
       <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800">
         {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-full px-3.5 py-1.5 text-sm transition ${
-              filter === f
-                ? "bg-[#9e8d70] text-white shadow-sm"
-                : "border border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-            }`}
-          >
-            {f}
-          </button>
+          <FilterChip key={f} label={f} active={filter === f} onClick={() => setFilter(f)} />
         ))}
         <span className="ml-auto text-sm tabular-nums text-neutral-400">{shown.length}件</span>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[62rem] text-sm">
-          <thead className="border-b border-neutral-100 text-left text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:border-neutral-800">
+          <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
-              <th className="px-4 py-3">日時</th>
-              <th className="px-4 py-3">対応状況</th>
-              <th className="px-4 py-3">流入経路</th>
-              <th className="px-4 py-3">担当</th>
-              <th className="px-4 py-3">次回連絡</th>
-              <th className="px-4 py-3">電話番号</th>
-              <th className="px-4 py-3 min-w-[14rem]">メモ（番号ごとに引き継ぎ）</th>
-              <th className="px-4 py-3">会社名</th>
-              <th className="px-4 py-3">種別</th>
-              <th className="px-4 py-3">流入元</th>
-              <th className="px-4 py-3 text-right">通話</th>
-              <th className="px-4 py-3 text-right">初動</th>
-              <th className="px-4 py-3">録音</th>
+              <th className={TH}>日時</th>
+              <th className={TH}>対応状況</th>
+              <th className={TH}>流入経路</th>
+              <th className={TH}>担当</th>
+              <th className={TH}>次回連絡</th>
+              <th className={TH}>電話番号</th>
+              <th className={`${TH} min-w-[14rem]`}>メモ（番号ごとに引き継ぎ）</th>
+              <th className={TH}>会社名</th>
+              <th className={TH}>種別</th>
+              <th className={TH}>流入元</th>
+              <th className={`${TH} text-right`}>通話</th>
+              <th className={`${TH} text-right`}>初動</th>
+              <th className={TH}>録音</th>
             </tr>
           </thead>
           <tbody>
@@ -282,11 +280,11 @@ export function LeadList({
               return (
                 <tr
                   key={lead.id}
-                  className={`border-t border-neutral-100 transition hover:brightness-[0.97] dark:border-neutral-800 dark:hover:brightness-125 ${rowTone(
+                  className={`border-t border-neutral-100 dark:border-neutral-800 ${ROW_HOVER} ${rowTone(
                     lead
                   )} ${savingId === lead.id ? "opacity-60" : ""}`}
                 >
-                  <td className="whitespace-nowrap py-3 pl-4 pr-4 tabular-nums text-neutral-600 dark:text-neutral-300">
+                  <td className={`${TD} ${W.date} tabular-nums text-neutral-600 dark:text-neutral-300`}>
                     {/* 手が要る行を左端の帯で示す。行数が増えても目に留まる */}
                     <span className="flex items-center gap-2.5">
                       <span
@@ -303,7 +301,9 @@ export function LeadList({
                       {formatDateTime(lead.createdAt)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={`${TD} ${W.phase}`}>
+                    <div className="flex items-center gap-1.5">
+                    <Pill text={lead.status} tone={STATUS_STYLE[lead.status]} />
                     <select
                       value={lead.status}
                       onChange={(e) => {
@@ -317,7 +317,7 @@ export function LeadList({
                         setNeedChannel(null);
                         onPatch(lead.id, { status: next });
                       }}
-                      className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${STATUS_STYLE[lead.status]}`}
+                      className={`${CELL_INPUT} cursor-pointer`}
                     >
                       {LEAD_STATUSES.map((s) => (
                         <option key={s} value={s}>
@@ -325,8 +325,9 @@ export function LeadList({
                         </option>
                       ))}
                     </select>
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={`${TD} ${W.channel}`}>
                     <select
                       value={lead.acquisitionChannel ?? ""}
                       onChange={(e) => {
@@ -339,10 +340,8 @@ export function LeadList({
                           ...(needChannel === lead.id && v ? { status: CHANNEL_REQUIRED_STATUS } : {}),
                         });
                       }}
-                      className={`cursor-pointer rounded-xl border px-2.5 py-1.5 text-sm ${
-                        needChannel === lead.id
-                          ? "border-red-400 bg-red-50 dark:bg-red-500/10"
-                          : "border-neutral-200 bg-white/70 dark:border-neutral-700 dark:bg-neutral-800/60"
+                      className={`${CELL_INPUT} cursor-pointer ${
+                        needChannel === lead.id ? "border-red-400 bg-red-100 dark:bg-red-500/20" : ""
                       }`}
                     >
                       <option value="">—</option>
@@ -358,11 +357,11 @@ export function LeadList({
                       </p>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={`${TD} ${W.owner}`}>
                     <select
                       value={lead.assignedTo}
                       onChange={(e) => onPatch(lead.id, { assignedTo: e.target.value })}
-                      className="cursor-pointer rounded-xl border border-neutral-200 bg-white/70 px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-800/60"
+                      className={`${CELL_INPUT} cursor-pointer`}
                     >
                       {[lead.assignedTo, ...responders.filter((r) => r !== lead.assignedTo)].map((r) => (
                         <option key={r} value={r}>
@@ -371,10 +370,10 @@ export function LeadList({
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={TD}>
                     <NextActionCell lead={lead} onPatch={onPatch} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums">
+                  <td className={`${TD} ${W.phone} font-medium tabular-nums`}>
                     <a href={`tel:${lead.phoneNumber}`} className="hover:underline">
                       {formatPhone(lead.phoneNumber)}
                     </a>
@@ -386,23 +385,23 @@ export function LeadList({
                       </span>
                     )}
                   </td>
-                  <td className="px-2 py-2 align-top">
+                  <td className="px-3 py-2 align-top">
                     <NoteCell lead={lead} onSave={onSaveNote} />
                   </td>
-                  <td className="max-w-[12rem] truncate px-4 py-3">{lead.companyName ?? "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-neutral-500">{lead.demoType ?? "—"}</td>
-                  <td className="max-w-[10rem] truncate px-4 py-3 text-neutral-500">{lead.inflow ?? "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-neutral-500">
+                  <td className={`${TD} max-w-[12rem] truncate`}>{lead.companyName ?? "—"}</td>
+                  <td className={`${TD} text-neutral-500`}>{lead.demoType ?? "—"}</td>
+                  <td className={`${TD} max-w-[10rem] truncate text-neutral-500`}>{lead.inflow ?? "—"}</td>
+                  <td className={`${TD} text-right tabular-nums text-neutral-500`}>
                     {lead.durationSeconds !== null ? `${lead.durationSeconds}秒` : "—"}
                   </td>
                   <td
-                    className={`whitespace-nowrap px-4 py-3 text-right tabular-nums ${
+                    className={`${TD} text-right tabular-nums ${
                       mins !== null && mins > 5 ? "text-red-600 dark:text-red-400" : "text-neutral-500"
                     }`}
                   >
                     {mins === null ? "—" : `${mins}分`}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className={TD}>
                     {lead.recordingUrl ? (
                       <a
                         href={lead.recordingUrl}

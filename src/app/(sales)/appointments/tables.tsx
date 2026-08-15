@@ -20,43 +20,7 @@ import {
   type Lead,
   type LeadPhase,
 } from "@/lib/sales-types";
-import { CELL_INPUT, Pill, TD, TH, TableFrame, yen } from "./ui";
-
-/**
- * 色の決まり。反響リードと同じ意味で使う。
- * 画面ごとに色の意味が変わると、並べて見たときに読み違える。
- *
- *   グレー  まだ動いていない / 終わったもの
- *   水色    着手した（初回面談・提案）
- *   オレンジ 山場（見積・クロージング）
- *   黄      成果（案件化済・受注・稼働）
- *   紫      通常の受注フローから外れた形（協業）
- *   赤      手が止まっている（使うのは警告のみ）
- *
- * 緑は使わない。反響リードで「アポ獲得は緑ではなく黄」と決めたため。
- */
-const TONE = {
-  gray: "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
-  sky: "bg-sky-200 text-sky-900 ring-sky-300 dark:bg-sky-500/25 dark:text-sky-100 dark:ring-sky-400/40",
-  orange: "bg-orange-200 text-orange-900 ring-orange-300 dark:bg-orange-500/25 dark:text-orange-100 dark:ring-orange-400/40",
-  yellow: "bg-yellow-300 text-yellow-900 ring-yellow-400 dark:bg-yellow-400/25 dark:text-yellow-100 dark:ring-yellow-400/40",
-  violet: "bg-violet-200 text-violet-900 ring-violet-300 dark:bg-violet-500/25 dark:text-violet-100 dark:ring-violet-400/40",
-} as const;
-
-/**
- * 行の塗りつぶし。
- *
- * 5〜10%では白地でほとんど見えなかったので 40% まで上げた。
- * 文字の上には何も重ねず背景だけを変えるので、濃くしても読める。
- * 暗い画面では地が黒いぶん同じ数字だと沈むため、別の値を当てる。
- */
-const FILL = {
-  yellow: "bg-yellow-300/40 dark:bg-yellow-400/15",
-  orange: "bg-orange-300/40 dark:bg-orange-500/15",
-  violet: "bg-violet-300/40 dark:bg-violet-500/15",
-  gray: "bg-neutral-300/40 dark:bg-neutral-500/15",
-  none: "",
-} as const;
+import { CELL_INPUT, FILL, Pill, ROW_HOVER, TD, TH, TONE, TableFrame, W, yen } from "@/components/table-ui";
 
 const LEAD_PHASE_TONE: Record<LeadPhase, string> = {
   リード: TONE.gray,
@@ -95,20 +59,6 @@ const CUSTOMER_STATUS_TONE: Record<string, string> = {
   停止: TONE.orange,
   解約: TONE.gray,
 };
-
-/**
- * 列ごとの最低幅。
- * 既定のままだと中身の文字数で決まってしまい、
- * 選択欄（担当者・フェーズ・確度）や短い値（役職・電話番号）が潰れる。
- */
-const W = {
-  owner: "min-w-[7.5rem]",
-  phase: "min-w-[13.5rem]", // バッジ＋選択欄が横に並ぶぶん広く取る
-  grade: "min-w-[8rem]",
-  person: "min-w-[9.5rem]", // 代表者名・先方担当者名
-  title: "min-w-[9rem]", // 役職
-  phone: "min-w-[10.5rem]",
-} as const;
 
 export type Patch = (kind: "lead" | "deal" | "customer", id: number | string, patch: Record<string, unknown>) => void;
 
@@ -253,7 +203,7 @@ export function LeadTable({
             {shown.map((l) => (
               <tr
                 key={l.id}
-                className={`${LEAD_PHASE_FILL[l.phase]} hover:brightness-[0.97] dark:hover:brightness-125`}
+                className={`${LEAD_PHASE_FILL[l.phase]} ${ROW_HOVER}`}
               >
                 <td className={`${TD} tabular-nums text-neutral-400`}>{l.id}</td>
                 <td className={`${TD} text-neutral-400`}>{l.monthLabel ?? ""}</td>
@@ -376,7 +326,7 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
             {deals.map((d) => (
               <tr
                 key={d.id}
-                className={`${DEAL_PHASE_FILL[d.phase]} hover:brightness-[0.97] dark:hover:brightness-125`}
+                className={`${DEAL_PHASE_FILL[d.phase]} ${ROW_HOVER}`}
               >
                 <td className={`${TD} tabular-nums text-neutral-400`}>
                   {d.id}
@@ -500,7 +450,7 @@ export function CustomerTable({
             {customers.map((c) => (
               <tr
                 key={c.id}
-                className={`${c.status === "解約" ? FILL.gray : FILL.none} hover:brightness-[0.97] dark:hover:brightness-125`}
+                className={`${c.status === "解約" ? FILL.gray : FILL.none} ${ROW_HOVER}`}
               >
                 <td className={`${TD} font-mono text-xs text-neutral-400`}>{c.id}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>
@@ -610,7 +560,7 @@ export function LostTable({ deals, patch }: { deals: Deal[]; patch: Patch }) {
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {lost.map((d) => (
-              <tr key={d.id} className="hover:brightness-[0.97] dark:hover:brightness-125">
+              <tr key={d.id} className={ROW_HOVER}>
                 <td className={`${TD} tabular-nums text-neutral-400`}>{d.id}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>{d.company}</td>
                 <td className={TD}>{d.owner}</td>
