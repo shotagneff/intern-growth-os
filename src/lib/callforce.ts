@@ -573,6 +573,18 @@ export function byCallerType(leads: Lead[]): Breakdown[] {
   return groupBy(leads, (l) => l.callerType || "（不明）");
 }
 
+/**
+ * 流入経路ごとのアポ獲得数。
+ *
+ * 流入経路はアポ獲得のときだけ必須なので、それ以外は空のことが多い。
+ * 全リードを流入経路で割っても「未入力」が大半になって読めない。
+ * **アポ獲得した分だけ**を数えれば、どの経路が商談に化けたかが分かる。
+ */
+export function appointmentsByChannel(leads: Lead[]): Breakdown[] {
+  const won = leads.filter((l) => l.status === "アポ獲得");
+  return groupBy(won, (l) => l.acquisitionChannel || "（未入力）");
+}
+
 /** 受電デモ / 架電デモ などの種別ごと */
 export function byDemoType(leads: Lead[]): Breakdown[] {
   return groupBy(leads, (l) => l.demoType || "（不明）");

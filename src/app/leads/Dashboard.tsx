@@ -7,6 +7,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
+  appointmentsByChannel,
   byAssignee,
   byCallerType,
   byDemoType,
@@ -34,6 +35,7 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
   const heat = useMemo(() => byWeekdayHour(leads), [leads]);
   const stats = useMemo(() => responseStats(leads), [leads]);
   const inflows = useMemo(() => byInflow(leads), [leads]);
+  const wonByChannel = useMemo(() => appointmentsByChannel(leads), [leads]);
   const statuses = useMemo(() => byStatus(leads), [leads]);
   const assignees = useMemo(() => byAssignee(leads), [leads]);
   const callerTypes = useMemo(() => byCallerType(leads), [leads]);
@@ -113,18 +115,24 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
+        <Card
+          title="流入経路別のアポ獲得"
+          action={<span className="text-xs text-neutral-400">アポ獲得時のみ記録</span>}
+        >
+          <BarList rows={wonByChannel} />
+        </Card>
         <Card title="流入元">
           <BarList rows={inflows} showRate />
         </Card>
         <Card title="対応状況">
           <BarList rows={statuses} />
         </Card>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-4">
         <Card title="担当者">
           <BarList rows={assignees} showRate />
         </Card>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
         <Card title="デモの種別">
           <BarList rows={demoTypes} showRate />
         </Card>
