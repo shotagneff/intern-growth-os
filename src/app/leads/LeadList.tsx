@@ -7,6 +7,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ACQUISITION_CHANNELS,
+  CHANNEL_REQUIRED_STATUS,
   FOLLOW_UP_STATUSES,
   LEAD_STATUSES,
   daysUntil,
@@ -179,10 +181,20 @@ export function LeadList({
   responders: string[];
   loading: boolean;
   savingId: string | null;
-  onPatch: (id: string, patch: { status?: LeadStatus; assignedTo?: string; nextActionAt?: string | null }) => void;
+  onPatch: (
+    id: string,
+    patch: {
+      status?: LeadStatus;
+      assignedTo?: string;
+      nextActionAt?: string | null;
+      acquisitionChannel?: string | null;
+    }
+  ) => void;
   onSaveNote: (phoneNumber: string, note: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<Filter>("すべて");
+  // アポ獲得を選んだが流入経路が空だった行。ここだけ赤くして促す
+  const [needChannel, setNeedChannel] = useState<string | null>(null);
 
   const shown = useMemo(() => {
     switch (filter) {
@@ -236,6 +248,7 @@ export function LeadList({
             <tr>
               <th className="px-4 py-3">日時</th>
               <th className="px-4 py-3">対応状況</th>
+              <th className="px-4 py-3">流入経路</th>
               <th className="px-4 py-3">担当</th>
               <th className="px-4 py-3">次回連絡</th>
               <th className="px-4 py-3">電話番号</th>
@@ -251,14 +264,14 @@ export function LeadList({
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={12} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={13} className="px-4 py-10 text-center text-neutral-400">
                   読み込んでいます…
                 </td>
               </tr>
             )}
             {!loading && shown.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={13} className="px-4 py-10 text-center text-neutral-400">
                   該当するリードがありません
                 </td>
               </tr>
@@ -292,7 +305,17 @@ export function LeadList({
                   <td className="px-4 py-3">
                     <select
                       value={lead.status}
-                      onChange={(e) => onPatch(lead.id, { status: e.target.value as LeadStatus })}
+                      onChange={(e) => {
+                        const next = e.target.value as LeadStatus;
+                        // アポ獲得にするには流入経路が要る。
+                        // サーバーでも弾いているが、押した直後に理由が分かるほうが直せる。
+                        if (next === CHANNEL_REQUIRED_STATUS && !lead.acquisitionChannel) {
+                          setNeedChannel(lead.id);
+                          return;
+                        }
+                        setNeedChannel(null);
+                        onPatch(lead.id, { status: next });
+                      }}
                       className={`cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ${STATUS_STYLE[lead.status]}`}
                     >
                       {LEAD_STATUSES.map((s) => (
@@ -301,6 +324,38 @@ export function LeadList({
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={lead.acquisitionChannel ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value || null;
+                        setNeedChannel(null);
+                        // 流入経路を入れた直後にアポ獲得へ進めるようにする。
+                        // 2回操作させると、片方を忘れて元の状態に戻る
+                        onPatch(lead.id, {
+                          acquisitionChannel: v,
+                          ...(needChannel === lead.id && v ? { status: CHANNEL_REQUIRED_STATUS } : {}),
+                        });
+                      }}
+                      className={`cursor-pointer rounded-xl border px-2.5 py-1.5 text-sm ${
+                        needChannel === lead.id
+                          ? "border-red-400 bg-red-50 dark:bg-red-500/10"
+                          : "border-neutral-200 bg-white/70 dark:border-neutral-700 dark:bg-neutral-800/60"
+                      }`}
+                    >
+                      <option value="">—</option>
+                      {ACQUISITION_CHANNELS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    {needChannel === lead.id && (
+                      <p className="mt-1 text-[10px] font-medium text-red-600 dark:text-red-400">
+                        アポ獲得には流入経路が必要です
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <select

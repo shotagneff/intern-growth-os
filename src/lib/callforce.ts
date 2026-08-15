@@ -61,7 +61,28 @@ export type Lead = {
   callCount: number;
   /** 次に連絡する日（YYYY-MM-DD）。追客中の案件が沈まないための期日 */
   nextActionAt: string | null;
+  /** 人が入力する流入経路。どこで当社を知ったか。アポ獲得時のみ必須 */
+  acquisitionChannel: string | null;
 };
+
+/**
+ * 流入経路の選択肢。
+ * 自由入力にすると表記が割れて集計できないので、選ばせる。
+ * 増やすときはここに足すだけでよい。
+ */
+export const ACQUISITION_CHANNELS = [
+  "Meta広告",
+  "Instagram",
+  "ホームページ",
+  "紹介",
+  "イベント・交流会",
+  "代理店",
+  "既存顧客",
+  "その他",
+] as const;
+
+/** アポ獲得にするには流入経路が要る。広告費の配分を判断するため */
+export const CHANNEL_REQUIRED_STATUS: LeadStatus = "アポ獲得";
 
 /** 追いかけが必要な状態。この2つだけ次回連絡日を持たせる */
 export const FOLLOW_UP_STATUSES: LeadStatus[] = ["留守番電話", "追客中"];
@@ -144,6 +165,7 @@ function toLead(r: Row): Lead {
     contactNote: null,
     callCount: 1,
     nextActionAt: (r.next_action_at as string) ?? null,
+    acquisitionChannel: (r.acquisition_channel as string) ?? null,
   };
 }
 
@@ -175,6 +197,14 @@ export async function listLeads(limit = 500): Promise<Lead[]> {
     l.callCount = counts.get(k) ?? 1;
   }
   return leads;
+}
+
+/** 1件だけ引く。保存前の検証に使う */
+export async function getLead(id: string): Promise<Lead | null> {
+  const res = await callforceFetch(`lead_alerts?select=*&id=eq.${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
+  const rows = (await res.json()) as Row[];
+  return rows[0] ? toLead(rows[0]) : null;
 }
 
 /** 電話番号ごとのメモをまとめて引く */
@@ -229,13 +259,21 @@ export async function saveContactNote(
  */
 export async function updateLead(
   id: string,
-  patch: { status?: LeadStatus; assignedTo?: string; note?: string; by?: string; nextActionAt?: string | null }
+  patch: {
+    status?: LeadStatus;
+    assignedTo?: string;
+    note?: string;
+    by?: string;
+    nextActionAt?: string | null;
+    acquisitionChannel?: string | null;
+  }
 ): Promise<void> {
   const body: Row = { updated_at: new Date().toISOString() };
   if (patch.status !== undefined) body.status = patch.status;
   if (patch.assignedTo !== undefined) body.assigned_to = patch.assignedTo;
   if (patch.note !== undefined) body.note = patch.note;
   if (patch.nextActionAt !== undefined) body.next_action_at = patch.nextActionAt;
+  if (patch.acquisitionChannel !== undefined) body.acquisition_channel = patch.acquisitionChannel;
 
   // 追いかけが要る状態にしたら、期日が空のままにしない。
   // 期日が無いと一覧で沈み、誰も見返さなくなる（これがこの機能の目的）。

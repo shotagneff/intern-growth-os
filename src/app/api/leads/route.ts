@@ -5,6 +5,9 @@ import {
   listResponders,
   updateLead,
   saveContactNote,
+  getLead,
+  ACQUISITION_CHANNELS,
+  CHANNEL_REQUIRED_STATUS,
   LEAD_STATUSES,
   type LeadStatus,
 } from "@/lib/callforce";
@@ -48,6 +51,7 @@ export async function PATCH(req: NextRequest) {
     phoneNumber?: string;
     /** 次回連絡日（YYYY-MM-DD）。null で解除 */
     nextActionAt?: string | null;
+    acquisitionChannel?: string | null;
   } | null;
 
   if (!body) {
@@ -55,6 +59,30 @@ export async function PATCH(req: NextRequest) {
   }
   if (body.status && !LEAD_STATUSES.includes(body.status as LeadStatus)) {
     return NextResponse.json({ error: "対応状況の値が不正です" }, { status: 400 });
+  }
+  if (
+    body.acquisitionChannel &&
+    !ACQUISITION_CHANNELS.includes(body.acquisitionChannel as (typeof ACQUISITION_CHANNELS)[number])
+  ) {
+    return NextResponse.json({ error: "流入経路の値が不正です" }, { status: 400 });
+  }
+
+  // アポ獲得にするには流入経路が要る。
+  // 画面側でも止めているが、ここで弾かないと「入力義務」にならない。
+  if (body.status === CHANNEL_REQUIRED_STATUS && body.id) {
+    const already = body.acquisitionChannel;
+    if (already === null || already === "") {
+      return NextResponse.json({ error: "アポ獲得にするには流入経路の入力が必要です" }, { status: 400 });
+    }
+    if (already === undefined) {
+      const current = await getLead(body.id);
+      if (!current?.acquisitionChannel) {
+        return NextResponse.json(
+          { error: "アポ獲得にするには流入経路の入力が必要です" },
+          { status: 400 }
+        );
+      }
+    }
   }
 
   try {
@@ -69,7 +97,8 @@ export async function PATCH(req: NextRequest) {
     if (
       body.status !== undefined ||
       body.assignedTo !== undefined ||
-      body.nextActionAt !== undefined
+      body.nextActionAt !== undefined ||
+      body.acquisitionChannel !== undefined
     ) {
       if (!body.id) {
         return NextResponse.json({ error: "id が必要です" }, { status: 400 });
@@ -78,6 +107,7 @@ export async function PATCH(req: NextRequest) {
         status: body.status as LeadStatus | undefined,
         assignedTo: body.assignedTo,
         nextActionAt: body.nextActionAt,
+        acquisitionChannel: body.acquisitionChannel,
       });
     }
     return NextResponse.json({ ok: true });

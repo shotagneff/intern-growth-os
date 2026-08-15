@@ -64,7 +64,15 @@ export default function LeadsPage() {
 
   /** 画面上だけ先に変えて、裏で保存する。待たされる感じをなくす */
   const patch = useCallback(
-    async (id: string, patchBody: { status?: LeadStatus; assignedTo?: string }) => {
+    async (
+      id: string,
+      patchBody: {
+        status?: LeadStatus;
+        assignedTo?: string;
+        nextActionAt?: string | null;
+        acquisitionChannel?: string | null;
+      }
+    ) => {
       const before = leads;
       setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...patchBody } : l)));
       setSavingId(id);
@@ -74,7 +82,11 @@ export default function LeadsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, ...patchBody }),
         });
-        if (!res.ok) throw new Error("保存に失敗しました");
+        if (!res.ok) {
+          // 「アポ獲得には流入経路が必要」など、理由が返るものはそのまま出す
+          const j = await res.json().catch(() => null);
+          throw new Error(j?.error ?? "保存に失敗しました");
+        }
       } catch (e) {
         setLeads(before); // 戻す。保存できていないのに変わって見えるのが一番困る
         setError((e as Error).message);
