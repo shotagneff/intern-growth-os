@@ -59,7 +59,36 @@ export type Lead = {
   contactNote: string | null;
   /** この番号からの着信が通算で何回目か。1 なら初めて */
   callCount: number;
+  /** 次に連絡する日（YYYY-MM-DD）。追客中の案件が沈まないための期日 */
+  nextActionAt: string | null;
 };
+
+/** 追いかけが必要な状態。この2つだけ次回連絡日を持たせる */
+export const FOLLOW_UP_STATUSES: LeadStatus[] = ["留守番電話", "追客中"];
+
+/** 今日（JST）の YYYY-MM-DD */
+export function todayJst(): string {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * 期日まであと何日か。負なら超過。
+ * 日付だけで比較する。時刻を混ぜると「今日中」が曖昧になる。
+ */
+export function daysUntil(date: string | null): number | null {
+  if (!date) return null;
+  const a = Date.parse(`${date}T00:00:00Z`);
+  const b = Date.parse(`${todayJst()}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return Math.round((a - b) / 86400000);
+}
+
+/** 既定の次回連絡日。1週間後 */
+export function defaultNextAction(days = 7): string {
+  return new Date(Date.now() + 9 * 3600 * 1000 + days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
 
 /** 電話番号の末尾9桁。表記ゆれを吸収して同じ相手だと判定するためのキー */
 export function phoneKey(phone: string): string {
@@ -114,6 +143,7 @@ function toLead(r: Row): Lead {
     notifiedAt: (r.notified_at as string) ?? null,
     contactNote: null,
     callCount: 1,
+    nextActionAt: (r.next_action_at as string) ?? null,
   };
 }
 
@@ -199,12 +229,29 @@ export async function saveContactNote(
  */
 export async function updateLead(
   id: string,
-  patch: { status?: LeadStatus; assignedTo?: string; note?: string; by?: string }
+  patch: { status?: LeadStatus; assignedTo?: string; note?: string; by?: string; nextActionAt?: string | null }
 ): Promise<void> {
   const body: Row = { updated_at: new Date().toISOString() };
   if (patch.status !== undefined) body.status = patch.status;
   if (patch.assignedTo !== undefined) body.assigned_to = patch.assignedTo;
   if (patch.note !== undefined) body.note = patch.note;
+  if (patch.nextActionAt !== undefined) body.next_action_at = patch.nextActionAt;
+
+  // 追いかけが要る状態にしたら、期日が空のままにしない。
+  // 期日が無いと一覧で沈み、誰も見返さなくなる（これがこの機能の目的）。
+  if (patch.status !== undefined && FOLLOW_UP_STATUSES.includes(patch.status) && patch.nextActionAt === undefined) {
+    const res = await callforceFetch(
+      `lead_alerts?select=next_action_at&id=eq.${encodeURIComponent(id)}`
+    );
+    const rows = res.ok ? ((await res.json()) as Row[]) : [];
+    if (rows[0] && !rows[0].next_action_at) body.next_action_at = defaultNextAction();
+  }
+
+  // 追いかけが終わった状態に変えたら、期日は落とす。
+  // 残しておくと「本日の追客」に失注案件が混ざる。
+  if (patch.status !== undefined && !FOLLOW_UP_STATUSES.includes(patch.status)) {
+    body.next_action_at = null;
+  }
 
   if (patch.status !== undefined && patch.status !== "未対応") {
     const res = await callforceFetch(

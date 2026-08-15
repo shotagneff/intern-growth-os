@@ -6,7 +6,14 @@
 // 対応状況と担当を日時のすぐ隣に置いている。
 
 import React, { useEffect, useMemo, useState } from "react";
-import { LEAD_STATUSES, firstResponseMinutes, type Lead, type LeadStatus } from "@/lib/callforce";
+import {
+  FOLLOW_UP_STATUSES,
+  LEAD_STATUSES,
+  daysUntil,
+  firstResponseMinutes,
+  type Lead,
+  type LeadStatus,
+} from "@/lib/callforce";
 
 /** +818012345678 → 080-1234-5678 */
 function formatPhone(raw: string): string {
@@ -43,7 +50,7 @@ const STATUS_STYLE: Record<LeadStatus, string> = {
     "bg-neutral-100 text-neutral-500 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-500 dark:ring-neutral-500/30",
 };
 
-const FILTERS = ["すべて", "未対応", "受電デモ", "架電デモ", "広告・Web"] as const;
+const FILTERS = ["すべて", "未対応", "本日の追客", "期日超過", "受電デモ", "架電デモ", "広告・Web"] as const;
 type Filter = (typeof FILTERS)[number];
 
 /**
@@ -93,6 +100,54 @@ function NoteCell({
   );
 }
 
+/**
+ * 次回連絡日。
+ *
+ * 「追客中」は期日が無いと沈む。日付を入れておけば、
+ * 「本日の追客」「期日超過」で拾い上げられる。
+ *
+ * 追いかけが要る状態（留守番電話・追客中）のときだけ入力欄を出す。
+ * 全行に出すと、失注や対象外にも日付が付いて一覧が濁る。
+ */
+function NextActionCell({
+  lead,
+  onPatch,
+}: {
+  lead: Lead;
+  onPatch: (id: string, patch: { nextActionAt?: string | null }) => void;
+}) {
+  const needsFollowUp = FOLLOW_UP_STATUSES.includes(lead.status);
+  const d = daysUntil(lead.nextActionAt);
+
+  if (!needsFollowUp && !lead.nextActionAt) {
+    return <span className="text-neutral-300">—</span>;
+  }
+
+  // 期日までの距離を言葉にする。日付だけだと今日との差を頭で計算させてしまう
+  const label =
+    d === null ? null : d < 0 ? `${-d}日超過` : d === 0 ? "本日" : `あと${d}日`;
+  const tone =
+    d === null
+      ? "text-neutral-400"
+      : d < 0
+        ? "font-semibold text-red-600 dark:text-red-400"
+        : d === 0
+          ? "font-semibold text-orange-600 dark:text-orange-400"
+          : "text-neutral-500";
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <input
+        type="date"
+        value={lead.nextActionAt ?? ""}
+        onChange={(e) => onPatch(lead.id, { nextActionAt: e.target.value || null })}
+        className="rounded-lg border border-neutral-200 bg-transparent px-2 py-1 text-xs tabular-nums dark:border-neutral-700"
+      />
+      {label && <span className={`text-[10px] ${tone}`}>{label}</span>}
+    </div>
+  );
+}
+
 export function LeadList({
   leads,
   responders,
@@ -105,7 +160,7 @@ export function LeadList({
   responders: string[];
   loading: boolean;
   savingId: string | null;
-  onPatch: (id: string, patch: { status?: LeadStatus; assignedTo?: string }) => void;
+  onPatch: (id: string, patch: { status?: LeadStatus; assignedTo?: string; nextActionAt?: string | null }) => void;
   onSaveNote: (phoneNumber: string, note: string) => Promise<void>;
 }) {
   const [filter, setFilter] = useState<Filter>("すべて");
@@ -114,6 +169,18 @@ export function LeadList({
     switch (filter) {
       case "未対応":
         return leads.filter((l) => l.status === "未対応");
+      case "本日の追客":
+        // 期日が今日以前のもの。過ぎた分もここに出さないと、
+        // 「本日」だけ見て超過分を取りこぼす
+        return leads.filter((l) => {
+          const d = daysUntil(l.nextActionAt);
+          return d !== null && d <= 0;
+        });
+      case "期日超過":
+        return leads.filter((l) => {
+          const d = daysUntil(l.nextActionAt);
+          return d !== null && d < 0;
+        });
       case "受電デモ":
         return leads.filter((l) => l.demoType === "受電デモ");
       case "架電デモ":
@@ -151,6 +218,7 @@ export function LeadList({
               <th className="px-4 py-3">日時</th>
               <th className="px-4 py-3">対応状況</th>
               <th className="px-4 py-3">担当</th>
+              <th className="px-4 py-3">次回連絡</th>
               <th className="px-4 py-3">電話番号</th>
               <th className="px-4 py-3 min-w-[14rem]">メモ（番号ごとに引き継ぎ）</th>
               <th className="px-4 py-3">会社名</th>
@@ -164,14 +232,14 @@ export function LeadList({
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={11} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={12} className="px-4 py-10 text-center text-neutral-400">
                   読み込んでいます…
                 </td>
               </tr>
             )}
             {!loading && shown.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={12} className="px-4 py-10 text-center text-neutral-400">
                   該当するリードがありません
                 </td>
               </tr>
@@ -227,6 +295,9 @@ export function LeadList({
                         </option>
                       ))}
                     </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <NextActionCell lead={lead} onPatch={onPatch} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums">
                     <a href={`tel:${lead.phoneNumber}`} className="hover:underline">

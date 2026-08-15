@@ -46,6 +46,8 @@ export async function PATCH(req: NextRequest) {
     /** 電話番号に紐づくメモ。phoneNumber とセットで送る */
     note?: string;
     phoneNumber?: string;
+    /** 次回連絡日（YYYY-MM-DD）。null で解除 */
+    nextActionAt?: string | null;
   } | null;
 
   if (!body) {
@@ -64,13 +66,18 @@ export async function PATCH(req: NextRequest) {
       await saveContactNote(body.phoneNumber, body.note);
     }
 
-    if (body.status !== undefined || body.assignedTo !== undefined) {
+    if (
+      body.status !== undefined ||
+      body.assignedTo !== undefined ||
+      body.nextActionAt !== undefined
+    ) {
       if (!body.id) {
         return NextResponse.json({ error: "id が必要です" }, { status: 400 });
       }
       await updateLead(body.id, {
         status: body.status as LeadStatus | undefined,
         assignedTo: body.assignedTo,
+        nextActionAt: body.nextActionAt,
       });
     }
     return NextResponse.json({ ok: true });

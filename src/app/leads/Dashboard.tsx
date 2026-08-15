@@ -13,6 +13,7 @@ import {
   byInflow,
   byStatus,
   byWeekdayHour,
+  daysUntil,
   dailyTrend,
   durationBuckets,
   responseStats,
@@ -40,13 +41,30 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
   const durations = useMemo(() => durationBuckets(leads), [leads]);
 
   const 未対応 = statuses.find((s) => s.name === "未対応")?.count ?? 0;
+
+  // 追客の期日。0以下＝今日やるもの、マイナス＝過ぎているもの。
+  // 未対応と違ってアラートを出さないので、ここに出さないと誰も気づかない。
+  const 本日の追客 = useMemo(
+    () => leads.filter((l) => { const d = daysUntil(l.nextActionAt); return d !== null && d <= 0; }).length,
+    [leads]
+  );
+  const 期日超過 = useMemo(
+    () => leads.filter((l) => { const d = daysUntil(l.nextActionAt); return d !== null && d < 0; }).length,
+    [leads]
+  );
   const アポ = statuses.find((s) => s.name === "アポ獲得")?.count ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <Kpi label="総リード数" value={String(leads.length)} />
         <Kpi label="未対応" value={String(未対応)} tone={未対応 > 0 ? "warn" : "normal"} />
+        <Kpi
+          label="本日の追客"
+          value={String(本日の追客)}
+          hint={期日超過 > 0 ? `うち ${期日超過}件が期日超過` : undefined}
+          tone={期日超過 > 0 ? "warn" : "normal"}
+        />
         <Kpi label="アポ獲得" value={String(アポ)} tone={アポ > 0 ? "good" : "normal"} />
         <Kpi
           label="初動の中央値"
