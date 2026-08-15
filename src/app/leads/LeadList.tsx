@@ -148,6 +148,25 @@ function NextActionCell({
   );
 }
 
+/**
+ * 行の地色。
+ *
+ * 左端の帯だけだと、横に長い表では気づかない。行ごと薄く塗る。
+ *
+ * 濃さは 5% 程度に留める。ここを濃くすると上に載る文字の
+ * コントラストが落ち、読むために文字色まで変える羽目になる。
+ * 文字には一切手を入れずに済む濃さが上限。
+ */
+function rowTone(lead: Lead): string {
+  if (lead.status === "未対応") return "bg-red-500/5 dark:bg-red-500/10";
+  if (lead.status === "留守番電話") return "bg-violet-500/5 dark:bg-violet-500/10";
+  if (lead.status === "アポ獲得") return "bg-yellow-400/10 dark:bg-yellow-400/10";
+  // 期日を過ぎた追客は、状況の色より優先して赤で出す
+  const d = daysUntil(lead.nextActionAt);
+  if (d !== null && d < 0) return "bg-red-500/5 dark:bg-red-500/10";
+  return "";
+}
+
 export function LeadList({
   leads,
   responders,
@@ -249,9 +268,9 @@ export function LeadList({
               return (
                 <tr
                   key={lead.id}
-                  className={`border-t border-neutral-100 transition hover:bg-neutral-50/70 dark:border-neutral-800 dark:hover:bg-neutral-800/40 ${
-                    savingId === lead.id ? "opacity-60" : ""
-                  }`}
+                  className={`border-t border-neutral-100 transition hover:bg-neutral-50/70 dark:border-neutral-800 dark:hover:bg-neutral-800/40 ${rowTone(
+                    lead
+                  )} ${savingId === lead.id ? "opacity-60" : ""}`}
                 >
                   <td className="whitespace-nowrap py-3 pl-4 pr-4 tabular-nums text-neutral-600 dark:text-neutral-300">
                     {/* 手が要る行を左端の帯で示す。行数が増えても目に留まる */}
