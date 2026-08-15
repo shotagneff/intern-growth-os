@@ -64,6 +64,18 @@ export function MobileNav() {
             onClick={close}
           />
           <MobileLink
+            href="/appointments"
+            label="アポ獲得管理"
+            active={isActive("/appointments")}
+            onClick={close}
+          />
+          <MobileLink
+            href="/performance"
+            label="成績"
+            active={isActive("/performance")}
+            onClick={close}
+          />
+          <MobileLink
             href="/dashboard"
             label="売上・KPIダッシュボード"
             active={isActive("/dashboard")}

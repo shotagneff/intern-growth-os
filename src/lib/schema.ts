@@ -186,6 +186,104 @@ export async function ensureDocumentsTable(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// アポ獲得管理（リード → 案件 → 顧客）
+//
+// スプレッドシート「アポイント獲得」からの移管。
+// 3つのシートが 案件ID で連鎖していた構造をそのまま持ち込む。
+//
+//   sales_leads(案件ID) ─┬─> sales_deals(同じ案件ID) ─┬─> sales_customers(元案件ID)
+//                        │                            └─> 失注管理（= 失注フェーズの案件。別テーブルにしない）
+//
+// 計算で出る値（想定年間総額・契約経過月数・LTV等）は列に持たない。
+// 保存すると元の値が変わったときに古いまま残る。
+// ---------------------------------------------------------------------------
+export async function ensureSalesLeadsTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales_leads (
+      id INTEGER PRIMARY KEY,
+      month_label TEXT,
+      company TEXT,
+      owner TEXT,
+      phase TEXT NOT NULL DEFAULT 'リード',
+      grade TEXT,
+      registered_on DATE,
+      ceo_name TEXT,
+      contact_name TEXT,
+      contact_title TEXT,
+      phone TEXT,
+      email TEXT,
+      website TEXT,
+      industry TEXT,
+      employee_size TEXT,
+      prefecture TEXT,
+      next_action TEXT,
+      next_action_on DATE,
+      lead_source TEXT,
+      referrer TEXT,
+      updated_on DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_leads_owner ON sales_leads (owner);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_leads_registered ON sales_leads (registered_on);');
+}
+
+export async function ensureSalesDealsTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales_deals (
+      id INTEGER PRIMARY KEY,
+      company TEXT,
+      owner TEXT,
+      phase TEXT NOT NULL DEFAULT '提案',
+      win_probability INTEGER,
+      next_action TEXT,
+      next_action_on DATE,
+      proposed_on DATE,
+      monthly_fee INTEGER NOT NULL DEFAULT 0,
+      one_time_fee INTEGER NOT NULL DEFAULT 0,
+      competitor TEXT,
+      service TEXT,
+      referrer TEXT,
+      lost_reason TEXT,
+      won_on DATE,
+      lost_on DATE,
+      created_on DATE,
+      updated_on DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_owner ON sales_deals (owner);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_won ON sales_deals (won_on);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_lost ON sales_deals (lost_on);');
+}
+
+export async function ensureSalesCustomersTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales_customers (
+      id TEXT PRIMARY KEY,
+      company TEXT,
+      owner TEXT,
+      status TEXT NOT NULL DEFAULT '稼働',
+      started_on DATE,
+      monthly_fee INTEGER NOT NULL DEFAULT 0,
+      ceo_name TEXT,
+      industry TEXT,
+      employee_size TEXT,
+      location TEXT,
+      note TEXT,
+      deal_id INTEGER,
+      created_on DATE,
+      updated_on DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_customers_deal ON sales_customers (deal_id);');
+}
+
+// ---------------------------------------------------------------------------
 // 全テーブル一括作成
 // ---------------------------------------------------------------------------
 export async function ensureAllTables(): Promise<void> {
@@ -196,4 +294,7 @@ export async function ensureAllTables(): Promise<void> {
   await ensureElearningVideosTable();
   await ensureElearningProgressTable();
   await ensureDocumentsTable();
+  await ensureSalesLeadsTable();
+  await ensureSalesDealsTable();
+  await ensureSalesCustomersTable();
 }
