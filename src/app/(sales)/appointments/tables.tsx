@@ -22,25 +22,93 @@ import {
 } from "@/lib/sales-types";
 import { CELL_INPUT, Pill, TD, TH, TableFrame, yen } from "./ui";
 
-const LEAD_PHASE_TONE: Record<LeadPhase, string> = {
-  リード: "bg-neutral-100 text-neutral-600 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-400 dark:ring-neutral-500/30",
-  初回面談: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
-  案件化済:
+/**
+ * 色の決まり。反響リードと同じ意味で使う。
+ * 画面ごとに色の意味が変わると、並べて見たときに読み違える。
+ *
+ *   グレー  まだ動いていない / 終わったもの
+ *   水色    着手した（初回面談・提案）
+ *   オレンジ 山場（見積・クロージング）
+ *   黄      成果（案件化済・受注・稼働）
+ *   紫      通常の受注フローから外れた形（協業）
+ *   赤      手が止まっている（使うのは警告のみ）
+ *
+ * 緑は使わない。反響リードで「アポ獲得は緑ではなく黄」と決めたため。
+ */
+const TONE = {
+  gray: "bg-neutral-100 text-neutral-600 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-400 dark:ring-neutral-500/30",
+  sky: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
+  orange:
+    "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
+  yellow:
     "bg-yellow-50 text-yellow-800 ring-yellow-300 dark:bg-yellow-400/10 dark:text-yellow-200 dark:ring-yellow-400/30",
-  協業:
+  violet:
     "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30",
-  失注: "bg-neutral-100 text-neutral-500 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-500 dark:ring-neutral-500/30",
+} as const;
+
+/**
+ * 行の塗りつぶし。バッジだけだと目が滑るので、行ごと薄く塗る。
+ * 文字の上に重ねず背景だけを変えるので、読みづらくならない。
+ */
+const FILL = {
+  yellow: "bg-yellow-400/10 dark:bg-yellow-400/10",
+  orange: "bg-orange-500/5 dark:bg-orange-500/10",
+  violet: "bg-violet-500/5 dark:bg-violet-500/10",
+  gray: "bg-neutral-500/5 dark:bg-neutral-500/10",
+  none: "",
+} as const;
+
+const LEAD_PHASE_TONE: Record<LeadPhase, string> = {
+  リード: TONE.gray,
+  初回面談: TONE.sky,
+  案件化済: TONE.yellow,
+  協業: TONE.violet,
+  失注: TONE.gray,
+};
+
+const LEAD_PHASE_FILL: Record<LeadPhase, string> = {
+  リード: FILL.none,
+  初回面談: FILL.none,
+  案件化済: FILL.yellow,
+  協業: FILL.violet,
+  失注: FILL.gray,
 };
 
 const DEAL_PHASE_TONE: Record<DealPhase, string> = {
-  提案: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
-  見積: "bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:ring-indigo-500/30",
-  クロージング:
-    "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
-  受注:
-    "bg-yellow-50 text-yellow-800 ring-yellow-300 dark:bg-yellow-400/10 dark:text-yellow-200 dark:ring-yellow-400/30",
-  失注: "bg-neutral-100 text-neutral-500 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-500 dark:ring-neutral-500/30",
+  提案: TONE.sky,
+  見積: TONE.orange,
+  クロージング: TONE.orange,
+  受注: TONE.yellow,
+  失注: TONE.gray,
 };
+
+const DEAL_PHASE_FILL: Record<DealPhase, string> = {
+  提案: FILL.none,
+  見積: FILL.none,
+  クロージング: FILL.orange,
+  受注: FILL.yellow,
+  失注: FILL.gray,
+};
+
+const CUSTOMER_STATUS_TONE: Record<string, string> = {
+  稼働: TONE.yellow,
+  停止: TONE.orange,
+  解約: TONE.gray,
+};
+
+/**
+ * 列ごとの最低幅。
+ * 既定のままだと中身の文字数で決まってしまい、
+ * 選択欄（担当者・フェーズ・確度）や短い値（役職・電話番号）が潰れる。
+ */
+const W = {
+  owner: "min-w-[7.5rem]",
+  phase: "min-w-[13.5rem]", // バッジ＋選択欄が横に並ぶぶん広く取る
+  grade: "min-w-[8rem]",
+  person: "min-w-[9.5rem]", // 代表者名・先方担当者名
+  title: "min-w-[9rem]", // 役職
+  phone: "min-w-[10.5rem]",
+} as const;
 
 export type Patch = (kind: "lead" | "deal" | "customer", id: number | string, patch: Record<string, unknown>) => void;
 
@@ -156,9 +224,10 @@ export function LeadTable({
         />
         <button
           onClick={onCreate}
-          className="rounded-full px-3 py-1.5 text-xs font-medium text-white"
+          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform hover:brightness-110 active:scale-[0.98]"
           style={{ backgroundColor: "#9e8d70" }}
         >
+          <span className="text-lg leading-none">＋</span>
           リードを追加
         </button>
       </div>
@@ -182,16 +251,19 @@ export function LeadTable({
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {shown.map((l) => (
-              <tr key={l.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30">
+              <tr
+                key={l.id}
+                className={`${LEAD_PHASE_FILL[l.phase]} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+              >
                 <td className={`${TD} tabular-nums text-neutral-400`}>{l.id}</td>
                 <td className={`${TD} text-neutral-400`}>{l.monthLabel ?? ""}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={l.company} onCommit={(v) => patch("lead", l.id, { company: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.owner}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.phase}`}>
                   <div className="flex items-center gap-1.5">
                     <Pill text={l.phase} tone={LEAD_PHASE_TONE[l.phase]} />
                     <Select
@@ -201,22 +273,22 @@ export function LeadTable({
                     />
                   </div>
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.grade}`}>
                   <Select value={l.grade} options={GRADES} blank="—" onChange={(v) => patch("lead", l.id, { grade: v })} />
                 </td>
                 <td className={TD}>
                   <Text type="date" value={l.registeredOn} onCommit={(v) => patch("lead", l.id, { registeredOn: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.person}`}>
                   <Text value={l.ceoName} onCommit={(v) => patch("lead", l.id, { ceoName: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.person}`}>
                   <Text value={l.contactName} onCommit={(v) => patch("lead", l.id, { contactName: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.title}`}>
                   <Text value={l.contactTitle} onCommit={(v) => patch("lead", l.id, { contactTitle: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.phone}`}>
                   <Text value={l.phone} onCommit={(v) => patch("lead", l.id, { phone: v })} />
                 </td>
                 <td className={TD}>
@@ -302,11 +374,14 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {deals.map((d) => (
-              <tr key={d.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30">
+              <tr
+                key={d.id}
+                className={`${DEAL_PHASE_FILL[d.phase]} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+              >
                 <td className={`${TD} tabular-nums text-neutral-400`}>
                   {d.id}
                   {!d.hasLead && (
-                    <span className="ml-1 text-[10px] text-amber-600" title="対応するリードがありません">
+                    <span className="ml-1 text-[10px] text-orange-600 dark:text-orange-400" title="対応するリードがありません">
                       ⚠
                     </span>
                   )}
@@ -314,10 +389,10 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={d.company} onCommit={(v) => patch("deal", d.id, { company: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.owner}`}>
                   <Select value={d.owner} options={owners} blank="—" onChange={(v) => patch("deal", d.id, { owner: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.phase}`}>
                   <div className="flex items-center gap-1.5">
                     <Pill text={d.phase} tone={DEAL_PHASE_TONE[d.phase]} />
                     <Select value={d.phase} options={DEAL_PHASES} onChange={(v) => patch("deal", d.id, { phase: v })} />
@@ -423,12 +498,15 @@ export function CustomerTable({
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {customers.map((c) => (
-              <tr key={c.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30">
+              <tr
+                key={c.id}
+                className={`${c.status === "解約" ? FILL.gray : FILL.none} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+              >
                 <td className={`${TD} font-mono text-xs text-neutral-400`}>{c.id}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={c.company} onCommit={(v) => patch("customer", c.id, { company: v })} />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.owner}`}>
                   <Select
                     value={c.owner}
                     options={owners}
@@ -436,12 +514,15 @@ export function CustomerTable({
                     onChange={(v) => patch("customer", c.id, { owner: v })}
                   />
                 </td>
-                <td className={TD}>
-                  <Select
-                    value={c.status}
-                    options={CUSTOMER_STATUSES}
-                    onChange={(v) => patch("customer", c.id, { status: v })}
-                  />
+                <td className={`${TD} min-w-[11rem]`}>
+                  <div className="flex items-center gap-1.5">
+                    <Pill text={c.status} tone={CUSTOMER_STATUS_TONE[c.status] ?? TONE.gray} />
+                    <Select
+                      value={c.status}
+                      options={CUSTOMER_STATUSES}
+                      onChange={(v) => patch("customer", c.id, { status: v })}
+                    />
+                  </div>
                 </td>
                 <td className={TD}>
                   <Text type="date" value={c.startedOn} onCommit={(v) => patch("customer", c.id, { startedOn: v })} />
@@ -454,7 +535,7 @@ export function CustomerTable({
                     onCommit={(v) => patch("customer", c.id, { monthlyFee: Number(v || 0) })}
                   />
                 </td>
-                <td className={TD}>
+                <td className={`${TD} ${W.person}`}>
                   <Text value={c.ceoName} onCommit={(v) => patch("customer", c.id, { ceoName: v })} />
                 </td>
                 <td className={TD}>
@@ -551,7 +632,7 @@ export function LostTable({ deals, patch }: { deals: Deal[]; patch: Patch }) {
       </TableFrame>
 
       {lost.length > 0 && lost.every((d) => !d.lostReason) && (
-        <p className="text-xs text-amber-600 dark:text-amber-400">
+        <p className="text-xs text-orange-600 dark:text-orange-400">
           失注理由が1件も入っていません。ここが埋まらないと、なぜ負けたのかを次に活かせません。
         </p>
       )}
