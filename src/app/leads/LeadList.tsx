@@ -37,19 +37,19 @@ function formatDateTime(iso: string): string {
 }
 
 const STATUS_STYLE: Record<LeadStatus, string> = {
-  未対応: "bg-red-50 text-red-700 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30",
+  未対応: "bg-red-200 text-red-900 ring-red-300 dark:bg-red-500/25 dark:text-red-100 dark:ring-red-400/40",
   留守番電話:
-    "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30",
+    "bg-violet-200 text-violet-900 ring-violet-300 dark:bg-violet-500/25 dark:text-violet-100 dark:ring-violet-400/40",
   // アポ獲得を黄色にしたため、対応中はオレンジへずらす。
   // 琥珀のままだと両方が黄系になり、進行中と成果が見分けられない。
   対応中:
-    "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
+    "bg-orange-200 text-orange-900 ring-orange-300 dark:bg-orange-500/25 dark:text-orange-100 dark:ring-orange-400/40",
   アポ獲得:
-    "bg-yellow-50 text-yellow-800 ring-yellow-300 dark:bg-yellow-400/10 dark:text-yellow-200 dark:ring-yellow-400/30",
-  追客中: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
-  失注: "bg-neutral-100 text-neutral-600 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-400 dark:ring-neutral-500/30",
+    "bg-yellow-300 text-yellow-900 ring-yellow-400 dark:bg-yellow-400/25 dark:text-yellow-100 dark:ring-yellow-400/40",
+  追客中: "bg-sky-200 text-sky-900 ring-sky-300 dark:bg-sky-500/25 dark:text-sky-100 dark:ring-sky-400/40",
+  失注: "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
   対象外:
-    "bg-neutral-100 text-neutral-500 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-500 dark:ring-neutral-500/30",
+    "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
 };
 
 const FILTERS = ["すべて", "未対応", "本日の追客", "期日超過", "受電デモ", "架電デモ", "広告・Web"] as const;
@@ -155,17 +155,18 @@ function NextActionCell({
  *
  * 左端の帯だけだと、横に長い表では気づかない。行ごと薄く塗る。
  *
- * 濃さは 5% 程度に留める。ここを濃くすると上に載る文字の
- * コントラストが落ち、読むために文字色まで変える羽目になる。
- * 文字には一切手を入れずに済む濃さが上限。
+ * 5% では白地でほとんど見えなかったので 40% まで上げた。
+ * 300 番台の色を 40% で敷くぶんには、上に載る黒文字のコントラストは
+ * 落ちない（文字色には一切手を入れずに済んでいる）。
+ * 暗い画面は地が黒く同じ数字だと沈むため、別の値を当てる。
  */
 function rowTone(lead: Lead): string {
-  if (lead.status === "未対応") return "bg-red-500/5 dark:bg-red-500/10";
-  if (lead.status === "留守番電話") return "bg-violet-500/5 dark:bg-violet-500/10";
-  if (lead.status === "アポ獲得") return "bg-yellow-400/10 dark:bg-yellow-400/10";
+  if (lead.status === "未対応") return "bg-red-300/40 dark:bg-red-500/15";
+  if (lead.status === "留守番電話") return "bg-violet-300/40 dark:bg-violet-500/15";
+  if (lead.status === "アポ獲得") return "bg-yellow-300/40 dark:bg-yellow-400/15";
   // 期日を過ぎた追客は、状況の色より優先して赤で出す
   const d = daysUntil(lead.nextActionAt);
-  if (d !== null && d < 0) return "bg-red-500/5 dark:bg-red-500/10";
+  if (d !== null && d < 0) return "bg-red-300/40 dark:bg-red-500/15";
   return "";
 }
 
@@ -281,7 +282,7 @@ export function LeadList({
               return (
                 <tr
                   key={lead.id}
-                  className={`border-t border-neutral-100 transition hover:bg-neutral-50/70 dark:border-neutral-800 dark:hover:bg-neutral-800/40 ${rowTone(
+                  className={`border-t border-neutral-100 transition hover:brightness-[0.97] dark:border-neutral-800 dark:hover:brightness-125 ${rowTone(
                     lead
                   )} ${savingId === lead.id ? "opacity-60" : ""}`}
                 >

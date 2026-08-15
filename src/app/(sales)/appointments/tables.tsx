@@ -36,25 +36,25 @@ import { CELL_INPUT, Pill, TD, TH, TableFrame, yen } from "./ui";
  * 緑は使わない。反響リードで「アポ獲得は緑ではなく黄」と決めたため。
  */
 const TONE = {
-  gray: "bg-neutral-100 text-neutral-600 ring-neutral-200 dark:bg-neutral-500/10 dark:text-neutral-400 dark:ring-neutral-500/30",
-  sky: "bg-sky-50 text-sky-700 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30",
-  orange:
-    "bg-orange-50 text-orange-700 ring-orange-200 dark:bg-orange-500/10 dark:text-orange-300 dark:ring-orange-500/30",
-  yellow:
-    "bg-yellow-50 text-yellow-800 ring-yellow-300 dark:bg-yellow-400/10 dark:text-yellow-200 dark:ring-yellow-400/30",
-  violet:
-    "bg-violet-50 text-violet-700 ring-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/30",
+  gray: "bg-neutral-200 text-neutral-700 ring-neutral-300 dark:bg-neutral-500/25 dark:text-neutral-200 dark:ring-neutral-400/40",
+  sky: "bg-sky-200 text-sky-900 ring-sky-300 dark:bg-sky-500/25 dark:text-sky-100 dark:ring-sky-400/40",
+  orange: "bg-orange-200 text-orange-900 ring-orange-300 dark:bg-orange-500/25 dark:text-orange-100 dark:ring-orange-400/40",
+  yellow: "bg-yellow-300 text-yellow-900 ring-yellow-400 dark:bg-yellow-400/25 dark:text-yellow-100 dark:ring-yellow-400/40",
+  violet: "bg-violet-200 text-violet-900 ring-violet-300 dark:bg-violet-500/25 dark:text-violet-100 dark:ring-violet-400/40",
 } as const;
 
 /**
- * 行の塗りつぶし。バッジだけだと目が滑るので、行ごと薄く塗る。
- * 文字の上に重ねず背景だけを変えるので、読みづらくならない。
+ * 行の塗りつぶし。
+ *
+ * 5〜10%では白地でほとんど見えなかったので 40% まで上げた。
+ * 文字の上には何も重ねず背景だけを変えるので、濃くしても読める。
+ * 暗い画面では地が黒いぶん同じ数字だと沈むため、別の値を当てる。
  */
 const FILL = {
-  yellow: "bg-yellow-400/10 dark:bg-yellow-400/10",
-  orange: "bg-orange-500/5 dark:bg-orange-500/10",
-  violet: "bg-violet-500/5 dark:bg-violet-500/10",
-  gray: "bg-neutral-500/5 dark:bg-neutral-500/10",
+  yellow: "bg-yellow-300/40 dark:bg-yellow-400/15",
+  orange: "bg-orange-300/40 dark:bg-orange-500/15",
+  violet: "bg-violet-300/40 dark:bg-violet-500/15",
+  gray: "bg-neutral-300/40 dark:bg-neutral-500/15",
   none: "",
 } as const;
 
@@ -253,7 +253,7 @@ export function LeadTable({
             {shown.map((l) => (
               <tr
                 key={l.id}
-                className={`${LEAD_PHASE_FILL[l.phase]} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+                className={`${LEAD_PHASE_FILL[l.phase]} hover:brightness-[0.97] dark:hover:brightness-125`}
               >
                 <td className={`${TD} tabular-nums text-neutral-400`}>{l.id}</td>
                 <td className={`${TD} text-neutral-400`}>{l.monthLabel ?? ""}</td>
@@ -376,7 +376,7 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
             {deals.map((d) => (
               <tr
                 key={d.id}
-                className={`${DEAL_PHASE_FILL[d.phase]} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+                className={`${DEAL_PHASE_FILL[d.phase]} hover:brightness-[0.97] dark:hover:brightness-125`}
               >
                 <td className={`${TD} tabular-nums text-neutral-400`}>
                   {d.id}
@@ -500,7 +500,7 @@ export function CustomerTable({
             {customers.map((c) => (
               <tr
                 key={c.id}
-                className={`${c.status === "解約" ? FILL.gray : FILL.none} hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30`}
+                className={`${c.status === "解約" ? FILL.gray : FILL.none} hover:brightness-[0.97] dark:hover:brightness-125`}
               >
                 <td className={`${TD} font-mono text-xs text-neutral-400`}>{c.id}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>
@@ -610,7 +610,7 @@ export function LostTable({ deals, patch }: { deals: Deal[]; patch: Patch }) {
           </thead>
           <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
             {lost.map((d) => (
-              <tr key={d.id} className="hover:bg-neutral-50/70 dark:hover:bg-neutral-800/30">
+              <tr key={d.id} className="hover:brightness-[0.97] dark:hover:brightness-125">
                 <td className={`${TD} tabular-nums text-neutral-400`}>{d.id}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>{d.company}</td>
                 <td className={TD}>{d.owner}</td>
