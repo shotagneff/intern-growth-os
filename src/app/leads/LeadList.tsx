@@ -246,13 +246,13 @@ export function LeadList({
           <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
               <th className={TH}>日時</th>
+              <th className={TH}>会社名</th>
               <th className={TH}>対応状況</th>
               <th className={TH}>流入経路</th>
               <th className={TH}>担当</th>
               <th className={TH}>次回連絡</th>
               <th className={TH}>電話番号</th>
               <th className={`${TH} min-w-[14rem]`}>メモ（番号ごとに引き継ぎ）</th>
-              <th className={TH}>会社名</th>
               <th className={TH}>種別</th>
               <th className={TH}>流入元</th>
               <th className={`${TH} text-right`}>通話</th>
@@ -301,6 +301,7 @@ export function LeadList({
                       {formatDateTime(lead.createdAt)}
                     </span>
                   </td>
+                  <td className={`${TD} max-w-[12rem] truncate`}>{lead.companyName ?? "—"}</td>
                   <td className={`${TD} ${W.phase}`}>
                     <ToneSelect
                       value={lead.status}
@@ -380,7 +381,6 @@ export function LeadList({
                   <td className="px-3 py-2 align-top">
                     <NoteCell lead={lead} onSave={onSaveNote} />
                   </td>
-                  <td className={`${TD} max-w-[12rem] truncate`}>{lead.companyName ?? "—"}</td>
                   <td className={`${TD} text-neutral-500`}>{lead.demoType ?? "—"}</td>
                   <td className={`${TD} max-w-[10rem] truncate text-neutral-500`}>{lead.inflow ?? "—"}</td>
                   <td className={`${TD} text-right tabular-nums text-neutral-500`}>
