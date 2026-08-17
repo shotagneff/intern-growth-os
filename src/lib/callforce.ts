@@ -42,6 +42,11 @@ export type Lead = {
   inflow: string | null;
   phoneNumber: string;
   companyName: string | null;
+  /** 広告フォーム由来: ご担当者名 / メール / チェック項目(相手の課題) / メッセージ本文 */
+  contactName: string | null;
+  email: string | null;
+  inquiryCategory: string | null;
+  message: string | null;
   /** 新規 / 既存 / 身内 */
   callerType: string | null;
   durationSeconds: number | null;
@@ -152,6 +157,10 @@ function toLead(r: Row): Lead {
     inflow: (r.inflow as string) ?? null,
     phoneNumber: String(r.phone_number ?? ""),
     companyName: (r.company_name as string) ?? null,
+    contactName: (r.contact_name as string) ?? null,
+    email: (r.email as string) ?? null,
+    inquiryCategory: (r.inquiry_category as string) ?? null,
+    message: (r.message as string) ?? null,
     callerType: (r.caller_type as string) ?? null,
     durationSeconds: (r.duration_seconds as number) ?? null,
     recordingUrl: (r.recording_url as string) ?? null,

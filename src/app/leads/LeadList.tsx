@@ -301,7 +301,28 @@ export function LeadList({
                       {formatDateTime(lead.createdAt)}
                     </span>
                   </td>
-                  <td className={`${TD} max-w-[12rem] truncate`}>{lead.companyName ?? "—"}</td>
+                  <td className={`${TD} max-w-[17rem] align-top`}>
+                    <div className="truncate font-medium">{lead.companyName ?? "—"}</div>
+                    {lead.contactName && (
+                      <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">{lead.contactName}</div>
+                    )}
+                    {lead.inquiryCategory && (
+                      <span
+                        className="mt-1 inline-block max-w-full truncate rounded-full bg-amber-100 px-2 py-0.5 align-bottom text-[10px] font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                        title={lead.inquiryCategory}
+                      >
+                        課題: {lead.inquiryCategory}
+                      </span>
+                    )}
+                    {lead.email && (
+                      <div className="truncate text-[11px] text-neutral-400" title={lead.email}>{lead.email}</div>
+                    )}
+                    {lead.message && (
+                      <div className="mt-0.5 line-clamp-2 text-[11px] text-neutral-400" title={lead.message}>
+                        💬 {lead.message}
+                      </div>
+                    )}
+                  </td>
                   <td className={`${TD} ${W.phase}`}>
                     <ToneSelect
                       value={lead.status}
