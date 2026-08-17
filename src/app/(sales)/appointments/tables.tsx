@@ -62,6 +62,27 @@ const CUSTOMER_STATUS_TONE: Record<string, string> = {
 
 export type Patch = (kind: "lead" | "deal" | "customer", id: number | string, patch: Record<string, unknown>) => void;
 
+// 業種の候補（元スプレッドシートのプルダウン相当）。datalist で出す。自由入力も可。
+const INDUSTRIES = [
+  "人材派遣業", "人材紹介業", "SES・受託開発", "IT・ソフトウェア", "Web制作・広告代理店",
+  "製造業", "建設業", "不動産業", "卸売業", "小売業", "飲食店", "ホテル・旅館",
+  "運送・物流", "軽貨物運送", "タクシー・運輸", "介護・福祉", "医療・クリニック", "歯科医院",
+  "調剤薬局", "美容室・サロン", "エステ・リラクゼーション", "教育・スクール", "学習塾",
+  "保育・幼児教育", "士業（税理士・社労士・行政書士等）", "金融・保険", "コンサルティング",
+  "農林水産業", "エネルギー・環境", "冠婚葬祭", "旅行・レジャー", "警備・ビルメンテナンス",
+  "産業廃棄物処理", "その他",
+] as const;
+
+// 都道府県（47）
+const PREFECTURES = [
+  "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県", "茨城県", "栃木県",
+  "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県", "新潟県", "富山県", "石川県", "福井県",
+  "山梨県", "長野県", "岐阜県", "静岡県", "愛知県", "三重県", "滋賀県", "京都府", "大阪府",
+  "兵庫県", "奈良県", "和歌山県", "鳥取県", "島根県", "岡山県", "広島県", "山口県", "徳島県",
+  "香川県", "愛媛県", "高知県", "福岡県", "佐賀県", "長崎県", "熊本県", "大分県", "宮崎県",
+  "鹿児島県", "沖縄県",
+] as const;
+
 function Select({
   value,
   options,
@@ -95,17 +116,20 @@ function Text({
   onCommit,
   type = "text",
   align = "left",
+  listId,
 }: {
   value: string | number | null;
   onCommit: (v: string) => void;
   type?: "text" | "date" | "number";
   align?: "left" | "right";
+  listId?: string;
 }) {
   const [draft, setDraft] = useState(String(value ?? ""));
   React.useEffect(() => setDraft(String(value ?? "")), [value]);
   return (
     <input
       type={type}
+      list={listId}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
@@ -150,8 +174,27 @@ export function LeadTable({
     });
   }, [leads, filter, query]);
 
+  // 業種の候補: 固定リスト + 実データにある既存の業種（元スプレッドシートのプルダウン相当）
+  const industryOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([...INDUSTRIES, ...leads.map((l) => (l.industry ?? "").trim()).filter(Boolean)]),
+      ),
+    [leads],
+  );
+
   return (
     <div className="space-y-3">
+      <datalist id="lead-industry">
+        {industryOptions.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
+      <datalist id="lead-pref">
+        {PREFECTURES.map((o) => (
+          <option key={o} value={o} />
+        ))}
+      </datalist>
       <div className="flex flex-wrap items-center gap-2">
         {LEAD_FILTERS.map((f) => (
           <button
@@ -256,14 +299,14 @@ export function LeadTable({
                     <Text value="" onCommit={(v) => patch("lead", l.id, { website: v })} />
                   )}
                 </td>
-                <td className={TD}>
-                  <Text value={l.industry} onCommit={(v) => patch("lead", l.id, { industry: v })} />
+                <td className={`${TD} min-w-[12rem]`}>
+                  <Text value={l.industry} onCommit={(v) => patch("lead", l.id, { industry: v })} listId="lead-industry" />
                 </td>
                 <td className={TD}>
                   <Text value={l.employeeSize} onCommit={(v) => patch("lead", l.id, { employeeSize: v })} />
                 </td>
-                <td className={TD}>
-                  <Text value={l.prefecture} onCommit={(v) => patch("lead", l.id, { prefecture: v })} />
+                <td className={`${TD} min-w-[7.5rem]`}>
+                  <Text value={l.prefecture} onCommit={(v) => patch("lead", l.id, { prefecture: v })} listId="lead-pref" />
                 </td>
                 <td className={`${TD} min-w-[16rem]`}>
                   <Text value={l.nextAction} onCommit={(v) => patch("lead", l.id, { nextAction: v })} />
