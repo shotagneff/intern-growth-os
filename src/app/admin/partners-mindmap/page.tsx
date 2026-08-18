@@ -1,9 +1,17 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import type { Member } from "../members/page";
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  PageHeader,
+  SectionCard,
+  INPUT,
+  PrimaryButton,
+} from "@/components/panel";
 
 const MEMBERS_STORAGE_KEY = "igos_members_v1";
 const INTRO_STORAGE_KEY = "igos_partner_intros_v2";
@@ -176,56 +184,48 @@ export default function PartnersMindmapAdminPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Admin / Partners
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                パートナー紹介マインドマップ（管理）
-              </h1>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                メンバー管理の情報をもとに、誰が誰を紹介したか（紹介元1人）を登録し、マインドマップ表示と連携するための管理画面です。
-              </p>
-              {saveMessage && (
-                <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">{saveMessage}</p>
-              )}
-            </div>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Admin / Partners"
+          title="パートナー紹介マインドマップ（管理）"
+          description="メンバー管理の情報をもとに、誰が誰を紹介したか（紹介元1人）を登録し、マインドマップ表示と連携するための管理画面です。"
+          action={
             <button
               type="button"
               onClick={handleSave}
-              className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+              className="inline-flex items-center rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             >
               紹介関係を保存
             </button>
-          </div>
-        </header>
+          }
+        />
+
+        {saveMessage && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">{saveMessage}</p>
+        )}
 
         <section className="grid gap-4 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           {/* 左：紹介元・紹介先の編集テーブル */}
-          <div className="rounded-2xl bg-white/90 p-4 text-xs shadow-sm dark:bg-neutral-900/80">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                紹介レコードの管理
-              </h2>
+          <SectionCard
+            title="紹介レコードの管理"
+            action={
               <Link
                 href="/admin/members"
-                className="text-[11px] text-neutral-500 underline-offset-2 hover:underline"
+                className="text-xs text-neutral-500 underline-offset-2 hover:underline dark:text-neutral-400"
               >
                 メンバー管理へ
               </Link>
-            </div>
-            <p className="mb-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+            }
+          >
+            <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
               紹介された人の名前は自由入力で登録し、紹介元はメンバー管理に登録されているメンバーから選択します。
             </p>
 
             {/* 追加フォーム */}
-            <div className="mb-3 grid gap-2 text-[11px] sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.5fr)]">
+            <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.5fr)]">
               <div>
-                <label className="mb-1 block text-[10px] text-neutral-600 dark:text-neutral-400">
+                <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
                   紹介された人の名前
                 </label>
                 <input
@@ -233,17 +233,17 @@ export default function PartnersMindmapAdminPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="例：A社 担当者"
-                  className="w-full rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                  className={INPUT}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-neutral-600 dark:text-neutral-400">
+                <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
                   紹介元メンバー
                 </label>
                 <select
                   value={newIntroducerId}
                   onChange={(e) => setNewIntroducerId(e.target.value)}
-                  className="w-full rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                  className={INPUT}
                 >
                   <option value="">選択してください</option>
                   {coreCandidates.map((m) => (
@@ -254,7 +254,7 @@ export default function PartnersMindmapAdminPage() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[10px] text-neutral-600 dark:text-neutral-400">
+                <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
                   メモ（任意）
                 </label>
                 <div className="flex gap-2">
@@ -263,21 +263,21 @@ export default function PartnersMindmapAdminPage() {
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     placeholder="例：イベント経由など"
-                    className="w-full rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-[11px] outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                    className={INPUT}
                   />
-                  <button
+                  <PrimaryButton
                     type="button"
                     onClick={handleAddIntro}
-                    className="shrink-0 rounded-full bg-[#9e8d70] px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-[#8b7a5f]"
+                    className="shrink-0 whitespace-nowrap"
                   >
                     追加
-                  </button>
+                  </PrimaryButton>
                 </div>
               </div>
             </div>
 
             {/* 登録済み一覧 */}
-            <div className="mt-2 max-h-[320px] overflow-y-auto rounded-xl border border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="max-h-[320px] overflow-y-auto rounded-xl border border-neutral-100 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
               {intros.length === 0 && (
                 <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
                   まだ紹介レコードが登録されていません。上のフォームから追加してください。
@@ -335,30 +335,30 @@ export default function PartnersMindmapAdminPage() {
                 </table>
               )}
             </div>
-          </div>
+          </SectionCard>
 
           {/* 右：ビジュアル表示 */}
-          <div className="rounded-2xl bg-white/90 p-4 text-xs shadow-sm dark:bg-neutral-900/80">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-                紹介マインドマップ（プレビュー）
-              </h2>
-              <select
-                value={selectedCoreId}
-                onChange={(e) => setSelectedCoreId(e.target.value)}
-                className="min-w-[140px] rounded-full border border-neutral-200 bg-white px-2 py-1 text-[11px] outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-              >
-                <option value="">紹介元を選択</option>
-                {coreCandidates.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <SectionCard
+            title="紹介マインドマップ（プレビュー）"
+            action={
+              <div className="w-44">
+                <select
+                  value={selectedCoreId}
+                  onChange={(e) => setSelectedCoreId(e.target.value)}
+                  className={INPUT}
+                >
+                  <option value="">紹介元を選択</option>
+                  {coreCandidates.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            }
+          >
             {!selectedCoreId && (
-              <p className="mt-4 text-[11px] text-neutral-500 dark:text-neutral-400">
+              <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
                 右上のプルダウンから紹介元メンバーを選択すると、その人が紹介した相手がマインドマップ風に表示されます。
               </p>
             )}
@@ -407,7 +407,7 @@ export default function PartnersMindmapAdminPage() {
                 </div>
               </div>
             )}
-          </div>
+          </SectionCard>
         </section>
       </div>
     </main>

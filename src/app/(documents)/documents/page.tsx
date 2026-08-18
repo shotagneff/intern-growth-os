@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { PAGE_MAIN, PAGE_INNER, PANEL, INPUT, PageHeader, MAIN_COLOR } from "@/components/panel";
 
 type DocCategory = "login" | "document" | "tool";
 
@@ -56,34 +57,27 @@ export default function DocumentsPage() {
   const toolDocs = filtered.filter((d) => d.category === "tool");
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] px-4 py-8 text-[var(--foreground)] dark:bg-neutral-950">
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Documents Hub
-          </p>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#f2e7d3]">
-              <Image
-                src="/document.png"
-                alt="ドキュメントアイコン"
-                width={36}
-                height={36}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              ドキュメント
-            </h1>
-          </div>
-          <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
-            管理メンバーが整理したログイン先・資料リンクを一覧で確認できます。編集が必要な場合は管理メニューの「ドキュメントゾーン（管理）」から行ってください。
-          </p>
-        </header>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Documents Hub"
+          title="ドキュメント"
+          description="管理メンバーが整理したログイン先・資料リンクを一覧で確認できます。編集が必要な場合は管理メニューの「ドキュメントゾーン（管理）」から行ってください。"
+          icon={
+            <Image
+              src="/document.png"
+              alt="ドキュメントアイコン"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
+          }
+        />
 
         <section className="space-y-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+              <span className="inline-block h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: MAIN_COLOR }} />
               利用可能なドキュメント
             </h2>
             <div className="w-full max-w-xs">
@@ -91,7 +85,7 @@ export default function DocumentsPage() {
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                className={INPUT}
                 placeholder="タイトル・メモで検索"
               />
             </div>
@@ -126,7 +120,7 @@ export default function DocumentsPage() {
                       return (
                         <Wrapper
                           key={doc.id}
-                          className="flex cursor-pointer flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/80"
+                          className={`${PANEL} flex cursor-pointer flex-col justify-between p-4 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/80`}
                           {...wrapperProps}
                         >
                           <div className="space-y-2">
@@ -189,7 +183,7 @@ export default function DocumentsPage() {
                       return (
                         <Wrapper
                           key={doc.id}
-                          className="flex cursor-pointer flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/80"
+                          className={`${PANEL} flex cursor-pointer flex-col justify-between p-4 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/80`}
                           {...wrapperProps}
                         >
                           <div className="space-y-2">
@@ -253,7 +247,7 @@ export default function DocumentsPage() {
                       return (
                         <Wrapper
                           key={doc.id}
-                          className="flex cursor-pointer flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm transition-colors hover:bg-neutral-50 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-neutral-800/80"
+                          className={`${PANEL} flex cursor-pointer flex-col justify-between p-4 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/80`}
                           {...wrapperProps}
                         >
                           <div className="space-y-2">
@@ -297,6 +291,6 @@ export default function DocumentsPage() {
           )}
         </section>
       </div>
-    </div>
+    </main>
   );
 }

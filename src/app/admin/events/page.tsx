@@ -1,6 +1,15 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  INPUT,
+  PageHeader,
+  SectionCard,
+  Panel,
+  PrimaryButton,
+} from "@/components/panel";
 
 type AdminEventType = "internal" | "training";
 
@@ -153,81 +162,75 @@ export default function AdminEventsPage() {
     return [...events].sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
   }, [events]);
 
+  const labelClass = "mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400";
+
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Admin / Events
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                イベント管理
-              </h1>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                今月・来月のカレンダーに表示するイベントを管理します。
-              </p>
-              {message && (
-                <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">{message}</p>
-              )}
-            </div>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Admin / Events"
+          title="イベント管理"
+          description="今月・来月のカレンダーに表示するイベントを管理します。"
+          action={
             <button
               type="button"
               onClick={() => void fetchEvents()}
-              className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+              className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
             >
               再読み込み
             </button>
-          </div>
-        </header>
+          }
+        />
 
-        <section className="mb-6 rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">イベントを追加</h2>
-          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+        {message && (
+          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{message}</p>
+        )}
+
+        <SectionCard title="イベントを追加">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">日付（必須）</label>
+              <label className={labelClass}>日付（必須）</label>
               <input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">種別</label>
+              <label className={labelClass}>種別</label>
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as AdminEventType)}
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               >
                 <option value="internal">社内イベント</option>
                 <option value="training">定期研修</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">イベント名（必須）</label>
+              <label className={labelClass}>イベント名（必須）</label>
               <input
                 type="text"
                 value={programName}
                 onChange={(e) => setProgramName(e.target.value)}
                 placeholder="例：社内キックオフMTG"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">時間</label>
+              <label className={labelClass}>時間</label>
               <input
                 type="text"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
                 placeholder="例：9:30〜"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">
+              <label className={labelClass}>
                 {type === "training" ? "定期研修用の場所" : "社内イベント用の場所"}
               </label>
               {type === "training" ? (
@@ -236,7 +239,7 @@ export default function AdminEventsPage() {
                   value={trainingPlace}
                   onChange={(e) => setTrainingPlace(e.target.value)}
                   placeholder="例：オンライン / 会議室A"
-                  className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                  className={INPUT}
                 />
               ) : (
                 <input
@@ -244,50 +247,48 @@ export default function AdminEventsPage() {
                   value={internalPlace}
                   onChange={(e) => setInternalPlace(e.target.value)}
                   placeholder="例：東京 / オンライン"
-                  className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                  className={INPUT}
                 />
               )}
             </div>
 
             <div className="sm:col-span-2 lg:col-span-4">
-              <label className="mb-1 block text-[11px] text-neutral-600">コンセプト</label>
+              <label className={labelClass}>コンセプト</label>
               <input
                 type="text"
                 value={conceptSummary}
                 onChange={(e) => setConceptSummary(e.target.value)}
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
           </div>
 
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={() => void handleAdd()}
-              className="rounded-full bg-neutral-900 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100"
-            >
+          <div className="mt-4">
+            <PrimaryButton type="button" onClick={() => void handleAdd()}>
               追加する
-            </button>
+            </PrimaryButton>
           </div>
-        </section>
+        </SectionCard>
 
-        <section className="rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">登録済みイベント</h2>
-            <span className="text-[11px] text-neutral-500">{loading ? "読み込み中..." : `${sorted.length} 件`}</span>
-          </div>
-
+        <SectionCard
+          title="登録済みイベント"
+          action={
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              {loading ? "読み込み中..." : `${sorted.length} 件`}
+            </span>
+          }
+        >
           {sorted.length === 0 ? (
-            <p className="mt-3 text-[11px] text-neutral-500">イベントがありません。</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">イベントがありません。</p>
           ) : (
-            <div className="mt-3 space-y-3">
+            <div className="space-y-4">
               {sorted.map((ev) => {
                 const normalizedType = normalizeAdminType(ev.type);
                 const label = typeLabel[normalizedType];
                 const header = ev.programName ?? "";
 
                 return (
-                  <div key={ev.id} className="rounded-2xl border border-neutral-200 bg-white p-4 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-950/40">
+                  <Panel key={ev.id} className="p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
@@ -302,93 +303,93 @@ export default function AdminEventsPage() {
                         <button
                           type="button"
                           onClick={() => void handleSave(ev)}
-                          className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                          className="rounded-full border border-neutral-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                         >
                           保存
                         </button>
                         <button
                           type="button"
                           onClick={() => void handleDelete(ev.id)}
-                          className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-semibold text-rose-700 shadow-sm hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200"
+                          className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] font-semibold text-rose-700 shadow-sm transition-colors hover:bg-rose-100 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200"
                         >
                           削除
                         </button>
                       </div>
                     </div>
 
-                    <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-600">日付</label>
+                        <label className={labelClass}>日付</label>
                         <input
                           type="date"
                           value={ev.date ?? ""}
                           onChange={(e) => updateEventLocal(ev.id, { date: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-600">種別</label>
+                        <label className={labelClass}>種別</label>
                         <select
                           value={normalizedType}
                           onChange={(e) => updateEventLocal(ev.id, { type: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         >
                           <option value="internal">社内イベント</option>
                           <option value="training">定期研修</option>
                         </select>
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-600">イベント名</label>
+                        <label className={labelClass}>イベント名</label>
                         <input
                           type="text"
                           value={ev.programName ?? ""}
                           onChange={(e) => updateEventLocal(ev.id, { programName: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-600">時間</label>
+                        <label className={labelClass}>時間</label>
                         <input
                           type="text"
                           value={ev.time ?? ""}
                           onChange={(e) => updateEventLocal(ev.id, { time: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[11px] text-neutral-600">
+                        <label className={labelClass}>
                           {normalizedType === "training" ? "定期研修用の場所" : "社内イベント用の場所"}
                         </label>
                         <input
                           type="text"
                           value={ev.place ?? ""}
                           onChange={(e) => updateEventLocal(ev.id, { place: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         />
                       </div>
 
                       <div className="sm:col-span-2 lg:col-span-4">
-                        <label className="mb-1 block text-[11px] text-neutral-600">コンセプト</label>
+                        <label className={labelClass}>コンセプト</label>
                         <input
                           type="text"
                           value={ev.conceptSummary ?? ""}
                           onChange={(e) => updateEventLocal(ev.id, { conceptSummary: e.target.value })}
-                          className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                          className={INPUT}
                         />
                       </div>
                     </div>
 
-                    <div className="mt-2 text-[10px] text-neutral-400">
+                    <div className="mt-3 text-[10px] text-neutral-400">
                       ID: {ev.id}
                       {ev.updatedAt ? ` / 更新: ${new Date(ev.updatedAt).toLocaleString()}` : ""}
                     </div>
-                  </div>
+                  </Panel>
                 );
               })}
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </main>
   );

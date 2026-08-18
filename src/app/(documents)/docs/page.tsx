@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  PANEL,
+  INPUT,
+  PageHeader,
+  SectionCard,
+  PrimaryButton,
+  MAIN_COLOR,
+} from "@/components/panel";
 
 type DocCategory = "login" | "document" | "tool";
 
@@ -137,25 +147,16 @@ export default function DocsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 space-y-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Admin / Documents
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-            ドキュメントゾーン（管理）
-          </h1>
-          <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-400">
-            ログイン先や各種資料のリンクをカード形式で管理します。本番のパスワードそのものは保存せず、「どこに保管しているか」のメモだけを残します。
-          </p>
-        </header>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Admin / Documents"
+          title="ドキュメントゾーン（管理）"
+          description="ログイン先や各種資料のリンクをカード形式で管理します。本番のパスワードそのものは保存せず、「どこに保管しているか」のメモだけを残します。"
+        />
 
-        <section className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-            {editingId ? "ドキュメントを編集" : "ドキュメントを追加"}
-          </h2>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <SectionCard title={editingId ? "ドキュメントを編集" : "ドキュメントを追加"}>
+          <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1">
               <label className="block text-[11px] font-medium text-neutral-700 dark:text-neutral-300">
                 タイトル
@@ -164,7 +165,7 @@ export default function DocsPage() {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                className={INPUT}
                 placeholder="例：ChatGPT（スタートプラン）"
               />
             </div>
@@ -175,7 +176,7 @@ export default function DocsPage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as DocCategory)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                className={INPUT}
               >
                 <option value="login">ログイン系</option>
                 <option value="document">資料系</option>
@@ -190,7 +191,7 @@ export default function DocsPage() {
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                className={INPUT}
                 placeholder="例：スタートプランは採用広報チームで利用"
               />
             </div>
@@ -202,24 +203,21 @@ export default function DocsPage() {
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm shadow-sm focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-neutral-500 dark:border-neutral-700 dark:bg-neutral-950"
+                className={INPUT}
                 placeholder="例：https://example.com/tool"
               />
             </div>
           </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="inline-flex items-center rounded-md bg-[#9e8d70] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[#8b7b62] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-50 focus-visible:ring-[#9e8d70] dark:focus-visible:ring-offset-neutral-950"
-            >
+          <div className="mt-4 flex justify-end">
+            <PrimaryButton type="button" onClick={handleSubmit}>
               {editingId ? "更新する" : "追加する"}
-            </button>
+            </PrimaryButton>
           </div>
-        </section>
+        </SectionCard>
 
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+            <span className="inline-block h-5 w-1 shrink-0 rounded-full" style={{ backgroundColor: MAIN_COLOR }} />
             登録済みドキュメント
           </h2>
           {docs.length === 0 ? (
@@ -231,7 +229,7 @@ export default function DocsPage() {
               {docs.map((doc) => (
                 <article
                   key={doc.id}
-                  className="flex flex-col justify-between rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+                  className={`${PANEL} flex flex-col justify-between p-4 text-sm`}
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">

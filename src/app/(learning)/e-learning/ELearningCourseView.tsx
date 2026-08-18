@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { PAGE_MAIN, PAGE_INNER, PANEL, PageHeader, SectionCard, Panel } from "@/components/panel";
 
 // 元 learning-portal と同じ構造のダミーデータ（必要に応じて編集してください）
 const LOGIN_PASSWORD = "seekad_learning"; // いまは未使用（パスワード画面なし運用）
@@ -592,8 +593,8 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
         {achievementToast && (
           <div className="fixed bottom-5 right-5 z-50">
             <div className="flex items-center gap-2 rounded-full bg-neutral-900 px-4 py-2 text-[12px] font-semibold text-white shadow-lg">
@@ -603,40 +604,32 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
           </div>
         )}
 
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Learning Hub
-          </p>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#f2e7d3]">
-              <Image
-                src="/images/icons/elearning-icon.png"
-                alt="動画研修ラーニングアイコン"
-                width={36}
-                height={36}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">
-              {courseTitle}
-            </h1>
-          </div>
-          <p className="mt-3 text-sm text-neutral-600 dark:text-neutral-300">
-            {courseSubtitle}
-          </p>
-        </header>
+        <PageHeader
+          eyebrow="Learning Hub"
+          title={courseTitle}
+          description={courseSubtitle}
+          icon={
+            <Image
+              src="/images/icons/elearning-icon.png"
+              alt="動画研修ラーニングアイコン"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
+          }
+        />
 
         {/* コース選択 */}
         {showCourseNav && (
-          <nav className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <nav className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {courses.map((c) => (
               <div
                 key={c.id}
                 onClick={() => router.push(c.href)}
-                className={`rounded-2xl border px-4 py-3 shadow-sm transition cursor-pointer ${
+                className={`cursor-pointer rounded-2xl border px-4 py-3 shadow-sm transition hover:shadow-md ${
                   c.id === courseId
                     ? "border-[#9e8d70] bg-[#9e8d70]/5"
-                    : "border-neutral-200 bg-white hover:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
+                    : "border-neutral-200 bg-white/90 hover:border-[#9e8d70] dark:border-neutral-800 dark:bg-neutral-900/80"
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -651,32 +644,19 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
           </nav>
         )}
 
-        <section
-          className="mb-6 rounded-2xl border border-neutral-200 px-4 py-4 text-xs shadow-sm dark:border-neutral-800"
-          style={{
-            backgroundImage:
-              "linear-gradient(135deg, rgba(56,189,248,0.28), rgba(37,99,235,0.18))",
-          }}
+        <SectionCard
+          title="動画研修の全体進捗"
+          description="いままでに視聴した本数と、全コンテンツに対する完了率のサマリーです。"
         >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Overall Progress
-              </p>
-              <p className="mt-1 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                動画研修の全体進捗
-              </p>
-              <p className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-300">
-                いままでに視聴した本数と、全コンテンツに対する完了率のサマリーです。
-              </p>
-            </div>
-            <div className="mt-2 w-full sm:mt-0 sm:max-w-xs">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-neutral-600 dark:text-neutral-300">
+              視聴済み: <span className="font-semibold text-neutral-900 dark:text-neutral-50">{totalWatchedCount}</span>
+              <span className="mx-0.5">/</span>
+              <span className="font-semibold text-neutral-900 dark:text-neutral-50">{totalVideoCount}</span> 本
+            </p>
+            <div className="w-full sm:max-w-xs">
               <div className="flex items-baseline justify-between text-[11px] text-neutral-600 dark:text-neutral-300">
-                <span>
-                  視聴済み: <span className="font-semibold text-neutral-900 dark:text-neutral-50">{totalWatchedCount}</span>
-                  <span className="mx-0.5">/</span>
-                  <span className="font-semibold text-neutral-900 dark:text-neutral-50">{totalVideoCount}</span> 本
-                </span>
+                <span className="text-[10px] text-neutral-500 dark:text-neutral-400">全体の完了率</span>
                 <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
                   {totalVideoCount
                     ? `${Math.round((totalWatchedCount / totalVideoCount) * 100)}% 完了`
@@ -700,10 +680,10 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
               </div>
             </div>
           </div>
-        </section>
+        </SectionCard>
 
         {sorted.length === 0 && !sections && (
-          <p className="mt-6 text-xs text-neutral-500">
+          <p className="text-xs text-neutral-500">
             条件に合う動画がありません。
           </p>
         )}
@@ -716,41 +696,8 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
           const percent = totalCount ? Math.round((watchedCount / totalCount) * 100) : 0;
           const isUnlocked = sectionId === 0 ? true : isSectionUnlocked(sectionId);
 
-          return (
-            <section key={sectionId} className="mb-8 pt-2">
-              {sectionId > 0 && (
-                <div className="mb-4 border-l-4 pl-3" style={{ borderColor: MAIN_COLOR }}>
-                  <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                    {info.title}
-                  </h2>
-                  {info.description && (
-                    <p className="mt-2 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300">
-                      {info.description}
-                    </p>
-                  )}
-
-
-
-                  {totalCount > 0 && (
-                    <>
-                      <p className="mt-1.5 text-[11px] text-neutral-500 dark:text-neutral-400">
-                        視聴状況: <span className="font-semibold text-neutral-800 dark:text-neutral-100">{watchedCount}</span>
-                        <span className="mx-0.5">/</span>
-                        <span className="font-semibold text-neutral-800 dark:text-neutral-100">{totalCount}</span> 本
-                        <span className="ml-2 text-[10px] text-neutral-500 dark:text-neutral-400">({percent}% 完了)</span>
-                      </p>
-                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-200 dark:bg-neutral-800">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${percent}%`, backgroundColor: MAIN_COLOR }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="flex gap-5 overflow-x-auto pb-2">
+          const cardsRow = (
+            <div className="flex gap-5 overflow-x-auto pb-1">
                 {videos.map((video) => {
                   const isWatched = watchedSet.has(video.id);
                   const isLocked = (video.sectionId ?? 0) > 2 && !isUnlocked;
@@ -769,7 +716,7 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
                   return (
                     <article
                       key={video.id}
-                      className={`relative flex min-w-[260px] max-w-[320px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white pb-3 text-xs shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80 sm:min-w-[280px] lg:min-w-[300px] ${
+                      className={`${PANEL} relative flex min-w-[260px] max-w-[320px] flex-col overflow-hidden pb-3 text-xs transition-shadow hover:shadow-md sm:min-w-[280px] lg:min-w-[300px] ${
                         isLocked ? "opacity-70" : ""
                       } ${
                         isHighlighting
@@ -897,11 +844,12 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
                           type="button"
                           onClick={() => openVideo(video)}
                           disabled={isLocked}
-                          className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm ${
+                          className={`flex-1 rounded-full px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition ${
                             isLocked
-                              ? "bg-neutral-300 cursor-not-allowed"
-                              : "bg-[#ad9c79] hover:bg-[#9b8a65]"
+                              ? "cursor-not-allowed bg-neutral-300 dark:bg-neutral-700"
+                              : "hover:brightness-110"
                           }`}
+                          style={isLocked ? undefined : { backgroundColor: MAIN_COLOR }}
                         >
                           {isLocked ? "ロック中" : "詳細を確認する"}
                         </button>
@@ -909,10 +857,10 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
                           type="button"
                           onClick={() => toggleWatched(video.id)}
                           disabled={isLocked}
-                          className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-sm ${
+                          className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-sm transition ${
                             isWatched
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                              : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-200"
+                              : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:border-neutral-600"
                           }`}
                         >
                           {isWatched ? "未視聴に戻す" : "視聴済みにする"}
@@ -923,8 +871,37 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
                     </article>
                   );
                 })}
-              </div>
-            </section>
+            </div>
+          );
+
+          if (sectionId === 0) {
+            return (
+              <Panel key={sectionId} className="p-5">
+                {cardsRow}
+              </Panel>
+            );
+          }
+
+          return (
+            <SectionCard key={sectionId} title={info.title} description={info.description || undefined}>
+              {totalCount > 0 && (
+                <div className="mb-4">
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                    視聴状況: <span className="font-semibold text-neutral-800 dark:text-neutral-100">{watchedCount}</span>
+                    <span className="mx-0.5">/</span>
+                    <span className="font-semibold text-neutral-800 dark:text-neutral-100">{totalCount}</span> 本
+                    <span className="ml-2 text-[10px] text-neutral-500 dark:text-neutral-400">({percent}% 完了)</span>
+                  </p>
+                  <div className="mt-1.5 h-1.5 w-full rounded-full bg-neutral-200 dark:bg-neutral-800">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${percent}%`, backgroundColor: MAIN_COLOR }}
+                    />
+                  </div>
+                </div>
+              )}
+              {cardsRow}
+            </SectionCard>
           );
         })}
       </div>

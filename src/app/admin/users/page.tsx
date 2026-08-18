@@ -1,6 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  INPUT,
+  PageHeader,
+  SectionCard,
+  PrimaryButton,
+} from "@/components/panel";
 
 type Role = "admin" | "user";
 
@@ -151,117 +159,114 @@ export default function UsersAdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Admin / Users
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                ユーザー管理
-              </h1>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                ログインID/パスワードを発行してアクセス権限を渡すための管理画面です。
-              </p>
-              <p className="mt-1 text-[11px] text-neutral-500">
-                現在アクティブなユーザー: {activeCount} 件
-              </p>
-              {saveMessage && (
-                <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">{saveMessage}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => void fetchUsers()}
-              disabled={loading}
-              className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            >
-              再読み込み
-            </button>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <div>
+          <PageHeader
+            eyebrow="Admin / Users"
+            title="ユーザー管理"
+            description="ログインID/パスワードを発行してアクセス権限を渡すための管理画面です。"
+            action={
+              <button
+                type="button"
+                onClick={() => void fetchUsers()}
+                disabled={loading}
+                className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+              >
+                再読み込み
+              </button>
+            }
+          />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+            <span>現在アクティブなユーザー: {activeCount} 件</span>
+            {saveMessage && (
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">{saveMessage}</span>
+            )}
           </div>
-        </header>
+        </div>
 
-        <section className="mb-6 rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            ユーザーを追加（またはパスワード更新）
-          </h2>
-          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-4 lg:grid-cols-5">
+        <SectionCard title="ユーザーを追加（またはパスワード更新）">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">ログインID</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                ログインID
+              </label>
               <input
                 type="text"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
                 placeholder="例：admin2"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">名前（表示名）</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                名前（表示名）
+              </label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="例：平賀 翔大"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">パスワード</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                パスワード
+              </label>
               <input
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="発行するパスワード"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">権限</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                権限
+              </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               >
                 <option value="user">一般</option>
                 <option value="admin">管理者</option>
               </select>
             </div>
           </div>
-          <div className="mt-3 flex justify-end">
-            <button
+          <div className="mt-4 flex justify-end">
+            <PrimaryButton
               type="button"
               onClick={() => void handleCreateOrReset()}
               disabled={loading}
-              className="btn-primary px-5 py-2 text-xs font-semibold shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               保存
-            </button>
+            </PrimaryButton>
           </div>
-        </section>
+        </SectionCard>
 
-        <section className="rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            登録ユーザー一覧
-          </h2>
+        <SectionCard title="登録ユーザー一覧">
           {loading && (
-            <p className="mt-2 text-[11px] text-neutral-500">読み込み中...</p>
+            <p className="mb-2 text-[11px] text-neutral-500 dark:text-neutral-400">読み込み中...</p>
           )}
 
           {users.length === 0 ? (
-            <p className="mt-3 text-xs text-neutral-500">ユーザーが登録されていません。</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              ユーザーが登録されていません。
+            </p>
           ) : (
-            <div className="mt-3 space-y-2 text-xs">
+            <div className="space-y-2">
               {users.map((u) => (
                 <div
                   key={u.loginId}
-                  className="rounded-xl border border-neutral-200 bg-white px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900"
+                  className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-100">
+                      <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
                         {u.loginId}
                       </span>
                       {u.displayName && (
@@ -269,7 +274,7 @@ export default function UsersAdminPage() {
                           {u.displayName}
                         </span>
                       )}
-                      <span className="text-[11px] text-neutral-500">
+                      <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
                         role: {u.role} / {u.active ? "active" : "inactive"}
                       </span>
                     </div>
@@ -286,21 +291,21 @@ export default function UsersAdminPage() {
                         }}
                         onBlur={(e) => void updateUser(u, { displayName: e.target.value })}
                         placeholder="表示名"
-                        className="min-w-[160px] rounded-full border border-neutral-200 bg-white px-2 py-1 text-[11px] outline-none"
+                        className="min-w-[160px] rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                         disabled={loading}
                       />
 
                       <select
                         value={u.role}
                         onChange={(e) => void updateUser(u, { role: e.target.value as Role })}
-                        className="rounded-full border border-neutral-200 bg-white px-2 py-1 text-[11px] outline-none"
+                        className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                         disabled={loading}
                       >
                         <option value="user">一般</option>
                         <option value="admin">管理者</option>
                       </select>
 
-                      <label className="flex items-center gap-1 text-[11px] text-neutral-600">
+                      <label className="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400">
                         <input
                           type="checkbox"
                           checked={u.active}
@@ -315,7 +320,7 @@ export default function UsersAdminPage() {
                         type="button"
                         onClick={() => void resetPassword(u)}
                         disabled={loading}
-                        className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-[11px] font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-full border border-neutral-300 bg-white px-3 py-1 text-[11px] font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                       >
                         PW変更
                       </button>
@@ -324,7 +329,7 @@ export default function UsersAdminPage() {
                         type="button"
                         onClick={() => void deleteUser(u)}
                         disabled={loading}
-                        className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="text-[11px] font-semibold text-rose-600 transition-colors hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         削除
                       </button>
@@ -334,7 +339,7 @@ export default function UsersAdminPage() {
               ))}
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </main>
   );

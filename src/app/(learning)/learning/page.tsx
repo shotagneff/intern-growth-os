@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PAGE_MAIN, PAGE_INNER, PageHeader, SectionCard, MAIN_COLOR } from "@/components/panel";
 
 export default function LearningDashboardPage() {
   const course = {
@@ -133,37 +134,34 @@ export default function LearningDashboardPage() {
   }, [banners.length]);
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)] px-4 py-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6">
-        <section className="rounded-xl bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-slate-900">
-            {course.title}
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            {course.description}
-          </p>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Learning"
+          title={course.title}
+          description={course.description}
+        />
 
-          <div className="mt-4 space-y-2 text-xs text-slate-600">
+        <SectionCard title="学習状況" description={`受講開始日: ${course.startDate}`}>
+          <div className="space-y-2 text-xs text-neutral-600 dark:text-neutral-300">
             <div className="flex items-center justify-between">
               <span>
-                学習状況: {course.completedLessons} / {course.totalLessons}
-                チャプター完了
+                {course.completedLessons} / {course.totalLessons} チャプター完了
               </span>
-              <span>{Math.round(progressPercent)}%</span>
+              <span className="font-semibold text-neutral-800 dark:text-neutral-100">
+                {Math.round(progressPercent)}%
+              </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-100">
+            <div className="h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
               <div
                 className="h-2 rounded-full transition-all"
-                style={{ width: `${progressPercent}%`, backgroundColor: "#9e8d70" }}
+                style={{ width: `${progressPercent}%`, backgroundColor: MAIN_COLOR }}
               />
             </div>
-            <p className="text-[11px] text-slate-500">
-              受講開始日: <span className="font-medium text-slate-700">{course.startDate}</span>
-            </p>
           </div>
-        </section>
+        </SectionCard>
 
-        <section className="overflow-hidden rounded-xl shadow-sm">
+        <section className="overflow-hidden rounded-2xl border border-neutral-200 shadow-sm dark:border-neutral-800">
           <div
             className={`flex items-center justify-between gap-4 px-5 py-4 text-white transition-colors duration-500 ${banners[activeBannerIndex].bg}`}
           >
@@ -183,7 +181,7 @@ export default function LearningDashboardPage() {
             </div>
             <div className="hidden h-16 w-28 rounded-lg bg-black/10 md:block" />
           </div>
-          <div className="flex gap-1 bg-white/70 px-4 py-2">
+          <div className="flex gap-1 bg-white/70 px-4 py-2 dark:bg-neutral-900/70">
             {banners.map((banner, index) => (
               <button
                 key={banner.id}
@@ -192,7 +190,7 @@ export default function LearningDashboardPage() {
                 className={`h-1.5 flex-1 rounded-full transition-colors ${
                   index === activeBannerIndex
                     ? "bg-[#9e8d70]"
-                    : "bg-slate-200 hover:bg-slate-300"
+                    : "bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600"
                 }`}
                 aria-label={`バナー ${index + 1}`}
               />
@@ -201,15 +199,11 @@ export default function LearningDashboardPage() {
         </section>
 
         <div className="grid gap-6 md:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
-          <section id="journey" className="rounded-xl bg-white p-6 shadow-sm">
-            <h2 className="text-base font-semibold uppercase tracking-wide text-slate-600">
-              学習ジャーニー
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              入社からリーダー候補までの、おおまかな学習ステップです。
-            </p>
-
-            <div className="mt-4 space-y-3">
+          <SectionCard
+            title="学習ジャーニー"
+            description="入社からリーダー候補までの、おおまかな学習ステップです。"
+          >
+            <div id="journey" className="space-y-3">
               {steps.map((step, index) => {
                 const isCompleted = step.completed;
                 const isUnlocked = step.unlocked;
@@ -221,15 +215,15 @@ export default function LearningDashboardPage() {
                   >
                     <div className="relative flex flex-col items-center">
                       {index !== 0 && (
-                        <div className="absolute -top-4 h-4 w-px bg-slate-200" />
+                        <div className="absolute -top-4 h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
                       )}
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold shadow-sm border
                         ${isCompleted
                           ? "bg-[#9e8d70] text-white border-[#9e8d70]"
                           : isUnlocked
-                            ? "bg-white text-[#9e8d70] border-[#9e8d70]"
-                            : "bg-slate-50 text-slate-400 border-slate-200"}
+                            ? "bg-white text-[#9e8d70] border-[#9e8d70] dark:bg-neutral-900"
+                            : "bg-neutral-50 text-neutral-400 border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700"}
                         `}
                       >
                         {isCompleted ? "✓" : index + 1}
@@ -239,19 +233,23 @@ export default function LearningDashboardPage() {
                     <div className="flex flex-1 flex-col">
                       <span
                         className={`text-sm font-medium ${
-                          isCompleted ? "text-slate-400" : "text-slate-700"
+                          isCompleted
+                            ? "text-neutral-400 dark:text-neutral-500"
+                            : "text-neutral-700 dark:text-neutral-200"
                         }`}
                       >
                         {step.label}
                       </span>
                       <span
                         className={`text-sm ${
-                          isCompleted ? "text-slate-400" : "text-slate-500"
+                          isCompleted
+                            ? "text-neutral-400 dark:text-neutral-500"
+                            : "text-neutral-500 dark:text-neutral-400"
                         }`}
                       >
                         {step.title}
                       </span>
-                      <span className="mt-1 text-[12px] text-slate-500">
+                      <span className="mt-1 text-[12px] text-neutral-500 dark:text-neutral-400">
                         解放条件: {step.unlockCondition}
                       </span>
                     </div>
@@ -259,10 +257,10 @@ export default function LearningDashboardPage() {
                     <span
                       className={`mt-1 text-[11px] font-medium ${
                         isCompleted
-                          ? "text-slate-400"
+                          ? "text-neutral-400 dark:text-neutral-500"
                           : isUnlocked
                             ? "text-[#9e8d70]"
-                            : "text-slate-400"
+                            : "text-neutral-400 dark:text-neutral-500"
                       }`}
                     >
                       {isCompleted
@@ -275,56 +273,48 @@ export default function LearningDashboardPage() {
                 );
               })}
             </div>
-          </section>
+          </SectionCard>
 
-          <section className="flex flex-col gap-4">
-            <div
-              id="news"
-              className="rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 p-4 text-white shadow-sm"
-            >
-              <h2 className="text-sm font-semibold">メンバー向けお知らせ</h2>
-              <p className="mt-1 text-xs opacity-90">
+          <section className="flex flex-col gap-6">
+            <SectionCard title="メンバー向けお知らせ">
+              <p id="news" className="text-xs text-neutral-600 dark:text-neutral-300">
                 次回のオンライン勉強会やロープレ会の情報はこちらにまとまります（ダミーテキスト）。
               </p>
-            </div>
+            </SectionCard>
 
-            <div className="rounded-xl bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-800">コース情報</h2>
-              <dl className="mt-3 space-y-2 text-xs text-slate-600">
+            <SectionCard title="コース情報">
+              <dl className="space-y-2 text-xs text-neutral-600 dark:text-neutral-300">
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-slate-500">対象</dt>
-                  <dd className="text-right font-medium text-slate-800">
+                  <dt className="shrink-0 text-neutral-500 dark:text-neutral-400">対象</dt>
+                  <dd className="text-right font-medium text-neutral-800 dark:text-neutral-100">
                     {course.difficulty}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-slate-500">想定期間</dt>
-                  <dd className="text-right font-medium text-slate-800">
+                  <dt className="shrink-0 text-neutral-500 dark:text-neutral-400">想定期間</dt>
+                  <dd className="text-right font-medium text-neutral-800 dark:text-neutral-100">
                     {course.duration}
                   </dd>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-slate-500">形式</dt>
-                  <dd className="text-right font-medium text-slate-800">
+                  <dt className="shrink-0 text-neutral-500 dark:text-neutral-400">形式</dt>
+                  <dd className="text-right font-medium text-neutral-800 dark:text-neutral-100">
                     {course.format}
                   </dd>
                 </div>
               </dl>
-            </div>
+            </SectionCard>
 
-            <div id="lessons" className="rounded-xl bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-800">
-                レッスン一覧（ダミーデータ）
-              </h2>
-              <ul className="mt-3 flex flex-col gap-2">
+            <SectionCard title="レッスン一覧（ダミーデータ）">
+              <ul id="lessons" className="flex flex-col gap-2">
                 {lessons.map((lesson) => (
                   <li
                     key={lesson.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-xs"
+                    className="flex items-center justify-between rounded-lg border border-neutral-100 px-3 py-2 text-xs dark:border-neutral-800"
                   >
                     <div className="flex flex-col">
-                      <span className="text-slate-700">{lesson.title}</span>
-                      <span className="mt-1 text-[11px] text-slate-500">
+                      <span className="text-neutral-700 dark:text-neutral-200">{lesson.title}</span>
+                      <span className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
                         {lesson.week} / {lesson.duration}
                       </span>
                     </div>
@@ -333,13 +323,13 @@ export default function LearningDashboardPage() {
                         className={`rounded-full px-2 py-1 text-[10px] font-semibold
                         ${lesson.unlocked
                           ? "bg-[#9e8d70]/10 text-[#9e8d70]"
-                          : "bg-slate-100 text-slate-400"}
+                          : "bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-500"}
                       `}
                       >
                         {lesson.unlocked ? "解放済み" : "ロック中"}
                       </span>
                       {!lesson.unlocked && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
                           解放予定日: {lesson.unlockDate}
                         </span>
                       )}
@@ -347,7 +337,7 @@ export default function LearningDashboardPage() {
                   </li>
                 ))}
               </ul>
-            </div>
+            </SectionCard>
           </section>
         </div>
       </div>

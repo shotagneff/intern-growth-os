@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { PAGE_MAIN, PAGE_INNER, PANEL, PageHeader, SectionCard, Kpi } from "@/components/panel";
 
 function normalizeGoogleSheetsCsvUrl(url: string): string {
   const trimmed = url.trim();
@@ -495,75 +496,47 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* ヘッダー */}
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            KGI / KPI Dashboard
-          </p>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[#f2e7d3]">
-              <Image
-                src="/images/icons/sales-dashboard.png"
-                alt="売上・KPIダッシュボードアイコン"
-                width={36}
-                height={36}
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-              売上・KPIダッシュボード
-            </h1>
-          </div>
-          <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-            会員数・パートナー数・売上を月次で追うための、4つの指標ブロックで構成されたダッシュボード（ダミーデータ版）です。
-          </p>
-        </header>
-
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="KGI / KPI Dashboard"
+          title="売上・KPIダッシュボード"
+          description="会員数・パートナー数・売上を月次で追うための、4つの指標ブロックで構成されたダッシュボード（ダミーデータ版）です。"
+          icon={
+            <Image
+              src="/images/icons/sales-dashboard.png"
+              alt="売上・KPIダッシュボードアイコン"
+              width={36}
+              height={36}
+              className="h-full w-full object-cover"
+            />
+          }
+        />
 
         {/* 事業タブ */}
-        <div className="mb-6 flex gap-2">
+        <div className="flex gap-2">
           <span className="inline-flex items-center rounded-full bg-[#9e8d70] px-4 py-1.5 text-xs font-semibold text-white shadow-sm">
             デザイナー育成事業
           </span>
         </div>
 
-        {/* KPIセクション見出し */}
-        <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400 md:text-sm">
-          KPI（会員数）
-        </div>
-
-        {/* 会員数（情報取得数） */}
-        <section className="mb-5 rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">会員数（情報取得数）</h2>
-              <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                LINE登録＋プロフィール情報取得が完了した人数を、月次でトラッキングする指標です。
-              </p>
-            </div>
+        {/* KPI（会員数） */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
+            KPI（会員数）
           </div>
-          {/* 会員数のサマリーパネル */}
-          <div className="mb-3 grid gap-2 text-xs sm:grid-cols-3">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">会員数の合計値</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {membershipActual.toLocaleString()}
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">会員数の目標値</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {membershipTarget.toLocaleString()}
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">目標達成率</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {membershipAchievementRate}%
-              </p>
-              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+          <SectionCard
+            title="会員数（情報取得数）"
+            description="LINE登録＋プロフィール情報取得が完了した人数を、月次でトラッキングする指標です。"
+          >
+          {/* 会員数のサマリー（KPI） */}
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <Kpi label="会員数の合計値" value={membershipActual.toLocaleString()} />
+            <Kpi label="会員数の目標値" value={membershipTarget.toLocaleString()} />
+            <div className={`${PANEL} p-5`}>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">目標達成率</p>
+              <p className="mt-2 text-3xl font-semibold tabular-nums">{membershipAchievementRate}%</p>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
                 <div
                   className="h-full rounded-full bg-emerald-500"
                   style={{ width: `${Math.min(membershipAchievementRate, 100)}%` }}
@@ -676,48 +649,26 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-        </section>
-
-
-        {/* KGI（売上）セクション見出し */}
-        <div className="mb-2 mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400 md:text-sm">
-          KGI（売上）
+          </SectionCard>
         </div>
 
-        {/* 月間総売上 */}
-        <section className="mb-2 rounded-2xl border border-neutral-200 bg-white px-4 py-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-50 md:text-lg">
-                総売上（累計）
-              </h2>
-              <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                これまでの実数値の合計（累計）を表示します。
-              </p>
-            </div>
+        {/* KGI（売上） */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
+            KGI（売上）
           </div>
-          {/* 総売上のサマリーパネル */}
-          <div className="mb-3 grid gap-2 text-xs sm:grid-cols-3">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">
-                総売上（累計）
-              </p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {totalSalesActual.toLocaleString()} 円
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">売上目標</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {totalSalesTarget.toLocaleString()} 円
-              </p>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2 shadow-sm dark:border-neutral-700 dark:bg-neutral-900/70">
-              <p className="text-[11px] font-semibold text-neutral-600 dark:text-neutral-300">目標達成率</p>
-              <p className="mt-1 text-lg font-semibold text-neutral-900 dark:text-neutral-50 md:text-xl">
-                {totalSalesAchievementRate}%
-              </p>
-              <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
+          <SectionCard
+            title="総売上（累計）"
+            description="これまでの実数値の合計（累計）を表示します。"
+          >
+          {/* 総売上のサマリー（KPI） */}
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            <Kpi label="総売上（累計）" value={`${totalSalesActual.toLocaleString()} 円`} />
+            <Kpi label="売上目標" value={`${totalSalesTarget.toLocaleString()} 円`} />
+            <div className={`${PANEL} p-5`}>
+              <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">目標達成率</p>
+              <p className="mt-2 text-3xl font-semibold tabular-nums">{totalSalesAchievementRate}%</p>
+              <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -816,7 +767,8 @@ export default async function DashboardPage() {
               </div>
             </div>
           </div>
-        </section>
+          </SectionCard>
+        </div>
       </div>
     </main>
   );

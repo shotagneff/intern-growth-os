@@ -1,6 +1,14 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  INPUT,
+  PageHeader,
+  SectionCard,
+  PrimaryButton,
+} from "@/components/panel";
 
 const STORAGE_KEY = "igos_members_v1";
 
@@ -169,98 +177,90 @@ export default function MembersAdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-        <header className="mb-8 border-b border-neutral-200 pb-5 dark:border-neutral-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Admin / Members
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                メンバー管理
-              </h1>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                日報や将来の機能で参照するメンバー情報をここで管理します。
-              </p>
-              <p className="mt-1 text-[11px] text-neutral-500">
-                現在アクティブなメンバー: {activeMembersCount} 名
-              </p>
-              {saveMessage && (
-                <p className="mt-1 text-[11px] text-emerald-600 dark:text-emerald-400">{saveMessage}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={handleManualSave}
-              className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            >
-              変更を保存
-            </button>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <div>
+          <PageHeader
+            eyebrow="Admin / Members"
+            title="メンバー管理"
+            description="日報や将来の機能で参照するメンバー情報をここで管理します。"
+            action={
+              <button
+                type="button"
+                onClick={handleManualSave}
+                className="self-start rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+              >
+                変更を保存
+              </button>
+            }
+          />
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500 dark:text-neutral-400">
+            <span>現在アクティブなメンバー: {activeMembersCount} 名</span>
+            {saveMessage && (
+              <span className="font-medium text-emerald-600 dark:text-emerald-400">{saveMessage}</span>
+            )}
           </div>
-        </header>
+        </div>
 
         {/* 追加フォーム */}
-        <section className="mb-6 rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            メンバーを追加
-          </h2>
-          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3 lg:grid-cols-4">
+        <SectionCard title="メンバーを追加">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">名前</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                名前
+              </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="例：平賀　翔大"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">役職</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                役職
+              </label>
               <input
                 type="text"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 placeholder="例：マネージャー"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">アイコンURL</label>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                アイコンURL
+              </label>
               <input
                 type="text"
                 value={iconUrl}
                 onChange={(e) => setIconUrl(e.target.value)}
                 placeholder="例：/images/avatars/avatar_hiraga.jpg"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
           </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={handleAdd}
-              className="btn-primary px-5 py-2 text-xs font-semibold shadow-sm"
-            >
+          <div className="mt-4 flex justify-end">
+            <PrimaryButton type="button" onClick={handleAdd}>
               + メンバーを追加
-            </button>
+            </PrimaryButton>
           </div>
-        </section>
+        </SectionCard>
 
         {/* 一覧 */}
-        <section className="rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            登録メンバー一覧
-          </h2>
+        <SectionCard title="登録メンバー一覧">
           {members.length === 0 ? (
-            <p className="mt-3 text-xs text-neutral-500">まだメンバーが登録されていません。</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              まだメンバーが登録されていません。
+            </p>
           ) : (
-            <div className="mt-3 space-y-2 text-xs">
+            <div className="space-y-2">
               {members.map((m) => (
                 <div
                   key={m.id}
-                  className="rounded-xl border border-neutral-200 bg-white px-3 py-2 dark:border-neutral-800 dark:bg-neutral-900"
+                  className="rounded-xl border border-neutral-200 bg-white px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900"
                 >
                   {/* 上段：アイコン＋名前 */}
                   <div className="flex items-center gap-2">
@@ -279,7 +279,7 @@ export default function MembersAdminPage() {
                       type="text"
                       value={m.name}
                       onChange={(e) => updateMember(m.id, { name: e.target.value })}
-                      className="w-full border-none bg-transparent text-xs outline-none"
+                      className="w-full border-none bg-transparent text-sm font-medium outline-none"
                     />
                   </div>
 
@@ -290,16 +290,16 @@ export default function MembersAdminPage() {
                       value={m.role || ""}
                       onChange={(e) => updateMember(m.id, { role: e.target.value })}
                       placeholder="役職"
-                      className="min-w-[120px] rounded-full border border-neutral-200 bg-white px-2 py-1 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                      className="min-w-[120px] rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                     />
                     <input
                       type="text"
                       value={m.iconUrl || ""}
                       onChange={(e) => updateMember(m.id, { iconUrl: e.target.value })}
                       placeholder="/images/avatars/..."
-                      className="min-w-[160px] flex-1 rounded-full border border-neutral-200 bg-white px-2 py-1 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                      className="min-w-[160px] flex-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-xs outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                     />
-                    <label className="flex items-center gap-1 text-[11px] text-neutral-600">
+                    <label className="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400">
                       <input
                         type="checkbox"
                         checked={m.active}
@@ -311,7 +311,7 @@ export default function MembersAdminPage() {
                     <button
                       type="button"
                       onClick={() => deleteMember(m.id)}
-                      className="text-[11px] text-red-500 hover:text-red-600"
+                      className="text-[11px] font-semibold text-red-500 transition-colors hover:text-red-600"
                     >
                       削除
                     </button>
@@ -320,7 +320,7 @@ export default function MembersAdminPage() {
               ))}
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </main>
   );

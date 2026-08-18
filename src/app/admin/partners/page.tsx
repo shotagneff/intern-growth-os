@@ -2,6 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  PAGE_MAIN,
+  PAGE_INNER,
+  PageHeader,
+  SectionCard,
+  INPUT,
+  PrimaryButton,
+} from "@/components/panel";
+
 const STORAGE_KEY = "igos_partners_v1";
 
 type Partner = {
@@ -104,92 +113,78 @@ export default function PartnersAdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6">
-        <header className="mb-6 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-                Admin / Partners
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
-                パートナー管理
-              </h1>
-              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                パートナー企業・媒体・エージェントなどをメンバーとは別に管理します。紹介マインドマップやランキングの集計のベースとなる情報です。
-              </p>
-            </div>
-          </div>
-        </header>
+    <main className={PAGE_MAIN}>
+      <div className={PAGE_INNER}>
+        <PageHeader
+          eyebrow="Admin / Partners"
+          title="パートナー管理"
+          description="パートナー企業・媒体・エージェントなどをメンバーとは別に管理します。紹介マインドマップやランキングの集計のベースとなる情報です。"
+        />
 
         {/* 追加フォーム */}
-        <section className="mb-6 rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            {editingId ? "パートナーを編集" : "パートナーを追加"}
-          </h2>
-          <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+        <SectionCard title={editingId ? "パートナーを編集" : "パートナーを追加"}>
+          <div className="grid gap-2 text-xs sm:grid-cols-3">
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">パートナー名</label>
+              <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
+                パートナー名
+              </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="例：パートナーA"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">紹介者（任意）</label>
+              <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
+                紹介者（任意）
+              </label>
               <input
                 type="text"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="例：紹介者名や所属（◯◯さん / ◯◯社 など）"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="mb-1 block text-[11px] text-neutral-600">メモ（任意）</label>
+              <label className="mb-1 block text-[11px] text-neutral-600 dark:text-neutral-400">
+                メモ（任意）
+              </label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="例：担当部署、主な連携内容など"
-                className="w-full rounded-full border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-neutral-400 focus:ring-1 focus:ring-neutral-300"
+                className={INPUT}
               />
             </div>
           </div>
-          <div className="mt-3 flex justify-end gap-2">
+          <div className="mt-4 flex justify-end gap-2">
             {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex items-center rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-medium text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                className="inline-flex items-center rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm transition-colors hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
               >
                 キャンセル
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="btn-primary px-5 py-2 text-xs font-semibold shadow-sm"
-            >
+            <PrimaryButton type="button" onClick={handleSubmit}>
               {editingId ? "更新する" : "追加する"}
-            </button>
+            </PrimaryButton>
           </div>
-        </section>
+        </SectionCard>
 
         {/* 一覧 */}
-        <section className="rounded-2xl bg-white/90 p-4 shadow-sm dark:bg-neutral-900/80">
-          <h2 className="text-sm font-semibold text-neutral-800 dark:text-neutral-100">
-            登録済みパートナー
-          </h2>
+        <SectionCard title="登録済みパートナー">
           {partners.length === 0 ? (
-            <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
               まだパートナーは登録されていません。上のフォームから追加できます。
             </p>
           ) : (
-            <div className="mt-3 space-y-2 text-xs">
+            <div className="space-y-2 text-xs">
               {partners.map((partner) => (
                 <div
                   key={partner.id}
@@ -249,7 +244,7 @@ export default function PartnersAdminPage() {
               ))}
             </div>
           )}
-        </section>
+        </SectionCard>
       </div>
     </main>
   );
