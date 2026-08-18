@@ -64,6 +64,7 @@ export default function Sidebar() {
         <SidebarLink href="/daily-reports" label="日報・ホウレンソウ" />
         <SidebarLink href="/leads" label="反響リード" />
         <SidebarLink href="/appointments" label="アポ獲得管理" />
+        <SidebarLink href="/attendance" label="出勤スケジュール" />
         <SidebarLink href="/performance" label="成績" />
         <SidebarLink href="/dashboard" label="売上・KPIダッシュボード" />
         <SidebarLink href="/e-learning" label="動画研修ラーニング" />

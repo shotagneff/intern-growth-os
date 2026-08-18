@@ -57,6 +57,7 @@ function toLead(r: any, dealIds: Set<number>): Lead {
     prefecture: r.prefecture,
     nextAction: r.next_action,
     nextActionOn: toDateString(r.next_action_on),
+    nextActionTime: r.next_action_time ?? null,
     leadSource: r.lead_source,
     referrer: r.referrer,
     updatedOn: toDateString(r.updated_on),
@@ -167,6 +168,7 @@ const LEAD_FIELDS: Record<string, string> = {
   prefecture: "prefecture",
   nextAction: "next_action",
   nextActionOn: "next_action_on",
+  nextActionTime: "next_action_time",
   leadSource: "lead_source",
   referrer: "referrer",
 };

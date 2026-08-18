@@ -89,6 +89,8 @@ export type Lead = {
   prefecture: string | null;
   nextAction: string | null;
   nextActionOn: string | null;
+  /** アポ/次アクションの時刻 "HH:MM"。ホームの「今日のアポ」で使う */
+  nextActionTime: string | null;
   leadSource: string | null;
   referrer: string | null;
   updatedOn: string | null;

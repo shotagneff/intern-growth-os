@@ -227,6 +227,8 @@ export async function ensureSalesLeadsTable(): Promise<void> {
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_leads_owner ON sales_leads (owner);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_leads_registered ON sales_leads (registered_on);');
+  // アポ/次アクションの時刻（"HH:MM"）。ホームの「今日のアポ」で何時かを出すため
+  await pool.query('ALTER TABLE sales_leads ADD COLUMN IF NOT EXISTS next_action_time TEXT;');
 }
 
 export async function ensureSalesDealsTable(): Promise<void> {
@@ -284,6 +286,32 @@ export async function ensureSalesCustomersTable(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// 出勤スケジュール（曜日デフォルト + 日別上書き）
+// ---------------------------------------------------------------------------
+export async function ensureAttendanceTables(): Promise<void> {
+  // 曜日ごとの出勤開始時刻。weekday は JS getDay()（0=日 .. 6=土）。
+  // start_time が null / 空 は「休み・未設定」。
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_weekly (
+      member_id  TEXT NOT NULL,
+      weekday    INTEGER NOT NULL,
+      start_time TEXT,
+      PRIMARY KEY (member_id, weekday)
+    );
+  `);
+  // 特定日の上書き。is_off=true はその日だけ休み。
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS attendance_override (
+      member_id  TEXT NOT NULL,
+      date       TEXT NOT NULL,
+      start_time TEXT,
+      is_off     BOOLEAN NOT NULL DEFAULT FALSE,
+      PRIMARY KEY (member_id, date)
+    );
+  `);
+}
+
+// ---------------------------------------------------------------------------
 // 全テーブル一括作成
 // ---------------------------------------------------------------------------
 export async function ensureAllTables(): Promise<void> {
@@ -297,4 +325,5 @@ export async function ensureAllTables(): Promise<void> {
   await ensureSalesLeadsTable();
   await ensureSalesDealsTable();
   await ensureSalesCustomersTable();
+  await ensureAttendanceTables();
 }

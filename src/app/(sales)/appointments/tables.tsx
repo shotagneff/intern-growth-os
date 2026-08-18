@@ -120,7 +120,7 @@ function Text({
 }: {
   value: string | number | null;
   onCommit: (v: string) => void;
-  type?: "text" | "date" | "number";
+  type?: "text" | "date" | "number" | "time";
   align?: "left" | "right";
   listId?: string;
 }) {
@@ -235,7 +235,7 @@ export function LeadTable({
             <tr>
               {["案件ID", "月", "会社名/氏名", "担当者", "フェーズ", "確度", "登録日", "代表者名",
                 "先方担当者名", "役職", "電話番号", "メールアドレス", "WEBページ", "業種", "従業員規模",
-                "都道府県", "次回アクション", "次回アクション日", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
+                "都道府県", "次回アクション", "次回アクション日", "時刻", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
                 <th key={h} className={TH}>
                   {h}
                 </th>
@@ -313,6 +313,9 @@ export function LeadTable({
                 </td>
                 <td className={TD}>
                   <Text type="date" value={l.nextActionOn} onCommit={(v) => patch("lead", l.id, { nextActionOn: v })} />
+                </td>
+                <td className={`${TD} min-w-[6rem]`}>
+                  <Text type="time" value={l.nextActionTime} onCommit={(v) => patch("lead", l.id, { nextActionTime: v })} />
                 </td>
                 <td className={TD}>
                   <Select
