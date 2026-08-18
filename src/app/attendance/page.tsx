@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { WEEKDAY_LABELS, todayJst, type WeeklyRow, type OverrideRow } from "@/lib/attendance-util";
+import { WEEKDAY_LABELS, todayJst, isSchedulableMember, type WeeklyRow, type OverrideRow } from "@/lib/attendance-util";
 
 type Member = { id: string; name: string; iconUrl?: string; active: boolean };
 
@@ -24,7 +24,7 @@ export default function AttendancePage() {
         ]);
         if (mRes.ok) {
           const m = (await mRes.json()) as Member[];
-          setMembers(Array.isArray(m) ? m.filter((x) => x.active) : []);
+          setMembers(Array.isArray(m) ? m.filter((x) => x.active && isSchedulableMember(x.name)) : []);
         }
         if (aRes.ok) {
           const a = (await aRes.json()) as { weekly: WeeklyRow[]; overrides: OverrideRow[] };

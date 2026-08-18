@@ -7,6 +7,7 @@ import {
   resolveForDate,
   todayJst,
   WEEKDAY_LABELS,
+  isSchedulableMember,
   type WeeklyRow,
   type OverrideRow,
 } from "@/lib/attendance-util";
@@ -155,7 +156,9 @@ export default function Home() {
   const attendanceToday = useMemo(
     () =>
       resolveForDate(
-        members.filter((m) => m.active).map((m) => ({ id: m.id, name: m.name, iconUrl: m.iconUrl })),
+        members
+          .filter((m) => m.active && isSchedulableMember(m.name))
+          .map((m) => ({ id: m.id, name: m.name, iconUrl: m.iconUrl })),
         weekly,
         overrides,
         today

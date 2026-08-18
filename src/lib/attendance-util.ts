@@ -4,6 +4,14 @@ export type OverrideRow = { memberId: string; date: string; startTime: string | 
 
 export const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 
+/** 出勤スケジュールに出さないメンバー名（運営用アカウント等） */
+export const NON_SCHEDULABLE_MEMBER_NAMES = ["シークアド運営"];
+
+/** 出勤スケジュールの対象にするメンバーか（運営アカウントを除く） */
+export function isSchedulableMember(name: string | undefined | null): boolean {
+  return !NON_SCHEDULABLE_MEMBER_NAMES.includes((name ?? "").trim());
+}
+
 /** 'YYYY-MM-DD' の曜日（0=日..6=土） */
 export function weekdayOf(date: string): number {
   return new Date(`${date}T00:00:00Z`).getUTCDay();
