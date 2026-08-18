@@ -13,6 +13,7 @@ import {
   LEAD_STATUSES,
   daysUntil,
   firstResponseMinutes,
+  phoneKey,
   type Lead,
   type LeadStatus,
 } from "@/lib/callforce";
@@ -237,11 +238,13 @@ export function LeadList({
 
     const q = query.trim();
     if (!q) return base;
-    // 電話番号は数字だけで部分一致（表記ゆれを吸収）。会社名・担当者名・メール・担当でも検索。
+    // 検索中は絞り込みタブを無視して「全リード」から探す（同じ番号の履歴を確実に拾うため）。
+    // 電話番号は末尾9桁で正規化して部分一致（ハイフン・+81/0始まりの差を吸収）。
     const digits = q.replace(/[^0-9]/g, "");
+    const qKey = phoneKey(q);
     const text = q.toLowerCase();
-    return base.filter((l) => {
-      if (digits && l.phoneNumber.replace(/[^0-9]/g, "").includes(digits)) return true;
+    return leads.filter((l) => {
+      if (digits && phoneKey(l.phoneNumber).includes(qKey)) return true;
       return [l.companyName, l.contactName, l.email, l.assignedTo]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(text));
