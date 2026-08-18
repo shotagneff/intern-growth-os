@@ -225,10 +225,13 @@ export default function DailyReportsPage() {
     "",
   ];
 
+  const TEXTAREA =
+    "w-full rounded-xl border border-neutral-200 bg-white p-3 text-sm outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900";
+
   return (
     <main className="min-h-screen bg-[#f5f5f7] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6">
-        <header className="mb-8 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 space-y-6">
+        <header className="pb-2">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
             Daily Report
           </p>
@@ -249,177 +252,121 @@ export default function DailyReportsPage() {
           <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
             今日のアウトプット・数字・成功の種・改善・称賛・気持ちを一括で振り返るための日報画面です。
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-            <span className="font-semibold">メンバー名</span>
-            <select
-              className="min-w-[180px] rounded-full border px-3 py-1 text-xs outline-none focus:ring"
-              value={memberName}
-              onChange={(e) => {
-                const value = e.target.value;
-                setMemberName(value);
-                if (typeof window !== "undefined") {
-                  window.localStorage.setItem("igos_member_name", value);
-                }
-              }}
-            >
-              <option value="">メンバーを選択</option>
-              {availableMembers
-                .filter((m) => m.active)
-                .map((m) => (
-                  <option key={m.id} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div className="mt-3 flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
-            <span className="font-semibold">今日の終了時刻</span>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="rounded-full border px-3 py-1 text-xs outline-none focus:ring"
-            />
-            <span className="text-[10px] text-neutral-500">
-              例: 19:00（勤務終了時刻のメモ用）
-            </span>
-          </div>
         </header>
 
-        <section className="space-y-6">
-          {/* ① 今日のアウトプット（行動実績） */}
-          <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900/80" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ① 今日のアウトプット（行動実績）
-              </h2>
+        {/* 記入者・終了時刻 */}
+        <div className="rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-neutral-600 dark:text-neutral-300">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">メンバー名</span>
+              <select
+                className="min-w-[180px] rounded-full border border-neutral-300 px-3 py-1.5 text-xs outline-none focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
+                value={memberName}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setMemberName(value);
+                  if (typeof window !== "undefined") {
+                    window.localStorage.setItem("igos_member_name", value);
+                  }
+                }}
+              >
+                <option value="">メンバーを選択</option>
+                {availableMembers
+                  .filter((m) => m.active)
+                  .map((m) => (
+                    <option key={m.id} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
             </div>
-            <p className="mb-2 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              何を、どれだけ、どう動いた？（架電／商談／コンテンツ作成／顧客フォローなど）
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">今日の終了時刻</span>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs outline-none focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              <span className="text-[10px] text-neutral-500">例: 19:00（勤務終了時刻のメモ用）</span>
+            </div>
+          </div>
+        </div>
+
+        <section className="space-y-5">
+          <FieldPanel
+            title="① 今日のアウトプット（行動実績）"
+            desc="何を、どれだけ、どう動いた？（架電／商談／コンテンツ作成／顧客フォローなど）"
+          >
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={4}
               placeholder="今日の行動を具体的に書いてみましょう。"
               value={output}
               onChange={(e) => setOutput(e.target.value)}
             />
-          </div>
+          </FieldPanel>
 
-          {/* ② 成果データ（今日の数字スナップ） */}
-          <div className="card-elevated border border-neutral-200/80 bg-white/90 p-4 dark:border-neutral-800/80 dark:bg-neutral-900/70" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ② 成果データ（今日の数字スナップ）
-              </h2>
-            </div>
-            <p className="mb-2 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              今日の「結果」をひと言で見える化（売上金額、アポ件数、投稿数、反応率など）
-            </p>
+          <FieldPanel
+            title="② 成果データ（今日の数字スナップ）"
+            desc="今日の「結果」をひと言で見える化（売上金額、アポ件数、投稿数、反応率など）"
+          >
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={3}
               placeholder="今日の数字スナップをメモしましょう。"
               value={snapshot}
               onChange={(e) => setSnapshot(e.target.value)}
             />
-          </div>
+          </FieldPanel>
 
-          {/* ③ 成功の種（できたこと・良かったこと） */}
-          <div className="card-elevated border border-neutral-200/80 bg-white/90 p-4 dark:border-neutral-800/80 dark:bg-neutral-900/70" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ③ 成功の種（できたこと・良かったこと）
-              </h2>
-            </div>
-            <p className="mb-2 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              どんな工夫や判断が上手くいった？再現性ある成功パターンを言語化する欄です。
-            </p>
+          <FieldPanel
+            title="③ 成功の種（できたこと・良かったこと）"
+            desc="どんな工夫や判断が上手くいった？再現性ある成功パターンを言語化する欄です。"
+          >
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={3}
               placeholder="小さな成功でもOK。良かったポイントを書き出してみましょう。"
               value={success}
               onChange={(e) => setSuccess(e.target.value)}
             />
-          </div>
+          </FieldPanel>
 
-          {/* ④ 改善ポイントと明日の一手 */}
-          <div className="card-elevated border border-neutral-200/80 bg-white/90 p-4 dark:border-neutral-800/80 dark:bg-neutral-900/70" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ④ 改善ポイントと明日の一手
-              </h2>
-            </div>
-            <p className="mb-2 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              明日、「ひとつだけ」変えるとしたら？改善を1つに絞ることで行動を変える欄です。
-            </p>
+          <FieldPanel
+            title="④ 改善ポイントと明日の一手"
+            desc="明日、「ひとつだけ」変えるとしたら？改善を1つに絞ることで行動を変える欄です。"
+          >
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={3}
               placeholder="明日ひとつだけ変える行動を書いてみましょう。"
               value={improvement}
               onChange={(e) => setImprovement(e.target.value)}
             />
-          </div>
+          </FieldPanel>
 
-          {/* ⑤ グッドチーム！称賛ログ */}
-          <div className="card-elevated border border-neutral-200/80 bg-white/90 p-4 dark:border-neutral-800/80 dark:bg-neutral-900/70" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ⑤ グッドチーム！称賛ログ
-              </h2>
-            </div>
-            <p className="mb-2 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              仲間のどの行動が魅力的だった？承認文化と良い行動の言語化につながる欄です。
-            </p>
+          <FieldPanel
+            title="⑤ グッドチーム！称賛ログ"
+            desc="仲間のどの行動が魅力的だった？承認文化と良い行動の言語化につながる欄です。"
+          >
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={3}
               placeholder="今日、心が動いた仲間の行動を書いてみましょう。"
               value={praise}
               onChange={(e) => setPraise(e.target.value)}
             />
-          </div>
+          </FieldPanel>
 
-          {/* ⑥ 今日の気持ち（感情メーター） */}
-          <div className="card-elevated border border-neutral-200/80 bg-white/90 p-4 dark:border-neutral-800/80 dark:bg-neutral-900/70" style={{ borderColor: MAIN_COLOR }}>
-            <div className="mb-1 flex items-center gap-2">
-              <span
-                className="inline-block h-5 w-1 rounded-full"
-                style={{ backgroundColor: MAIN_COLOR }}
-              />
-              <h2 className="text-sm font-semibold tracking-tight">
-                ⑥ 今日の気持ち（感情メーター）
-              </h2>
-            </div>
-            <p className="mb-3 mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              今の気持ちをプルダウンで選んで、一言コメントを残せます。
-            </p>
+          <FieldPanel
+            title="⑥ 今日の気持ち（感情メーター）"
+            desc="今の気持ちをプルダウンで選んで、一言コメントを残せます。"
+          >
             <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
               <span className="font-semibold">今日の気持ち</span>
               <select
-                className="rounded-full border px-3 py-1 text-xs outline-none focus:ring"
+                className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs outline-none focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                 value={mood}
                 onChange={(e) => setMood(e.target.value as MoodOption)}
               >
@@ -434,30 +381,31 @@ export default function DailyReportsPage() {
               </select>
             </div>
             <textarea
-              className="mt-1 w-full rounded-2xl border p-3 text-sm outline-none focus:ring"
+              className={TEXTAREA}
               rows={2}
               placeholder="ひと言メモ（例：今日は○○が嬉しかった / 少し疲れた理由 など）"
               value={moodNote}
               onChange={(e) => setMoodNote(e.target.value)}
             />
-          </div>
+          </FieldPanel>
         </section>
 
-        <div className="mt-6 flex justify-end">
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={handleSave}
-            className="btn-primary px-6 py-2 text-xs font-semibold shadow-sm"
+            className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-transform hover:brightness-110 active:scale-[0.98]"
+            style={{ backgroundColor: MAIN_COLOR }}
           >
             日報を保存する
           </button>
         </div>
 
         {reports.length > 0 && (
-          <section className="mt-10 border-t border-neutral-200 pt-6 dark:border-neutral-800">
-            <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <section className="rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+            <div className="flex flex-col items-start gap-2 border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-sm font-semibold tracking-tight text-neutral-700 dark:text-neutral-200">
+                <h2 className="text-sm font-semibold tracking-tight text-neutral-800 dark:text-neutral-100">
                   今日の日報一覧
                 </h2>
                 <p className="mt-1 text-[11px] text-neutral-500">
@@ -468,20 +416,18 @@ export default function DailyReportsPage() {
                 <button
                   type="button"
                   onClick={handleCopyForLine}
-                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400"
+                  className="rounded-full border border-neutral-300 bg-white px-4 py-2 text-xs font-semibold text-neutral-700 shadow-sm hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                 >
                   LINE共有用テキストをコピー
                 </button>
-                {copyMessage && (
-                  <p className="text-[11px] text-neutral-500">{copyMessage}</p>
-                )}
+                {copyMessage && <p className="text-[11px] text-neutral-500">{copyMessage}</p>}
               </div>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 p-5">
               {reports.map((report) => (
                 <article
                   key={report.id}
-                  className="rounded-xl border border-neutral-200 bg-white p-4 text-sm dark:border-neutral-800 dark:bg-neutral-900/80"
+                  className="rounded-xl border border-neutral-200 bg-white p-4 text-sm shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80"
                 >
                   <div className="mb-2 flex items-center justify-between text-xs text-neutral-600 dark:text-neutral-300">
                     <div className="flex flex-col">
@@ -501,7 +447,7 @@ export default function DailyReportsPage() {
                   <div className="space-y-1">
                     <p>
                       <span className="font-semibold">アウトプット：</span>
-                      {report.output || "—" }
+                      {report.output || "—"}
                     </p>
                     {report.snapshot && (
                       <p>
@@ -535,5 +481,29 @@ export default function DailyReportsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+/** 見出し＋説明つきのパネル。日報の各記入欄をカードに揃える */
+function FieldPanel({
+  title,
+  desc,
+  children,
+}: {
+  title: string;
+  desc?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+      <div className="border-b border-neutral-100 px-5 py-3.5 dark:border-neutral-800">
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-5 w-1 rounded-full" style={{ backgroundColor: MAIN_COLOR }} />
+          <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+        </div>
+        {desc && <p className="mt-1.5 text-xs text-neutral-500 dark:text-neutral-400">{desc}</p>}
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
   );
 }
