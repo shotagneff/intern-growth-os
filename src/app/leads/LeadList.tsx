@@ -204,33 +204,49 @@ export function LeadList({
   const [filter, setFilter] = useState<Filter>("すべて");
   // アポ獲得を選んだが流入経路が空だった行。ここだけ赤くして促す
   const [needChannel, setNeedChannel] = useState<string | null>(null);
+  // 検索（電話番号・会社名など）。同じ番号の過去の着信・録音をまとめて見るため
+  const [query, setQuery] = useState("");
 
   const shown = useMemo(() => {
-    switch (filter) {
-      case "未対応":
-        return leads.filter((l) => l.status === "未対応");
-      case "本日の追客":
-        // 期日が今日以前のもの。過ぎた分もここに出さないと、
-        // 「本日」だけ見て超過分を取りこぼす
-        return leads.filter((l) => {
-          const d = daysUntil(l.nextActionAt);
-          return d !== null && d <= 0;
-        });
-      case "期日超過":
-        return leads.filter((l) => {
-          const d = daysUntil(l.nextActionAt);
-          return d !== null && d < 0;
-        });
-      case "受電デモ":
-        return leads.filter((l) => l.demoType === "受電デモ");
-      case "架電デモ":
-        return leads.filter((l) => l.demoType === "架電デモ" || (!l.demoType && l.source === "demo_call"));
-      case "広告・Web":
-        return leads.filter((l) => l.source === "ad_form" || l.source === "web_estimate");
-      default:
-        return leads;
-    }
-  }, [leads, filter]);
+    const base = (() => {
+      switch (filter) {
+        case "未対応":
+          return leads.filter((l) => l.status === "未対応");
+        case "本日の追客":
+          // 期日が今日以前のもの。過ぎた分もここに出さないと、
+          // 「本日」だけ見て超過分を取りこぼす
+          return leads.filter((l) => {
+            const d = daysUntil(l.nextActionAt);
+            return d !== null && d <= 0;
+          });
+        case "期日超過":
+          return leads.filter((l) => {
+            const d = daysUntil(l.nextActionAt);
+            return d !== null && d < 0;
+          });
+        case "受電デモ":
+          return leads.filter((l) => l.demoType === "受電デモ");
+        case "架電デモ":
+          return leads.filter((l) => l.demoType === "架電デモ" || (!l.demoType && l.source === "demo_call"));
+        case "広告・Web":
+          return leads.filter((l) => l.source === "ad_form" || l.source === "web_estimate");
+        default:
+          return leads;
+      }
+    })();
+
+    const q = query.trim();
+    if (!q) return base;
+    // 電話番号は数字だけで部分一致（表記ゆれを吸収）。会社名・担当者名・メール・担当でも検索。
+    const digits = q.replace(/[^0-9]/g, "");
+    const text = q.toLowerCase();
+    return base.filter((l) => {
+      if (digits && l.phoneNumber.replace(/[^0-9]/g, "").includes(digits)) return true;
+      return [l.companyName, l.contactName, l.email, l.assignedTo]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(text));
+    });
+  }, [leads, filter, query]);
 
   return (
     <section className="flex flex-col rounded-2xl border border-neutral-200 bg-white/90 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
@@ -238,7 +254,13 @@ export function LeadList({
         {FILTERS.map((f) => (
           <FilterChip key={f} label={f} active={filter === f} onClick={() => setFilter(f)} />
         ))}
-        <span className="ml-auto text-sm tabular-nums text-neutral-400">{shown.length}件</span>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="電話番号・会社名で検索"
+          className="ml-auto w-56 rounded-full border border-neutral-200 bg-white px-4 py-1.5 text-xs outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900"
+        />
+        <span className="text-sm tabular-nums text-neutral-400">{shown.length}件</span>
       </div>
 
       <div className="overflow-x-auto">
