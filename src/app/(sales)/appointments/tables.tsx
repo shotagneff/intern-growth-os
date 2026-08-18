@@ -227,16 +227,24 @@ export function LeadTable({
 
       <p className="text-xs text-neutral-400">
         {shown.length}件　フェーズを「案件化済」にすると案件が自動で作られます
+        <span className="ml-1 text-[#9e8d70]">／「次回アポ日」を今日にするとホームの「今日のアポイント」に表示されます</span>
       </p>
 
       <TableFrame>
         <table className="w-full border-collapse">
           <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
-              {["案件ID", "月", "会社名/氏名", "担当者", "フェーズ", "確度", "登録日", "代表者名",
+              {["案件ID", "月", "会社名/氏名", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
                 "先方担当者名", "役職", "電話番号", "メールアドレス", "WEBページ", "業種", "従業員規模",
-                "都道府県", "次回アクション", "次回アクション日", "時刻", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
-                <th key={h} className={TH}>
+                "都道府県", "次回アクション", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
+                <th
+                  key={h}
+                  className={
+                    h === "次回アポ日" || h === "アポ時刻"
+                      ? `${TH} bg-[#f6f1e7] dark:bg-amber-900/20`
+                      : TH
+                  }
+                >
                   {h}
                 </th>
               ))}
@@ -255,6 +263,12 @@ export function LeadTable({
                 </td>
                 <td className={`${TD} ${W.owner}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
+                </td>
+                <td className={`${TD} min-w-[8rem] bg-[#f6f1e7]/60 dark:bg-amber-900/10`}>
+                  <Text type="date" value={l.nextActionOn} onCommit={(v) => patch("lead", l.id, { nextActionOn: v })} />
+                </td>
+                <td className={`${TD} min-w-[6rem] bg-[#f6f1e7]/60 dark:bg-amber-900/10`}>
+                  <Text type="time" value={l.nextActionTime} onCommit={(v) => patch("lead", l.id, { nextActionTime: v })} />
                 </td>
                 <td className={`${TD} ${W.phase}`}>
                   <ToneSelect
@@ -310,12 +324,6 @@ export function LeadTable({
                 </td>
                 <td className={`${TD} min-w-[16rem]`}>
                   <Text value={l.nextAction} onCommit={(v) => patch("lead", l.id, { nextAction: v })} />
-                </td>
-                <td className={TD}>
-                  <Text type="date" value={l.nextActionOn} onCommit={(v) => patch("lead", l.id, { nextActionOn: v })} />
-                </td>
-                <td className={`${TD} min-w-[6rem]`}>
-                  <Text type="time" value={l.nextActionTime} onCommit={(v) => patch("lead", l.id, { nextActionTime: v })} />
                 </td>
                 <td className={TD}>
                   <Select
