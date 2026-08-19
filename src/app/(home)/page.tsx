@@ -298,7 +298,7 @@ export default function Home() {
                       <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">{g.owner}</span>
                     </div>
                     <span className="rounded-full bg-[#9e8d70] px-2 py-0.5 text-xs font-bold text-white">
-                      {g.list.length}軒
+                      {g.list.length}件
                     </span>
                   </div>
                   <ul className="mt-2 space-y-1.5">
