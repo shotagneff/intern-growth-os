@@ -12,6 +12,11 @@ import {
   CUSTOMER_STATUSES,
 } from "@/lib/sales";
 import { buildPerformance } from "@/lib/sales-performance";
+import {
+  ensureSalesLeadsTable,
+  ensureSalesDealsTable,
+  ensureSalesCustomersTable,
+} from "@/lib/schema";
 
 // アポ獲得管理（リード / 案件 / 顧客）と成績。
 //
@@ -28,10 +33,19 @@ function guard() {
   return null;
 }
 
+// テーブル（と後から足した列 next_action_time 等）を保証する。
+// 他ルートと同じく、各ハンドラの冒頭で冪等に呼ぶ。
+async function ensureSales() {
+  await ensureSalesLeadsTable();
+  await ensureSalesDealsTable();
+  await ensureSalesCustomersTable();
+}
+
 export async function GET() {
   const blocked = guard();
   if (blocked) return blocked;
   try {
+    await ensureSales();
     const data = await getSalesData();
     return NextResponse.json({ ...data, performance: buildPerformance(data) });
   } catch (e) {
@@ -50,6 +64,7 @@ export async function POST(req: NextRequest) {
   const blocked = guard();
   if (blocked) return blocked;
   try {
+    await ensureSales();
     const body = (await req.json()) as Body;
     if (body.kind !== "lead") {
       // 案件と顧客は「リードが案件化した」「案件が受注した」ときに自動で生まれる。
@@ -71,6 +86,7 @@ export async function PATCH(req: NextRequest) {
   const blocked = guard();
   if (blocked) return blocked;
   try {
+    await ensureSales();
     const body = (await req.json()) as Body;
     const patch = body.patch ?? {};
     if (body.id === undefined || body.id === null) {
@@ -111,6 +127,7 @@ export async function DELETE(req: NextRequest) {
   const blocked = guard();
   if (blocked) return blocked;
   try {
+    await ensureSales();
     const { id } = (await req.json()) as { id?: number };
     if (!id) return NextResponse.json({ error: "id が必要です" }, { status: 400 });
     await deleteLead(Number(id));
