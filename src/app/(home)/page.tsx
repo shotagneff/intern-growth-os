@@ -305,7 +305,7 @@ export default function Home() {
                     {g.list.map((l) => (
                       <li key={l.id} className="flex items-start gap-2 text-sm">
                         <span className="mt-[1px] w-12 shrink-0 font-bold tabular-nums text-neutral-800 dark:text-neutral-100">
-                          {l.nextActionTime || "未定"}
+                          {l.nextActionTime ? l.nextActionTime.slice(0, 5) : "未定"}
                         </span>
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-neutral-800 dark:text-neutral-100">

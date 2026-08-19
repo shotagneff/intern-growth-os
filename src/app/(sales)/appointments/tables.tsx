@@ -130,10 +130,13 @@ function Text({
     <input
       type={type}
       list={listId}
+      // 時刻は分刻み（秒フィールドを出さない）。値も "HH:MM" に丸めて秒を00固定にする
+      step={type === "time" ? 60 : undefined}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
-        if (draft !== String(value ?? "")) onCommit(draft);
+        const next = type === "time" && draft ? draft.slice(0, 5) : draft;
+        if (next !== String(value ?? "")) onCommit(next);
       }}
       className={`${CELL_INPUT} ${align === "right" ? "text-right tabular-nums" : ""}`}
     />

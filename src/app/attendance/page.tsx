@@ -122,6 +122,7 @@ export default function AttendancePage() {
                       <td key={wd} className="px-1.5 py-1.5">
                         <input
                           type="time"
+                          step={60}
                           defaultValue={weeklyValue(m.id, wd)}
                           onBlur={(e) => {
                             if (e.target.value !== weeklyValue(m.id, wd)) saveWeekly(m.id, wd, e.target.value);
@@ -169,6 +170,7 @@ export default function AttendancePage() {
                       <td className="px-2 py-1.5 w-40">
                         <input
                           type="time"
+                          step={60}
                           defaultValue={ov?.isOff ? "" : ov?.startTime ?? ""}
                           key={`${m.id}-${ovDate}-${ov?.startTime ?? ""}-${ov?.isOff}`}
                           disabled={ov?.isOff}
