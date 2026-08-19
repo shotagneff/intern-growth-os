@@ -452,10 +452,6 @@ export default function Home() {
                   );
                 })}
               </div>
-
-              <p className="mt-2 text-[10px] text-neutral-400">
-                ※ 棒は出勤開始時刻から。終了時刻は管理していないため右側は薄く表示しています。
-              </p>
             </div>
           )}
         </section>
