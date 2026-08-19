@@ -416,15 +416,8 @@ export default function Home() {
                   const s = timeline.toMin(a.startTime);
                   return (
                     <div key={a.memberId} className="flex items-center gap-2">
-                      <div className="flex w-24 shrink-0 items-center gap-1.5 sm:w-32">
-                        {a.iconUrl ? (
-                          <Image src={a.iconUrl} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-cover" />
-                        ) : (
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f2e7d3] text-[10px] font-bold text-[#9e8d70]">
-                            {a.name.slice(0, 1)}
-                          </div>
-                        )}
-                        <span className="truncate text-xs font-medium text-neutral-700 dark:text-neutral-200">{a.name}</span>
+                      <div className="flex w-24 shrink-0 items-center sm:w-32">
+                        <span className="truncate text-sm font-bold text-neutral-900 dark:text-neutral-50">{a.name}</span>
                       </div>
                       <div className="relative h-8 flex-1 overflow-hidden rounded-md bg-neutral-100 dark:bg-neutral-800/50">
                         {/* 1時間ごとのグリッド線 */}
