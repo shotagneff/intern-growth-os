@@ -166,6 +166,39 @@ export default function Home() {
     [members, weekly, overrides, today]
   );
 
+  // 現在時刻（分）。シフト表の「今」の縦ライン用。1分ごとに更新
+  const [nowMin, setNowMin] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const d = new Date();
+      setNowMin(d.getHours() * 60 + d.getMinutes());
+    };
+    update();
+    const t = setInterval(update, 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // シフト表の時間軸。出勤開始の最小30分前から、遅くとも22:00までを表示
+  const timeline = useMemo(() => {
+    if (attendanceToday.length === 0) return null;
+    const toMin = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+    const starts = attendanceToday.map((a) => toMin(a.startTime));
+    const minStart = Math.min(...starts);
+    const maxStart = Math.max(...starts);
+    const axisStart = Math.max(0, Math.floor((minStart - 30) / 60) * 60);
+    const axisEnd = Math.min(24 * 60, Math.max(maxStart + 120, 22 * 60));
+    const range = Math.max(1, axisEnd - axisStart);
+    const pct = (min: number) => ((min - axisStart) / range) * 100;
+    const hours: number[] = [];
+    for (let h = Math.ceil(axisStart / 60); h <= Math.floor(axisEnd / 60); h++) hours.push(h);
+    return { axisStart, axisEnd, pct, hours, toMin };
+  }, [attendanceToday]);
+
+  const nowVisible = nowMin !== null && timeline !== null && nowMin >= timeline.axisStart && nowMin <= timeline.axisEnd;
+
   const todayLabel = useMemo(() => {
     const wd = WEEKDAY_LABELS[new Date(`${today}T00:00:00Z`).getUTCDay()];
     const [, m, d] = today.split("-");
@@ -338,10 +371,10 @@ export default function Home() {
             </Link>
           </div>
           <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-            曜日ごとの基本設定と日別の変更をもとに、今日の出勤時刻を早い順に表示しています。
+            今日出勤するメンバーを、出勤開始の時間帯を棒で表示しています（右にいくほど後の時間）。
           </p>
 
-          {attendanceToday.length === 0 ? (
+          {attendanceToday.length === 0 || !timeline ? (
             <div className="mt-3 rounded-2xl border border-dashed border-neutral-300 bg-white/60 p-8 text-center text-sm text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900/40">
               今日の出勤予定がありません。
               <Link href="/attendance" className="ml-1 font-semibold text-[#9e8d70] underline underline-offset-2">
@@ -350,33 +383,86 @@ export default function Home() {
               してください。
             </div>
           ) : (
-            <div className="mt-3 flex flex-wrap gap-2.5">
-              {attendanceToday.map((a) => (
-                <div
-                  key={a.memberId}
-                  className="flex items-center gap-2.5 rounded-full border border-neutral-200 bg-white py-1.5 pl-1.5 pr-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80"
-                >
-                  {a.iconUrl ? (
-                    <Image
-                      src={a.iconUrl}
-                      alt=""
-                      width={32}
-                      height={32}
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f2e7d3] text-xs font-bold text-[#9e8d70]">
-                      {a.name.slice(0, 1)}
-                    </div>
+            <div className="mt-3 rounded-2xl border border-neutral-200 bg-white/90 p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+              {/* 時間目盛り */}
+              <div className="flex items-end gap-2">
+                <div className="w-24 shrink-0 sm:w-32" />
+                <div className="relative h-4 flex-1 text-[10px] text-neutral-400">
+                  {timeline.hours
+                    .filter((h) => h % 2 === 0)
+                    .map((h) => (
+                      <span
+                        key={h}
+                        className="absolute -translate-x-1/2 tabular-nums"
+                        style={{ left: `${timeline.pct(h * 60)}%` }}
+                      >
+                        {h}:00
+                      </span>
+                    ))}
+                  {nowVisible && (
+                    <span
+                      className="absolute -translate-x-1/2 font-bold text-rose-500"
+                      style={{ left: `${timeline.pct(nowMin as number)}%` }}
+                    >
+                      今
+                    </span>
                   )}
-                  <div className="leading-tight">
-                    <div className="text-base font-bold tabular-nums text-neutral-900 dark:text-neutral-50">
-                      {a.startTime}
-                    </div>
-                    <div className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400">{a.name}</div>
-                  </div>
                 </div>
-              ))}
+              </div>
+
+              {/* 各メンバーの出勤バー */}
+              <div className="mt-1 space-y-1.5">
+                {attendanceToday.map((a) => {
+                  const s = timeline.toMin(a.startTime);
+                  return (
+                    <div key={a.memberId} className="flex items-center gap-2">
+                      <div className="flex w-24 shrink-0 items-center gap-1.5 sm:w-32">
+                        {a.iconUrl ? (
+                          <Image src={a.iconUrl} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-cover" />
+                        ) : (
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f2e7d3] text-[10px] font-bold text-[#9e8d70]">
+                            {a.name.slice(0, 1)}
+                          </div>
+                        )}
+                        <span className="truncate text-xs font-medium text-neutral-700 dark:text-neutral-200">{a.name}</span>
+                      </div>
+                      <div className="relative h-8 flex-1 overflow-hidden rounded-md bg-neutral-100 dark:bg-neutral-800/50">
+                        {/* 1時間ごとのグリッド線 */}
+                        {timeline.hours.map((h) => (
+                          <div
+                            key={h}
+                            className="absolute inset-y-0 w-px bg-white/70 dark:bg-black/20"
+                            style={{ left: `${timeline.pct(h * 60)}%` }}
+                          />
+                        ))}
+                        {/* 現在時刻 */}
+                        {nowVisible && (
+                          <div
+                            className="absolute inset-y-0 z-10 w-0.5 bg-rose-400/80"
+                            style={{ left: `${timeline.pct(nowMin as number)}%` }}
+                          />
+                        )}
+                        {/* 出勤バー（開始時刻から。終了は未管理なので右へフェード） */}
+                        <div
+                          className="absolute inset-y-1 flex items-center rounded pl-2"
+                          style={{
+                            left: `${timeline.pct(s)}%`,
+                            right: "2px",
+                            background:
+                              "linear-gradient(to right, rgba(158,141,112,0.95), rgba(158,141,112,0.2))",
+                          }}
+                        >
+                          <span className="text-[11px] font-bold text-white drop-shadow-sm">{a.startTime}〜</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-2 text-[10px] text-neutral-400">
+                ※ 棒は出勤開始時刻から。終了時刻は管理していないため右側は薄く表示しています。
+              </p>
             </div>
           )}
         </section>
