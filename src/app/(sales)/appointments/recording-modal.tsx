@@ -25,6 +25,27 @@ function fmtSize(n: number | null): string {
   return `${(n / 1024 / 1024).toFixed(1)}MB`;
 }
 
+// Vercel Blob 等の英語エラーを、原因が分かる日本語にして返す
+function humanizeUploadError(msg: string): string {
+  const m = msg || "";
+  if (/client token|BLOB_READ_WRITE_TOKEN|store|not.*found.*blob/i.test(m)) {
+    return "録音の保存先（Vercel Blob）がまだ設定されていません。管理者に「Vercel Blob ストアの作成と BLOB_READ_WRITE_TOKEN の設定」を依頼してください。";
+  }
+  if (/413|too large|maximum|size/i.test(m)) {
+    return "ファイルが大きすぎます（上限は500MBです）。";
+  }
+  if (/content type|mime|not allowed|allowed/i.test(m)) {
+    return "この形式のファイルはアップロードできません（音声・動画ファイルを選んでください）。";
+  }
+  if (/network|failed to fetch/i.test(m)) {
+    return "通信に失敗しました。電波状況を確認してもう一度お試しください。";
+  }
+  return `アップロードに失敗しました：${m}`;
+}
+
+// 受け付ける拡張子（m4a を含む）。MIME が空/octet-stream になる端末でも選べるよう拡張子も明示
+const ACCEPT = "audio/*,video/*,.m4a,.m4b,.aac,.mp3,.wav,.mp4,.mov";
+
 export function RecordingModal({
   leadId,
   company,
@@ -83,7 +104,7 @@ export function RecordingModal({
       if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error || "登録に失敗しました");
       await load();
     } catch (e) {
-      setErr((e as Error).message);
+      setErr(humanizeUploadError((e as Error).message));
     }
     setBusy(null);
   };
@@ -158,7 +179,7 @@ export function RecordingModal({
                         {isBusy ? "処理中…" : "差し替え"}
                         <input
                           type="file"
-                          accept="audio/*,video/*"
+                          accept={ACCEPT}
                           className="hidden"
                           disabled={isBusy}
                           onChange={(e) => {

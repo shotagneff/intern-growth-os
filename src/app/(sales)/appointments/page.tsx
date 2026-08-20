@@ -11,6 +11,7 @@ import { OPEN_DEAL_PHASES, type Customer, type Deal, type Lead } from "@/lib/sal
 import { orderedOwners } from "@/lib/sales-performance";
 import { CustomerTable, DealTable, LeadTable, LostTable, type Patch } from "./tables";
 import { Kpi } from "./ui";
+import { AppointmentDashboard } from "./dashboard";
 
 const TABS = ["リード管理", "案件管理", "顧客管理", "失注管理"] as const;
 type Tab = (typeof TABS)[number];
@@ -18,6 +19,7 @@ type Tab = (typeof TABS)[number];
 type Payload = { leads: Lead[]; deals: Deal[]; customers: Customer[] };
 
 export default function AppointmentsPage() {
+  const [view, setView] = useState<"ダッシュボード" | "アポ獲得リスト">("ダッシュボード");
   const [tab, setTab] = useState<Tab>("リード管理");
   const [data, setData] = useState<Payload>({ leads: [], deals: [], customers: [] });
   const [loading, setLoading] = useState(true);
@@ -147,46 +149,68 @@ export default function AppointmentsPage() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Kpi label="追いかけ中のリード" value={`${kpis.leads}`} hint="失注を除く" />
-        <Kpi label="商談中の案件" value={`${kpis.open}`} hint="提案・見積・クロージング" />
-        <Kpi label="商談中の想定年間総額" value={yen(kpis.pipeline)} hint="月額×12＋ショット" />
-        <Kpi label="受注済みの累計" value={yen(kpis.wonTotal)} hint="受注案件の想定年間総額" />
-        <Kpi label="稼働顧客のMRR" value={yen(kpis.mrr)} hint={`${kpis.customers}社`} />
-      </section>
-
-      <nav className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
-        {TABS.map((t) => (
+      <nav className="flex gap-1 self-start rounded-2xl border border-neutral-200 bg-white/90 p-1 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
+        {(["ダッシュボード", "アポ獲得リスト"] as const).map((v) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === t
-                ? "text-neutral-900 dark:text-neutral-50"
-                : "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+            key={v}
+            onClick={() => setView(v)}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+              view === v
+                ? "bg-[#9e8d70] text-white shadow-sm"
+                : "text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-300"
             }`}
           >
-            {t}
-            {tab === t && (
-              <span
-                className="absolute inset-x-2 -bottom-px h-0.5 rounded-full"
-                style={{ backgroundColor: "#9e8d70" }}
-              />
-            )}
+            {v}
           </button>
         ))}
       </nav>
 
-      {loading ? (
-        <p className="py-16 text-center text-sm text-neutral-400">読み込んでいます…</p>
+      {view === "ダッシュボード" ? (
+        <AppointmentDashboard data={data} />
       ) : (
         <>
-          {tab === "リード管理" && (
-            <LeadTable leads={data.leads} owners={owners} patch={patch} onCreate={create} />
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <Kpi label="追いかけ中のリード" value={`${kpis.leads}`} hint="失注を除く" />
+            <Kpi label="商談中の案件" value={`${kpis.open}`} hint="提案・見積・クロージング" />
+            <Kpi label="商談中の想定年間総額" value={yen(kpis.pipeline)} hint="月額×12＋ショット" />
+            <Kpi label="受注済みの累計" value={yen(kpis.wonTotal)} hint="受注案件の想定年間総額" />
+            <Kpi label="稼働顧客のMRR" value={yen(kpis.mrr)} hint={`${kpis.customers}社`} />
+          </section>
+
+          <nav className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
+                  tab === t
+                    ? "text-neutral-900 dark:text-neutral-50"
+                    : "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
+                }`}
+              >
+                {t}
+                {tab === t && (
+                  <span
+                    className="absolute inset-x-2 -bottom-px h-0.5 rounded-full"
+                    style={{ backgroundColor: "#9e8d70" }}
+                  />
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {loading ? (
+            <p className="py-16 text-center text-sm text-neutral-400">読み込んでいます…</p>
+          ) : (
+            <>
+              {tab === "リード管理" && (
+                <LeadTable leads={data.leads} owners={owners} patch={patch} onCreate={create} />
+              )}
+              {tab === "案件管理" && <DealTable deals={data.deals} owners={owners} patch={patch} />}
+              {tab === "顧客管理" && <CustomerTable customers={data.customers} owners={owners} patch={patch} />}
+              {tab === "失注管理" && <LostTable deals={data.deals} patch={patch} />}
+            </>
           )}
-          {tab === "案件管理" && <DealTable deals={data.deals} owners={owners} patch={patch} />}
-          {tab === "顧客管理" && <CustomerTable customers={data.customers} owners={owners} patch={patch} />}
-          {tab === "失注管理" && <LostTable deals={data.deals} patch={patch} />}
         </>
       )}
     </div>

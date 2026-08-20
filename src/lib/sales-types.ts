@@ -185,3 +185,118 @@ export type SalesData = {
   deals: Deal[];
   customers: Customer[];
 };
+
+// ---------------------------------------------------------------------------
+// ダッシュボード用の集計（反響リードと同じ推移グラフに載せる）
+//
+// 「毎日 何件アポが取れて / 何件案件化して / 何件成約したか」を出す。
+//   アポ獲得 … リードの登録日（registeredOn）
+//   案件化   … 案件の作成日（createdOn）
+//   成約     … 案件の受注日（wonOn）
+// 3つは包含関係（アポ⊃案件化⊃成約）なので積み上げず、日ごとに並べて見せる。
+// ---------------------------------------------------------------------------
+
+const WD_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/** 推移グラフ1点分（components/trend-chart の TrendDatum と同じ形） */
+export type SalesTrendPoint = {
+  key: string;
+  label: string;
+  weekend: boolean;
+  total: number;
+  byKind: Record<string, number>;
+  responded: number;
+};
+
+/** 系列（棒の3本）。表示順もこの順 */
+export const APPOINTMENT_SERIES = ["アポ獲得", "案件化", "成約"] as const;
+
+function emptyKinds(): Record<string, number> {
+  return { アポ獲得: 0, 案件化: 0, 成約: 0 };
+}
+
+/** その日付が含まれる週の月曜（JST）。YYYY-MM-DD */
+function weekStartOf(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  const dow = (d.getUTCDay() + 6) % 7; // 月曜=0
+  d.setUTCDate(d.getUTCDate() - dow);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 日ごとの推移。古い日が先頭（グラフは左→右に時間が進む）。0件の日も埋める */
+export function appointmentDailyTrend(data: SalesData, days = 14): SalesTrendPoint[] {
+  const map = new Map<string, SalesTrendPoint>();
+  const cur = new Date(`${todayJst()}T00:00:00Z`);
+  for (let i = 0; i < days; i++) {
+    const key = cur.toISOString().slice(0, 10);
+    const dow = new Date(`${key}T00:00:00Z`).getUTCDay();
+    map.set(key, {
+      key,
+      label: `${key.slice(5).replace("-", "/")}(${WD_LABELS[dow]})`,
+      weekend: dow === 0 || dow === 6,
+      total: 0,
+      byKind: emptyKinds(),
+      responded: 0,
+    });
+    cur.setUTCDate(cur.getUTCDate() - 1);
+  }
+  const bump = (dateStr: string | null, kind: string) => {
+    if (!dateStr) return;
+    const p = map.get(dateStr.slice(0, 10));
+    if (p) p.byKind[kind]++;
+  };
+  for (const l of data.leads) bump(l.registeredOn, "アポ獲得");
+  for (const d of data.deals) bump(d.createdOn, "案件化");
+  for (const d of data.deals) bump(d.wonOn, "成約");
+  for (const p of map.values()) p.total = Math.max(p.byKind.アポ獲得, p.byKind.案件化, p.byKind.成約);
+  return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+}
+
+/** 週ごとの推移。古い週が先頭 */
+export function appointmentWeeklyTrend(data: SalesData): SalesTrendPoint[] {
+  const map = new Map<string, SalesTrendPoint>();
+  const bump = (dateStr: string | null, kind: string) => {
+    if (!dateStr) return;
+    const ws = weekStartOf(dateStr.slice(0, 10));
+    let p = map.get(ws);
+    if (!p) {
+      p = {
+        key: ws,
+        label: `${ws.slice(5).replace("-", "/")}(月)〜`,
+        weekend: false,
+        total: 0,
+        byKind: emptyKinds(),
+        responded: 0,
+      };
+      map.set(ws, p);
+    }
+    p.byKind[kind]++;
+  };
+  for (const l of data.leads) bump(l.registeredOn, "アポ獲得");
+  for (const d of data.deals) bump(d.createdOn, "案件化");
+  for (const d of data.deals) bump(d.wonOn, "成約");
+  for (const p of map.values()) p.total = Math.max(p.byKind.アポ獲得, p.byKind.案件化, p.byKind.成約);
+  return [...map.values()].sort((a, b) => (a.key < b.key ? -1 : 1));
+}
+
+export type SalesOwnerBreakdown = { name: string; アポ獲得: number; 案件化: number; 成約: number };
+
+/** 担当者ごとのアポ獲得・案件化・成約。アポ獲得の多い順 */
+export function appointmentByOwner(data: SalesData): SalesOwnerBreakdown[] {
+  const map = new Map<string, SalesOwnerBreakdown>();
+  const get = (name: string | null) => {
+    const k = (name ?? "").trim() || "（未割当）";
+    let r = map.get(k);
+    if (!r) {
+      r = { name: k, アポ獲得: 0, 案件化: 0, 成約: 0 };
+      map.set(k, r);
+    }
+    return r;
+  };
+  for (const l of data.leads) get(l.owner).アポ獲得++;
+  for (const d of data.deals) {
+    get(d.owner).案件化++;
+    if (d.phase === "受注") get(d.owner).成約++;
+  }
+  return [...map.values()].sort((a, b) => b.アポ獲得 - a.アポ獲得);
+}
