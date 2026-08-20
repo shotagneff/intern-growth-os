@@ -9,6 +9,7 @@
 
 - このプロジェクトは **すべて非公開（private）** で運用する（リポジトリ移行時に変更予定）
 - 元リポジトリ: `shotagneff/intern-growth-os`（public）からクローン。名称・ブランディングを「シークアドシステム」に変更して開発を続ける
+- **現在のGitHubリポジトリ名: `shotagneff/seekad-system`**（2026-08-20 に `intern-growth-os` からリネーム。旧名へのアクセスは自動リダイレクト。remote は `git@github.com:shotagneff/seekad-system.git`）
 - **方針が変わったとき**: 進捗セクションを上書き → 変更ログに理由を追記
 - **ファイル追加・削除時**: ファイル構成セクションのツリーと定義を必ず更新する
 
