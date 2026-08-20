@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
+    "@vercel/blob": "^2.8.0",
     "@vercel/postgres": "^0.10.0",
     "next": "16.0.10",
     "pg": "^8.16.3",

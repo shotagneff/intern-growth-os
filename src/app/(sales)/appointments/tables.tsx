@@ -21,6 +21,7 @@ import {
   type LeadPhase,
 } from "@/lib/sales-types";
 import { CELL_INPUT, FILL, ROW_HOVER, TD, TH, TONE, TableFrame, ToneSelect, W, yen } from "@/components/table-ui";
+import { RecordingModal } from "./recording-modal";
 
 const LEAD_PHASE_TONE: Record<LeadPhase, string> = {
   リード: TONE.gray,
@@ -163,6 +164,7 @@ export function LeadTable({
 }) {
   const [filter, setFilter] = useState<LeadFilter>("すべて");
   const [query, setQuery] = useState("");
+  const [recLeadId, setRecLeadId] = useState<number | null>(null);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -237,7 +239,7 @@ export function LeadTable({
         <table className="w-full border-collapse">
           <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
-              {["案件ID", "月", "会社名/氏名", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
+              {["案件ID", "月", "会社名/氏名", "録音", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
                 "先方担当者名", "役職", "電話番号", "メールアドレス", "WEBページ", "業種", "従業員規模",
                 "都道府県", "次回アクション", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
                 <th
@@ -263,6 +265,15 @@ export function LeadTable({
                 <td className={`${TD} text-neutral-400`}>{l.monthLabel ?? ""}</td>
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={l.company} onCommit={(v) => patch("lead", l.id, { company: v })} />
+                </td>
+                <td className={TD}>
+                  <button
+                    type="button"
+                    onClick={() => setRecLeadId(l.id)}
+                    className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 hover:border-[#9e8d70] hover:text-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                  >
+                    🎙 録音
+                  </button>
                 </td>
                 <td className={`${TD} ${W.owner}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
@@ -345,6 +356,14 @@ export function LeadTable({
           </tbody>
         </table>
       </TableFrame>
+
+      {recLeadId !== null && (
+        <RecordingModal
+          leadId={recLeadId}
+          company={leads.find((l) => l.id === recLeadId)?.company ?? null}
+          onClose={() => setRecLeadId(null)}
+        />
+      )}
     </div>
   );
 }

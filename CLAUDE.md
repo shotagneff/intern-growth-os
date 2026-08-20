@@ -36,6 +36,7 @@
 | 認証 | 独自実装（HMAC-SHA256トークン + httpOnly Cookie `igos_session`、scryptハッシュ） |
 | AI | Claude API（`@anthropic-ai/sdk`、モデル `claude-opus-5`、`ANTHROPIC_API_KEY` 環境変数） |
 | デプロイ | Vercel（`@vercel/postgres` 依存） |
+| ファイルストレージ | Vercel Blob（`@vercel/blob`、`BLOB_READ_WRITE_TOKEN`）。商談録音の保存に使用 |
 | デザイン | Apple風ミニマル。角丸カード・微細シャドウ・ダークモード対応 |
 
 ---
@@ -99,7 +100,7 @@
 
 ## 6. 進捗（常に最新の状態を反映する）
 
-最終更新: 2026-08-19
+最終更新: 2026-08-20
 
 ### 現在の状態
 
@@ -121,6 +122,14 @@
 ---
 
 ## 7. 変更ログ（新しいものを上に書く）
+
+### 2026-08-20（アポ獲得管理に商談録音アップロードを追加）
+
+- アポ獲得管理のリードに **1回目/2回目/3回目の商談録音**をアップロードできるようにした。表の「録音」列のボタン → モーダルで、各回の**アップロード・再生・差し替え・削除**ができる
+- 録音本体は **Vercel Blob**（`@vercel/blob` のクライアントアップロード。ブラウザから直接送るので Vercel Functions の 4.5MB 制限を受けず、長い商談録音も上げられる）。URL・メタ情報は DB `sales_recordings`（PK: `lead_id, slot`）に持つ
+- API: `/api/sales/recording`（GET/POST/DELETE）、`/api/sales/recording/upload`（Blobアップロード用トークン発行）。差し替え・削除時は古い Blob も `del()` で消す
+- **設計判断: 録音は既存のリードに紐づける（別管理にしない）。** アポの実体はアポ獲得管理のリードなので、録音もそこに紐づけて一元管理する
+- **要設定: Vercel Blob ストアを作成し `BLOB_READ_WRITE_TOKEN` を環境変数に入れること**（未設定だとアップロードAPIが失敗する）
 
 ### 2026-08-19（全ページをパネル調UIに統一）
 
@@ -285,6 +294,7 @@
     │       ├── members/               メンバー取得。
     │       ├── attendance/            出勤スケジュール取得・保存（weekly / override）。
     │       ├── sales/                 アポ獲得管理（リード・案件・顧客）の取得・更新。
+    │       │   └── recording/         商談録音の取得・登録・削除（+ upload/ は Vercel Blob アップロード用トークン発行）。
     │       ├── events/                イベント取得。
     │       ├── announcements/         お知らせ取得。
     │       ├── threads/               スレッド投稿・予約投稿。
@@ -308,6 +318,7 @@
     │   ├── callforce.ts               Callforce（AI架電）の反響リード取得・集計。
     │   ├── attendance-util.ts         出勤の純粋ロジック（曜日→出勤者の確定 resolveForDate 等）。ブラウザ・サーバ共用。
     │   ├── attendance.ts              出勤スケジュールのDBアクセス（weekly / override の取得・保存）。サーバ専用。
+    │   ├── sales-recordings.ts        アポ獲得管理リードの商談録音（Vercel Blob）のDBアクセス。サーバ専用。
     │   └── subsidies.ts               補助金の絞り込みと業務改善助成金の助成額試算。
     │
     └── data/

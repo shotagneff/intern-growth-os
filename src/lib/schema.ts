@@ -288,6 +288,23 @@ export async function ensureSalesCustomersTable(): Promise<void> {
 // ---------------------------------------------------------------------------
 // 出勤スケジュール（曜日デフォルト + 日別上書き）
 // ---------------------------------------------------------------------------
+// アポ獲得管理のリードに紐づく商談録音（1回目/2回目/3回目）。本体は Vercel Blob、ここはメタ情報。
+export async function ensureSalesRecordingsTable(): Promise<void> {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sales_recordings (
+      lead_id INTEGER NOT NULL,
+      slot INTEGER NOT NULL,
+      url TEXT NOT NULL,
+      pathname TEXT,
+      filename TEXT,
+      content_type TEXT,
+      size_bytes BIGINT,
+      uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (lead_id, slot)
+    );
+  `);
+}
+
 export async function ensureAttendanceTables(): Promise<void> {
   // 曜日ごとの出勤開始時刻。weekday は JS getDay()（0=日 .. 6=土）。
   // start_time が null / 空 は「休み・未設定」。
