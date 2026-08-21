@@ -22,6 +22,10 @@ const CALLFORCE_SECTIONS = {
     title: "3点確認（起床・出発・出勤確認）",
     description: "派遣スタッフの起床・出発・出勤確認を代行する3点確認に関する商談記録。",
   },
+  5: {
+    title: "即電",
+    description: "即時の折り返し架電（即電）に関する商談記録。",
+  },
 } as const;
 
 export default function CallforcePage() {
