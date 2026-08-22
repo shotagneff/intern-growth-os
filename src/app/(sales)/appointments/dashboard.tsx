@@ -70,7 +70,7 @@ export function AppointmentDashboard({ data }: { data: SalesData }) {
             </div>
           }
         >
-          <TrendChart points={period === "日別" ? daily : weekly} series={SERIES} mode="group" showLine={false} />
+          <TrendChart points={period === "日別" ? daily : weekly} series={SERIES} mode="line" showLine={false} />
         </Card>
       </section>
 

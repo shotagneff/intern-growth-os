@@ -44,7 +44,7 @@ export function TrendChart({
 }: {
   points: TrendDatum[];
   series: TrendSeries[];
-  mode?: "stack" | "group";
+  mode?: "stack" | "group" | "line";
   showLine?: boolean;
   lineLabel?: string;
 }) {
@@ -147,7 +147,34 @@ export function TrendChart({
             ) : null
           )}
 
-          {/* 棒 */}
+          {/* 折れ線（line）または 棒（stack/group） */}
+          {mode === "line" ? (
+            <g>
+              {series.map((s) => {
+                const d = points
+                  .map((p, i) => `${i === 0 ? "M" : "L"}${cx(i).toFixed(1)},${y(p.byKind[s.key] ?? 0).toFixed(1)}`)
+                  .join(" ");
+                return (
+                  <g key={s.key}>
+                    <path d={d} fill="none" stroke={s.color} strokeWidth={2.2} strokeLinejoin="round" strokeLinecap="round" />
+                    {points.map((p, i) =>
+                      (p.byKind[s.key] ?? 0) > 0 ? (
+                        <circle
+                          key={p.key}
+                          cx={cx(i)}
+                          cy={y(p.byKind[s.key])}
+                          r={3.2}
+                          fill={s.color}
+                          stroke="var(--background)"
+                          strokeWidth={1.5}
+                        />
+                      ) : null
+                    )}
+                  </g>
+                );
+              })}
+            </g>
+          ) : (
           <g clipPath={`url(#${clipId})`}>
             {points.map((p, i) => {
               const dim = hover === null || hover === i ? 1 : 0.35;
@@ -185,6 +212,7 @@ export function TrendChart({
               );
             })}
           </g>
+          )}
 
           {/* 折れ線 */}
           {showLine && (
