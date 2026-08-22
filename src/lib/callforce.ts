@@ -121,6 +121,26 @@ export function phoneKey(phone: string): string {
   return String(phone).replace(/[^0-9]/g, "").slice(-9);
 }
 
+/**
+ * アポ獲得は電話番号ごとに1件だけ数える。
+ *
+ * 同じ番号から複数回 問い合わせ／着信が入り、その複数行をどちらも「アポ獲得」にすると、
+ * 行を数えるだけでは 1件のアポが 2件・3件に水増しされてしまう。番号でユニークにして防ぐ。
+ * leads は新しい順で渡ってくるので、各番号の最新のアポ獲得行を代表として1つ残す。
+ */
+export function uniqueAppointmentLeads(leads: Lead[]): Lead[] {
+  const seen = new Set<string>();
+  const out: Lead[] = [];
+  for (const l of leads) {
+    if (l.status !== "アポ獲得") continue;
+    const k = phoneKey(l.phoneNumber);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(l);
+  }
+  return out;
+}
+
 type Row = Record<string, unknown>;
 
 function config(): { url: string; key: string } | null {
@@ -496,6 +516,7 @@ export function weeklyTrend(leads: Lead[]): TrendPoint[] {
  * 「反響が途切れた日」が見えず、勢いを読み違える。
  */
 export function dailySummary(leads: Lead[], days = 14): DailyRow[] {
+  const apptIds = new Set(uniqueAppointmentLeads(leads).map((l) => l.id));
   const map = new Map<string, DailyRow>();
   for (const lead of leads) {
     if (!lead.createdAt) continue;
@@ -505,7 +526,7 @@ export function dailySummary(leads: Lead[], days = 14): DailyRow[] {
     if (lead.respondedAt) row.responded++;
     const m = firstResponseMinutes(lead);
     if (m !== null && m <= 5) row.withinFive++;
-    if (lead.status === "アポ獲得") row.appointments++;
+    if (apptIds.has(lead.id)) row.appointments++;
     map.set(key, row);
   }
 
@@ -522,6 +543,7 @@ export function dailySummary(leads: Lead[], days = 14): DailyRow[] {
 
 /** 週ごとに集計する。新しい週が先頭 */
 export function weeklySummary(leads: Lead[]): WeeklyRow[] {
+  const apptIds = new Set(uniqueAppointmentLeads(leads).map((l) => l.id));
   const map = new Map<string, WeeklyRow>();
   for (const lead of leads) {
     if (!lead.createdAt) continue;
@@ -533,7 +555,7 @@ export function weeklySummary(leads: Lead[]): WeeklyRow[] {
     if (lead.respondedAt) row.responded++;
     const m = firstResponseMinutes(lead);
     if (m !== null && m <= 5) row.withinFive++;
-    if (lead.status === "アポ獲得") row.appointments++;
+    if (apptIds.has(lead.id)) row.appointments++;
     map.set(key, row);
   }
   return [...map.values()].sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1));
@@ -590,7 +612,7 @@ export function byCallerType(leads: Lead[]): Breakdown[] {
  * **アポ獲得した分だけ**を数えれば、どの経路が商談に化けたかが分かる。
  */
 export function appointmentsByChannel(leads: Lead[]): Breakdown[] {
-  const won = leads.filter((l) => l.status === "アポ獲得");
+  const won = uniqueAppointmentLeads(leads);
   return groupBy(won, (l) => l.acquisitionChannel || "（未入力）");
 }
 

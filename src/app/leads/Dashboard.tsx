@@ -18,6 +18,7 @@ import {
   dailyTrend,
   durationBuckets,
   responseStats,
+  uniqueAppointmentLeads,
   weeklyTrend,
   type Breakdown,
   type Lead,
@@ -54,7 +55,8 @@ export function Dashboard({ leads }: { leads: Lead[] }) {
     () => leads.filter((l) => { const d = daysUntil(l.nextActionAt); return d !== null && d < 0; }).length,
     [leads]
   );
-  const アポ = statuses.find((s) => s.name === "アポ獲得")?.count ?? 0;
+  // アポ獲得は電話番号ごとに1件で数える（同じ番号の重複問い合わせで水増ししない）
+  const アポ = useMemo(() => uniqueAppointmentLeads(leads).length, [leads]);
 
   return (
     <div className="flex flex-col gap-4">
