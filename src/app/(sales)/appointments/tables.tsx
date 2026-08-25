@@ -144,6 +144,37 @@ function Text({
   );
 }
 
+/**
+ * 金額入力。桁が読みやすいよう、表示はカンマ区切り（¥1,500,000）にする。
+ * 編集中は生の数字にして打ちやすくし、確定でカンマ表示に戻す。
+ */
+function Money({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const fmt = (n: number) => (n ? n.toLocaleString("ja-JP") : "");
+  const [draft, setDraft] = useState(fmt(value));
+  const [editing, setEditing] = useState(false);
+  React.useEffect(() => {
+    if (!editing) setDraft(fmt(value));
+  }, [value, editing]);
+  return (
+    <input
+      inputMode="numeric"
+      value={draft}
+      onFocus={() => {
+        setEditing(true);
+        setDraft(value ? String(value) : "");
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const n = Math.round(Number(draft.replace(/[^0-9.-]/g, "")) || 0);
+        setEditing(false);
+        setDraft(fmt(n));
+        if (n !== value) onCommit(n);
+      }}
+      className={`${CELL_INPUT} text-right tabular-nums`}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // リード管理
 // ---------------------------------------------------------------------------
@@ -436,21 +467,11 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
                 <td className={TD}>
                   <Text type="date" value={d.proposedOn} onCommit={(v) => patch("deal", d.id, { proposedOn: v })} />
                 </td>
-                <td className={TD}>
-                  <Text
-                    type="number"
-                    align="right"
-                    value={d.monthlyFee}
-                    onCommit={(v) => patch("deal", d.id, { monthlyFee: Number(v || 0) })}
-                  />
+                <td className={`${TD} min-w-[8.5rem]`}>
+                  <Money value={d.monthlyFee} onCommit={(n) => patch("deal", d.id, { monthlyFee: n })} />
                 </td>
-                <td className={TD}>
-                  <Text
-                    type="number"
-                    align="right"
-                    value={d.oneTimeFee}
-                    onCommit={(v) => patch("deal", d.id, { oneTimeFee: Number(v || 0) })}
-                  />
+                <td className={`${TD} min-w-[8.5rem]`}>
+                  <Money value={d.oneTimeFee} onCommit={(n) => patch("deal", d.id, { oneTimeFee: n })} />
                 </td>
                 <td className={`${TD} text-right font-medium tabular-nums`}>{yen(d.annualTotal)}</td>
                 <td className={TD}>
@@ -551,13 +572,8 @@ export function CustomerTable({
                 <td className={TD}>
                   <Text type="date" value={c.startedOn} onCommit={(v) => patch("customer", c.id, { startedOn: v })} />
                 </td>
-                <td className={TD}>
-                  <Text
-                    type="number"
-                    align="right"
-                    value={c.monthlyFee}
-                    onCommit={(v) => patch("customer", c.id, { monthlyFee: Number(v || 0) })}
-                  />
+                <td className={`${TD} min-w-[8.5rem]`}>
+                  <Money value={c.monthlyFee} onCommit={(n) => patch("customer", c.id, { monthlyFee: n })} />
                 </td>
                 <td className={`${TD} ${W.person}`}>
                   <Text value={c.ceoName} onCommit={(v) => patch("customer", c.id, { ceoName: v })} />
