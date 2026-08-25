@@ -106,10 +106,13 @@ export function Card({
 }
 
 export function Kpi({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  // 桁数の多い金額でもカード幅に収まるよう、文字数に応じて数字のサイズを落とす
+  const size =
+    value.length >= 11 ? "text-lg" : value.length >= 9 ? "text-xl" : value.length >= 7 ? "text-2xl" : "text-3xl";
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white/90 p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900/80">
       <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-neutral-400">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p>
+      <p className={`mt-2 ${size} font-semibold tabular-nums tracking-tight`}>{value}</p>
       {hint && <p className="mt-1 text-xs text-neutral-400">{hint}</p>}
     </div>
   );
