@@ -63,6 +63,17 @@ const CUSTOMER_STATUS_TONE: Record<string, string> = {
 
 export type Patch = (kind: "lead" | "deal" | "customer", id: number | string, patch: Record<string, unknown>) => void;
 
+// 担当者ごとの薄い色。担当者列のセルだけ軽く色分けして、誰の案件か一目で分かるようにする
+const OWNER_TINT: Record<string, string> = {
+  平賀翔大: "bg-sky-50 dark:bg-sky-950/40",
+  佐藤翔永: "bg-emerald-50 dark:bg-emerald-950/40",
+  宅間宗大: "bg-amber-50 dark:bg-amber-950/40",
+  桐髙颯己: "bg-violet-50 dark:bg-violet-950/40",
+};
+function ownerTint(owner: string | null): string {
+  return (owner && OWNER_TINT[owner]) || "";
+}
+
 // 業種の候補（元スプレッドシートのプルダウン相当）。datalist で出す。自由入力も可。
 const INDUSTRIES = [
   "人材派遣業", "人材紹介業", "SES・受託開発", "IT・ソフトウェア", "Web制作・広告代理店",
@@ -306,7 +317,7 @@ export function LeadTable({
                     🎙 録音
                   </button>
                 </td>
-                <td className={`${TD} ${W.owner}`}>
+                <td className={`${TD} ${W.owner} ${ownerTint(l.owner)}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
                 </td>
                 <td className={`${TD} min-w-[8rem] bg-[#f6f1e7]/60 dark:bg-amber-900/10`}>
@@ -444,7 +455,7 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={d.company} onCommit={(v) => patch("deal", d.id, { company: v })} />
                 </td>
-                <td className={`${TD} ${W.owner}`}>
+                <td className={`${TD} ${W.owner} ${ownerTint(d.owner)}`}>
                   <Select value={d.owner} options={owners} blank="—" onChange={(v) => patch("deal", d.id, { owner: v })} />
                 </td>
                 <td className={`${TD} ${W.phase}`}>
@@ -553,7 +564,7 @@ export function CustomerTable({
                 <td className={`${TD} min-w-[14rem] font-medium`}>
                   <Text value={c.company} onCommit={(v) => patch("customer", c.id, { company: v })} />
                 </td>
-                <td className={`${TD} ${W.owner}`}>
+                <td className={`${TD} ${W.owner} ${ownerTint(c.owner)}`}>
                   <Select
                     value={c.owner}
                     options={owners}
