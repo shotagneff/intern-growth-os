@@ -37,8 +37,8 @@ export const METRICS = [
 export type MetricKey = (typeof METRICS)[number]["key"];
 export type Metrics = Record<MetricKey, number>;
 
-/** 担当者列の並び。元シートと同じ順で、居る人だけ出す */
-const OWNER_ORDER = ["平賀翔大", "佐藤翔永", "宅間宗大"];
+/** 担当者列の並び。この順で常に候補・列に出す（担当案件がまだ無い新任も選べるように） */
+const OWNER_ORDER = ["平賀翔大", "佐藤翔永", "宅間宗大", "桐髙颯己"];
 
 export const TOTAL_COLUMN = "全体";
 
@@ -132,7 +132,7 @@ export function orderedOwners(data: SalesData): string[] {
   const found = new Set<string>();
   for (const l of data.leads) if (l.owner) found.add(l.owner);
   for (const d of data.deals) if (d.owner) found.add(d.owner);
-  const head = OWNER_ORDER.filter((o) => found.has(o));
+  const head = [...OWNER_ORDER];
   const rest = [...found].filter((o) => !OWNER_ORDER.includes(o)).sort();
   return [...head, ...rest];
 }
