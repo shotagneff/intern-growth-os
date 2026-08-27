@@ -329,6 +329,155 @@ export async function ensureAttendanceTables(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// ナーチャリング（メルマガ / MA）
+//
+// アポ獲得管理で「教育が必要」と判断したリードを購読者として送客し、
+// メルマガ配信・開封/クリック計測・セグメント配信・ステップメールを回す。
+// email が実体。sales_leads からの送客時は lead_id で元リードに紐づく。
+// ---------------------------------------------------------------------------
+export async function ensureNurturingTables(): Promise<void> {
+  // 購読者
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_subscribers (
+      id SERIAL PRIMARY KEY,
+      email TEXT NOT NULL,
+      company TEXT,
+      name TEXT,
+      status TEXT NOT NULL DEFAULT '購読中',
+      source TEXT,
+      lead_id INTEGER,
+      industry TEXT,
+      prefecture TEXT,
+      owner TEXT,
+      note TEXT,
+      unsubscribe_token TEXT NOT NULL,
+      subscribed_on DATE,
+      unsubscribed_on DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  // メールは実質ユニーク（重複送客を防ぐ）。大文字小文字を無視
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_nurturing_subscribers_email ON nurturing_subscribers (lower(email));');
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_nurturing_subscribers_token ON nurturing_subscribers (unsubscribe_token);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_subscribers_lead ON nurturing_subscribers (lead_id);');
+
+  // リスト（セグメント）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_lists (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      color TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // リスト所属（静的メンバーシップ）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_list_members (
+      list_id INTEGER NOT NULL,
+      subscriber_id INTEGER NOT NULL,
+      added_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (list_id, subscriber_id)
+    );
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_list_members_sub ON nurturing_list_members (subscriber_id);');
+
+  // キャンペーン（メルマガ）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_campaigns (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT,
+      preheader TEXT,
+      body_html TEXT,
+      body_text TEXT,
+      from_name TEXT,
+      from_email TEXT,
+      reply_to TEXT,
+      list_id INTEGER,
+      status TEXT NOT NULL DEFAULT '下書き',
+      scheduled_at TIMESTAMPTZ,
+      sent_started_at TIMESTAMPTZ,
+      sent_finished_at TIMESTAMPTZ,
+      total_count INTEGER NOT NULL DEFAULT 0,
+      sent_count INTEGER NOT NULL DEFAULT 0,
+      delivered_count INTEGER NOT NULL DEFAULT 0,
+      opened_count INTEGER NOT NULL DEFAULT 0,
+      clicked_count INTEGER NOT NULL DEFAULT 0,
+      bounced_count INTEGER NOT NULL DEFAULT 0,
+      unsubscribed_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // 配信明細（キャンペーン×購読者）。開封/クリックの計測もここ
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_campaign_recipients (
+      id SERIAL PRIMARY KEY,
+      campaign_id INTEGER NOT NULL,
+      subscriber_id INTEGER NOT NULL,
+      email TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'queued',
+      sent_at TIMESTAMPTZ,
+      first_opened_at TIMESTAMPTZ,
+      open_count INTEGER NOT NULL DEFAULT 0,
+      first_clicked_at TIMESTAMPTZ,
+      click_count INTEGER NOT NULL DEFAULT 0,
+      provider_message_id TEXT,
+      error TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_nurturing_recipients_uniq ON nurturing_campaign_recipients (campaign_id, subscriber_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_recipients_campaign ON nurturing_campaign_recipients (campaign_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_recipients_msgid ON nurturing_campaign_recipients (provider_message_id);');
+
+  // シナリオ（ステップメール）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_automations (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      trigger TEXT,
+      list_id INTEGER,
+      status TEXT NOT NULL DEFAULT '停止',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_automation_steps (
+      id SERIAL PRIMARY KEY,
+      automation_id INTEGER NOT NULL,
+      step_order INTEGER NOT NULL DEFAULT 1,
+      delay_days INTEGER NOT NULL DEFAULT 0,
+      subject TEXT,
+      body_html TEXT,
+      body_text TEXT
+    );
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_automation_steps_auto ON nurturing_automation_steps (automation_id);');
+
+  // シナリオ登録（購読者がどのシナリオの何ステップ目まで進んだか）
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS nurturing_automation_enrollments (
+      id SERIAL PRIMARY KEY,
+      automation_id INTEGER NOT NULL,
+      subscriber_id INTEGER NOT NULL,
+      current_step INTEGER NOT NULL DEFAULT 0,
+      next_run_at TIMESTAMPTZ,
+      status TEXT NOT NULL DEFAULT '進行中',
+      enrolled_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_nurturing_enroll_uniq ON nurturing_automation_enrollments (automation_id, subscriber_id);');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_nurturing_enroll_next ON nurturing_automation_enrollments (next_run_at);');
+}
+
+// ---------------------------------------------------------------------------
 // 全テーブル一括作成
 // ---------------------------------------------------------------------------
 export async function ensureAllTables(): Promise<void> {
@@ -343,4 +492,5 @@ export async function ensureAllTables(): Promise<void> {
   await ensureSalesDealsTable();
   await ensureSalesCustomersTable();
   await ensureAttendanceTables();
+  await ensureNurturingTables();
 }
