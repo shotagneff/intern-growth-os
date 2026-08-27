@@ -19,6 +19,7 @@ import {
   getUnsubscribeTokenMap,
 } from "@/lib/nurturing";
 import { sendEmail, hasResend, defaultFrom } from "@/lib/email";
+import { openPixelTag, wrapLinksForClickTracking } from "@/lib/nurturing-track";
 
 function unsubscribeUrl(origin: string, token: string): string {
   return `${origin}/api/nurturing/unsubscribe?token=${encodeURIComponent(token)}`;
@@ -87,11 +88,15 @@ export async function POST(req: NextRequest) {
   for (const r of queued) {
     const token = tokens[r.subscriberId] || "";
     const url = token ? unsubscribeUrl(origin, token) : null;
+    // 本文リンクをクリック計測で包む → 配信停止フッタを足す（包まない）→ 開封ピクセルを付ける
+    let html = wrapLinksForClickTracking(campaign.bodyHtml, origin, r.id);
+    html = withUnsubFooter(html, url);
+    html = `${html}${openPixelTag(origin, r.id)}`;
     const result = await sendEmail({
       from,
       to: r.email,
       subject: campaign.subject,
-      html: withUnsubFooter(campaign.bodyHtml, url),
+      html,
       text: campaign.bodyText ?? undefined,
       replyTo: campaign.replyTo,
       headers: url ? { "List-Unsubscribe": `<${url}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } : undefined,

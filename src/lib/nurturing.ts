@@ -511,6 +511,81 @@ export async function markCampaignSent(id: number): Promise<void> {
   );
 }
 
+/** 開封を記録（トラッキングピクセル）。反映したキャンペーンIDを返す */
+export async function markRecipientOpened(recipientId: number): Promise<number | null> {
+  const { rows } = await pool.query(
+    `UPDATE nurturing_campaign_recipients
+       SET open_count = open_count + 1,
+           first_opened_at = COALESCE(first_opened_at, NOW()),
+           status = CASE WHEN status IN ('clicked','unsubscribed','bounced') THEN status ELSE 'opened' END
+     WHERE id = $1
+     RETURNING campaign_id`,
+    [recipientId],
+  );
+  if (!rows[0]) return null;
+  const campaignId = num(rows[0].campaign_id);
+  await recountCampaign(campaignId);
+  return campaignId;
+}
+
+/** クリックを記録（クリック計測リダイレクト）。反映したキャンペーンIDを返す */
+export async function markRecipientClicked(recipientId: number): Promise<number | null> {
+  const { rows } = await pool.query(
+    `UPDATE nurturing_campaign_recipients
+       SET click_count = click_count + 1,
+           first_clicked_at = COALESCE(first_clicked_at, NOW()),
+           first_opened_at = COALESCE(first_opened_at, NOW()),
+           status = CASE WHEN status IN ('unsubscribed','bounced') THEN status ELSE 'clicked' END
+     WHERE id = $1
+     RETURNING campaign_id`,
+    [recipientId],
+  );
+  if (!rows[0]) return null;
+  const campaignId = num(rows[0].campaign_id);
+  await recountCampaign(campaignId);
+  return campaignId;
+}
+
+/**
+ * Resend の Webhook イベントを配信明細へ反映する。
+ * provider_message_id で受信者を特定し、状態と購読者を更新して再集計する。
+ */
+export async function applyResendEvent(messageId: string, type: string): Promise<void> {
+  if (!messageId) return;
+  const { rows } = await pool.query(
+    "SELECT id, campaign_id, subscriber_id FROM nurturing_campaign_recipients WHERE provider_message_id = $1 LIMIT 1",
+    [messageId],
+  );
+  if (!rows[0]) return;
+  const recId = num(rows[0].id);
+  const campaignId = num(rows[0].campaign_id);
+  const subId = num(rows[0].subscriber_id);
+
+  if (type === "email.delivered") {
+    await pool.query(
+      `UPDATE nurturing_campaign_recipients
+         SET status = CASE WHEN status IN ('opened','clicked') THEN status ELSE 'delivered' END
+       WHERE id = $1`,
+      [recId],
+    );
+  } else if (type === "email.bounced") {
+    await pool.query("UPDATE nurturing_campaign_recipients SET status = 'bounced' WHERE id = $1", [recId]);
+    await pool.query(
+      "UPDATE nurturing_subscribers SET status = 'バウンス', updated_at = NOW() WHERE id = $1",
+      [subId],
+    );
+  } else if (type === "email.complained") {
+    await pool.query("UPDATE nurturing_campaign_recipients SET status = 'unsubscribed' WHERE id = $1", [recId]);
+    await pool.query(
+      "UPDATE nurturing_subscribers SET status = '配信解除', unsubscribed_on = CURRENT_DATE, updated_at = NOW() WHERE id = $1",
+      [subId],
+    );
+  } else {
+    return;
+  }
+  await recountCampaign(campaignId);
+}
+
 /** 購読者ID → 配信停止トークン のマップ（送信時の配信停止リンク生成用） */
 export async function getUnsubscribeTokenMap(
   subscriberIds: number[],
