@@ -464,6 +464,67 @@ export async function recountCampaign(campaignId: number): Promise<void> {
   );
 }
 
+/** queued の配信明細を取り出す（送信ループ用） */
+export async function getQueuedRecipients(campaignId: number): Promise<CampaignRecipient[]> {
+  const { rows } = await pool.query(
+    "SELECT * FROM nurturing_campaign_recipients WHERE campaign_id = $1 AND status = 'queued' ORDER BY id",
+    [campaignId],
+  );
+  return rows.map(toRecipient);
+}
+
+/** 1通の送信結果を明細へ反映（成功=sent／失敗=failed） */
+export async function markRecipientSent(
+  id: number,
+  result: { ok: boolean; providerMessageId?: string | null; error?: string | null },
+): Promise<void> {
+  if (result.ok) {
+    await pool.query(
+      `UPDATE nurturing_campaign_recipients
+         SET status = 'sent', sent_at = NOW(), provider_message_id = $2, error = NULL
+       WHERE id = $1`,
+      [id, result.providerMessageId ?? null],
+    );
+  } else {
+    await pool.query(
+      `UPDATE nurturing_campaign_recipients SET status = 'failed', error = $2 WHERE id = $1`,
+      [id, result.error ?? "送信失敗"],
+    );
+  }
+}
+
+/** キャンペーンを送信中にする */
+export async function markCampaignSending(id: number): Promise<void> {
+  await pool.query(
+    `UPDATE nurturing_campaigns
+       SET status = '送信中', sent_started_at = COALESCE(sent_started_at, NOW()), updated_at = NOW()
+     WHERE id = $1`,
+    [id],
+  );
+}
+
+/** キャンペーンを送信済にする */
+export async function markCampaignSent(id: number): Promise<void> {
+  await pool.query(
+    `UPDATE nurturing_campaigns SET status = '送信済', sent_finished_at = NOW(), updated_at = NOW() WHERE id = $1`,
+    [id],
+  );
+}
+
+/** 購読者ID → 配信停止トークン のマップ（送信時の配信停止リンク生成用） */
+export async function getUnsubscribeTokenMap(
+  subscriberIds: number[],
+): Promise<Record<number, string>> {
+  if (!subscriberIds.length) return {};
+  const { rows } = await pool.query(
+    "SELECT id, unsubscribe_token FROM nurturing_subscribers WHERE id = ANY($1)",
+    [subscriberIds],
+  );
+  const map: Record<number, string> = {};
+  for (const r of rows) map[num(r.id)] = String(r.unsubscribe_token ?? "");
+  return map;
+}
+
 // ---------------------------------------------------------------------------
 // ダッシュボード集計
 // ---------------------------------------------------------------------------

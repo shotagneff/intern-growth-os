@@ -16,6 +16,14 @@ export async function proxy(req: NextRequest) {
   const isAuthApi = pathname.startsWith("/api/auth");
   if (isLoginPage || isAuthApi) return NextResponse.next();
 
+  // ナーチャリングの公開エンドポイント（受信者はログインしていない）。
+  // 配信停止・開封/クリック計測・Resend Webhook は認証を通さない。
+  const isPublicNurturing =
+    pathname.startsWith("/api/nurturing/unsubscribe") ||
+    pathname.startsWith("/api/nurturing/track") ||
+    pathname.startsWith("/api/nurturing/webhook");
+  if (isPublicNurturing) return NextResponse.next();
+
   const isApi = pathname.startsWith("/api/");
   const isAdminPage = pathname.startsWith("/admin");
   const isAdminApi = pathname.startsWith("/api/admin");

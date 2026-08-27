@@ -4,11 +4,12 @@
 // アポ獲得で「教育が必要」と判断したリードを送客し、購読者として溜め、メルマガで継続育成する。
 // タブ: 購読者 / リスト（セグメント）。配信・計測・シナリオは順次追加。
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { PAGE_MAIN, PAGE_INNER, PANEL, PageHeader } from "@/components/panel";
 import { Kpi } from "@/components/table-ui";
 import SubscribersTab from "./SubscribersTab";
 import ListsTab from "./ListsTab";
+import CampaignsTab from "./CampaignsTab";
 
 type Summary = {
   subscribers: number;
@@ -20,21 +21,26 @@ type Summary = {
   sentCampaigns: number;
 };
 
-type Tab = "subscribers" | "lists";
+type Tab = "subscribers" | "lists" | "campaigns";
 
 export default function NurturingPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [tab, setTab] = useState<Tab>("subscribers");
 
-  const loadSummary = useCallback(async () => {
+  // 子タブから呼ぶKPI再取得。マウント時はeffect内で非同期に読む（setStateの同期呼び出しを避ける）。
+  async function loadSummary() {
     const res = await fetch("/api/nurturing/subscribers");
     const data = await res.json().catch(() => ({}));
     if (data.ok) setSummary(data.summary ?? null);
-  }, []);
+  }
 
   useEffect(() => {
-    loadSummary();
-  }, [loadSummary]);
+    (async () => {
+      const res = await fetch("/api/nurturing/subscribers");
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) setSummary(data.summary ?? null);
+    })();
+  }, []);
 
   return (
     <main className={PAGE_MAIN}>
@@ -62,12 +68,17 @@ export default function NurturingPage() {
             <TabButton active={tab === "lists"} onClick={() => setTab("lists")}>
               リスト
             </TabButton>
+            <TabButton active={tab === "campaigns"} onClick={() => setTab("campaigns")}>
+              キャンペーン
+            </TabButton>
           </div>
 
           {tab === "subscribers" ? (
             <SubscribersTab onChanged={loadSummary} />
-          ) : (
+          ) : tab === "lists" ? (
             <ListsTab onChanged={loadSummary} />
+          ) : (
+            <CampaignsTab onChanged={loadSummary} />
           )}
         </div>
       </div>
