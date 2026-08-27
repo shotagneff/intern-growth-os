@@ -50,6 +50,7 @@
 | ホーム（今日のアポ・今日の出勤・お知らせ） | `/` | 実装済み | API（/api/announcements・/api/sales・/api/attendance・/api/members） |
 | 日報・ホウレンソウ | `/daily-reports` | 実装済み | **localStorage のみ**（要改善） |
 | 反響リード | `/leads` | 実装済み | Callforce 側の Supabase（複製しない） |
+| ナーチャリング（メルマガ/MA） | `/nurturing` | 実装済み（シナリオは次段） | DB（nurturing_* 8テーブル）+ Resend送信 |
 | 補助金・助成金 | `/subsidies` | 実装済み | `src/data/subsidies.ts` の台帳（手動更新）+ Claude API |
 | 売上・KPIダッシュボード | `/dashboard` | 実装済み | Google スプレッドシートCSV |
 | 動画研修ラーニング | `/e-learning` | 実装済み | DB（動画）/ localStorage（視聴履歴） |
@@ -122,6 +123,19 @@
 ---
 
 ## 7. 変更ログ（新しいものを上に書く）
+
+### 2026-08-27（ナーチャリング＝メルマガ/MA を新設）
+
+- アポ獲得管理で「教育が必要」と判断したリードを **送客** して育成する **ナーチャリング（`/nurturing`）** を新設。一般的なマーケティングオートメーション（購読者→リスト→キャンペーン→計測→配信停止）の一通りを実装
+- **送客**: アポ獲得リストの各行に「送客」ボタン。押すとメール・会社名・氏名・業種・都道府県・担当を購読者としてコピー（`/api/nurturing/subscribers` POST、email重複は既存を補完）
+- **購読者 / リスト / キャンペーン** の3タブ構成。リストはセグメント（配信の宛先単位、色分け・購読者のまとめ割り当て）、キャンペーンは1回の一斉配信
+- **配信**: Resend（`email.ts`、SDKを足さず fetch）。テスト送信＋本送信。本送信は購読中の対象を配信明細に展開し、1通ずつ送って結果を記録 → 集計・状態を更新
+- **計測**: 開封は本文末尾の透明ピクセル、クリックは本文リンクのクリックラップ。`nurturing-track.ts` の **HMAC署名**でrid改ざん・オープンリダイレクト悪用を防ぐ。**Resend Webhook**（Svix署名検証）で配信完了/バウンス/苦情も反映
+- **配信停止**: メール本文の配信停止リンク＋ `List-Unsubscribe` ヘッダを送信時に自動付与。公開ページ `/api/nurturing/unsubscribe`
+- **設計判断: 公開エンドポイントは proxy.ts で認証除外。** 受信者はログインしていないので、`/api/nurturing/{unsubscribe,track,webhook}` は認証を通さない。計測・配信停止リンクは署名で保護する
+- **設計判断: 画面から使う型・定数は `nurturing-types.ts`（DB非依存）、DBアクセスは `nurturing.ts`（サーバ専用）に分離。** クライアントコンポーネントから `pool`（pg）を巻き込まないため（出勤機能と同じ方針）
+- **要設定（未設定だと本送信APIは503で止まる＝安全側）**: `RESEND_API_KEY` / `NURTURING_FROM_EMAIL` / 送信ドメインのSPF・DKIM・DMARC（Resendダッシュボードで認証）。Webhookを使うなら `RESEND_WEBHOOK_SECRET`
+- **未実装（次段）**: ステップメール（シナリオ / automation）。DBテーブル（automations/steps/enrollments）は用意済み、UI・cron処理は未着手
 
 ### 2026-08-20（アポ獲得管理をダッシュボード/リストに分割・推移グラフを追加）
 
@@ -253,9 +267,15 @@
     │   ├── (daily)/                   日報
     │   │   └── daily-reports/page.tsx     → /daily-reports
     │   │
-    │   ├── (sales)/                   売上・KPI・ランキング
+    │   ├── (sales)/                   売上・KPI・ランキング・アポ獲得・ナーチャリング
     │   │   ├── dashboard/page.tsx         → /dashboard
-    │   │   └── rankings/page.tsx          → /rankings
+    │   │   ├── rankings/page.tsx          → /rankings
+    │   │   ├── appointments/              → /appointments（アポ獲得管理。tables.tsx に送客ボタン）
+    │   │   └── nurturing/                 → /nurturing（メルマガ/MA）
+    │   │       ├── page.tsx               タブ枠（購読者/リスト/キャンペーン）＋KPI。
+    │   │       ├── SubscribersTab.tsx     購読者一覧・検索・ステータス・削除。
+    │   │       ├── ListsTab.tsx           リスト（セグメント）CRUD＋購読者割り当てモーダル。
+    │   │       └── CampaignsTab.tsx       キャンペーン一覧＋編集モーダル（件名/差出人/対象/本文・テスト/本送信）。
     │   │
     │   ├── (learning)/                動画研修・ラーニング
     │   │   ├── e-learning/page.tsx        → /e-learning
@@ -309,6 +329,13 @@
     │       ├── users/                 ユーザー取得。
     │       ├── home/                  ホーム用カレンダーイベント。
     │       ├── leads/                 反響リードの取得・更新（Callforce の Supabase を直接読む）。
+    │       ├── nurturing/             ナーチャリング（メルマガ/MA）。
+    │       │   ├── subscribers/       購読者の一覧＋集計・送客/追加・更新・削除。
+    │       │   ├── lists/             リストCRUD（+ members/ で購読者の割り当て・除外・所属ID取得）。
+    │       │   ├── campaigns/         キャンペーンCRUD（+ send/ でテスト送信・本送信）。
+    │       │   ├── unsubscribe/       配信停止（公開・認証除外）。GET=リンク／POST=One-Click。
+    │       │   ├── track/             開封(open=透明GIF)・クリック(click=記録して302)の計測（公開・認証除外）。
+    │       │   └── webhook/           Resend Webhook（公開・Svix署名検証）。配信完了/バウンス/苦情を反映。
     │       ├── subsidies/             補助金の提案。台帳で絞り込み → Claude API で提案文を生成。
     │       │   └── verify/            提案した制度が今も受付中かを公式ページで確認（web_fetch）。
     │       │                          提案とは別リクエスト。検証で待たせず、失敗しても提案は残す。
@@ -328,7 +355,11 @@
     │   ├── attendance-util.ts         出勤の純粋ロジック（曜日→出勤者の確定 resolveForDate 等）。ブラウザ・サーバ共用。
     │   ├── attendance.ts              出勤スケジュールのDBアクセス（weekly / override の取得・保存）。サーバ専用。
     │   ├── sales-recordings.ts        アポ獲得管理リードの商談録音（Vercel Blob）のDBアクセス。サーバ専用。
-    │   └── subsidies.ts               補助金の絞り込みと業務改善助成金の助成額試算。
+    │   ├── subsidies.ts               補助金の絞り込みと業務改善助成金の助成額試算。
+    │   ├── nurturing-types.ts         ナーチャリングのDB非依存の型・定数・小関数（rate/isValidEmail）。クライアント可。
+    │   ├── nurturing.ts               ナーチャリングのDBアクセス（購読者/リスト/キャンペーン/配信明細/集計）。サーバ専用。
+    │   ├── nurturing-track.ts         開封/クリック計測リンクのHMAC署名・ピクセル/クリックラップ生成。サーバ専用。
+    │   └── email.ts                   メール送信（Resend、fetch）。RESEND_API_KEY / NURTURING_FROM_EMAIL。
     │
     └── data/
         ├── videos.ts                  動画データ型定義・初期データ（videos/[id] で使用）。
