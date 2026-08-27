@@ -193,6 +193,53 @@ function Money({ value, onCommit }: { value: number; onCommit: (n: number) => vo
 const LEAD_FILTERS = ["すべて", "追いかけ中", "案件化済", "失注"] as const;
 type LeadFilter = (typeof LEAD_FILTERS)[number];
 
+// アポ獲得のリードを、ナーチャリング（メルマガ/MA）へ送客するボタン。
+// 会社名・先方担当者名・メール・業種・都道府県・担当を引き継ぐ。email が無い行は押せない。
+function NurtureButton({ lead }: { lead: Lead }) {
+  const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const hasEmail = !!(lead.email && lead.email.trim());
+  async function send() {
+    if (!hasEmail || state === "sending" || state === "done") return;
+    setState("sending");
+    try {
+      const res = await fetch("/api/nurturing/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: lead.email,
+          company: lead.company,
+          name: lead.contactName,
+          industry: lead.industry,
+          prefecture: lead.prefecture,
+          owner: lead.owner,
+          leadId: lead.id,
+          source: "アポ獲得",
+        }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      setState(data.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+  const label = state === "done" ? "送客済" : state === "sending" ? "送客中…" : state === "error" ? "再試行" : "送客";
+  return (
+    <button
+      type="button"
+      onClick={send}
+      disabled={!hasEmail || state === "sending" || state === "done"}
+      title={hasEmail ? "ナーチャリング（メルマガ）へ送客" : "メールアドレスが無いため送客できません"}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
+        state === "done"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          : "border-neutral-300 bg-white text-neutral-600 hover:border-[#9e8d70] hover:text-[#9e8d70] disabled:opacity-40 disabled:hover:border-neutral-300 disabled:hover:text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+      }`}
+    >
+      {state === "done" ? "✓ 送客済" : `✉ ${label}`}
+    </button>
+  );
+}
+
 export function LeadTable({
   leads,
   owners,
@@ -281,7 +328,7 @@ export function LeadTable({
         <table className="w-full border-collapse">
           <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
-              {["案件ID", "月", "会社名/氏名", "録音", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
+              {["案件ID", "月", "会社名/氏名", "録音", "送客", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
                 "先方担当者名", "役職", "電話番号", "メールアドレス", "WEBページ", "業種", "従業員規模",
                 "都道府県", "次回アクション", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
                 <th
@@ -316,6 +363,9 @@ export function LeadTable({
                   >
                     🎙 録音
                   </button>
+                </td>
+                <td className={TD}>
+                  <NurtureButton lead={l} />
                 </td>
                 <td className={`${TD} ${W.owner} ${ownerTint(l.owner)}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />

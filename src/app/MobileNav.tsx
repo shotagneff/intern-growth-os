@@ -70,6 +70,12 @@ export function MobileNav() {
             onClick={close}
           />
           <MobileLink
+            href="/nurturing"
+            label="ナーチャリング"
+            active={isActive("/nurturing")}
+            onClick={close}
+          />
+          <MobileLink
             href="/attendance"
             label="出勤スケジュール"
             active={isActive("/attendance")}
