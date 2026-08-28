@@ -6,7 +6,7 @@
 // 並べ替えて見やすくしたくなるが、営業が毎日見ていた並びを変えると
 // 「あの列どこ？」が起きて結局シートに戻る。並びは触らない。
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CUSTOMER_STATUSES,
   DEAL_PHASES,
@@ -195,11 +195,13 @@ type LeadFilter = (typeof LEAD_FILTERS)[number];
 
 // アポ獲得のリードを、メルマガ（ナーチャリング/MA）へ登録するボタン。
 // 会社名・先方担当者名・メール・業種・都道府県・担当を引き継ぐ。email が無い行は押せない。
-function NurtureButton({ lead }: { lead: Lead }) {
+function NurtureButton({ lead, registered }: { lead: Lead; registered?: boolean }) {
   const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
   const hasEmail = !!(lead.email && lead.email.trim());
+  // 一度登録した相手は、再読み込み後も購読者一覧との照合で「登録済」を保つ
+  const done = registered || state === "done";
   async function send() {
-    if (!hasEmail || state === "sending" || state === "done") return;
+    if (!hasEmail || state === "sending" || done) return;
     setState("sending");
     try {
       const res = await fetch("/api/nurturing/subscribers", {
@@ -222,22 +224,44 @@ function NurtureButton({ lead }: { lead: Lead }) {
       setState("error");
     }
   }
-  const label = state === "done" ? "登録済" : state === "sending" ? "登録中…" : state === "error" ? "再試行" : "メルマガ";
+  const label = done ? "登録済" : state === "sending" ? "登録中…" : state === "error" ? "再試行" : "メルマガ";
   return (
     <button
       type="button"
       onClick={send}
-      disabled={!hasEmail || state === "sending" || state === "done"}
+      disabled={!hasEmail || state === "sending" || done}
       title={hasEmail ? "メルマガ（ナーチャリング）に登録" : "メールアドレスが無いため登録できません"}
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
-        state === "done"
+        done
           ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
           : "border-neutral-300 bg-white text-neutral-600 hover:border-[#9e8d70] hover:text-[#9e8d70] disabled:opacity-40 disabled:hover:border-neutral-300 disabled:hover:text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
       }`}
     >
-      {state === "done" ? "✓ 登録済" : `✉ ${label}`}
+      {done ? "✓ 登録済" : `✉ ${label}`}
     </button>
   );
+}
+
+// 登録済み購読者のメール集合を取得する（照合用）。小文字化して持つ。
+function useRegisteredEmails(): Set<string> {
+  const [emails, setEmails] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/nurturing/subscribers");
+        const data = await res.json().catch(() => ({}));
+        if (data.ok) {
+          const set = new Set<string>(
+            (data.subscribers ?? []).map((s: { email?: string }) => (s.email ?? "").trim().toLowerCase()),
+          );
+          setEmails(set);
+        }
+      } catch {
+        // 取得失敗時は空のまま（ボタンは通常表示）
+      }
+    })();
+  }, []);
+  return emails;
 }
 
 export function LeadTable({
@@ -254,6 +278,7 @@ export function LeadTable({
   const [filter, setFilter] = useState<LeadFilter>("すべて");
   const [query, setQuery] = useState("");
   const [recLeadId, setRecLeadId] = useState<number | null>(null);
+  const registeredEmails = useRegisteredEmails();
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -365,7 +390,10 @@ export function LeadTable({
                   </button>
                 </td>
                 <td className={TD}>
-                  <NurtureButton lead={l} />
+                  <NurtureButton
+                    lead={l}
+                    registered={registeredEmails.has((l.email ?? "").trim().toLowerCase())}
+                  />
                 </td>
                 <td className={`${TD} ${W.owner} ${ownerTint(l.owner)}`}>
                   <Select value={l.owner} options={owners} blank="—" onChange={(v) => patch("lead", l.id, { owner: v })} />
