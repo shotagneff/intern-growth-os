@@ -794,6 +794,44 @@ export async function enrollSubscriber(automationId: number, subscriberId: numbe
   );
 }
 
+/**
+ * 手動でシナリオを適用する（購読者一覧から「どのメルマガを・いつから」）。
+ * startDate（YYYY-MM-DD, JST）が来ればその日から1通目を送る。無ければ1ステップ目の delay に従う。
+ * 既に登録済みでも作り直して最初から流す（ON CONFLICT で上書き）。ステップが無ければ何もしない。
+ */
+export async function enrollSubscriberAt(
+  automationId: number,
+  subscriberId: number,
+  startDate?: string | null,
+): Promise<boolean> {
+  const step1 = await pool.query(
+    "SELECT delay_days FROM nurturing_automation_steps WHERE automation_id = $1 ORDER BY step_order LIMIT 1",
+    [automationId],
+  );
+  if (!step1.rows[0]) return false;
+  const delay = num(step1.rows[0].delay_days);
+  if (startDate) {
+    await pool.query(
+      `INSERT INTO nurturing_automation_enrollments
+         (automation_id, subscriber_id, current_step, next_run_at, status)
+       VALUES ($1, $2, 0, $3::timestamptz, '進行中')
+       ON CONFLICT (automation_id, subscriber_id)
+       DO UPDATE SET current_step = 0, next_run_at = EXCLUDED.next_run_at, status = '進行中'`,
+      [automationId, subscriberId, `${startDate}T00:00:00+09:00`],
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO nurturing_automation_enrollments
+         (automation_id, subscriber_id, current_step, next_run_at, status)
+       VALUES ($1, $2, 0, NOW() + ($3 || ' days')::interval, '進行中')
+       ON CONFLICT (automation_id, subscriber_id)
+       DO UPDATE SET current_step = 0, next_run_at = NOW() + ($3 || ' days')::interval, status = '進行中'`,
+      [automationId, subscriberId, delay],
+    );
+  }
+  return true;
+}
+
 /** 新規購読者を「購読者追加」トリガーの有効なシナリオへ登録する */
 export async function enrollNewSubscriber(subscriberId: number): Promise<void> {
   const { rows } = await pool.query(
