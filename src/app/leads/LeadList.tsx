@@ -179,6 +179,51 @@ function rowTone(lead: Lead): string {
   return FILL.none;
 }
 
+// 反響リードを、メルマガ（ナーチャリング/MA）へ登録するボタン。
+// 会社名・先方担当者名・メール・担当を引き継ぐ。email が無い行は押せない。
+// 反響リードの id は Callforce 側の UUID なので leadId は渡さない（購読者側は数値IDのため）。
+function NurtureButton({ lead }: { lead: Lead }) {
+  const [state, setState] = useState<"idle" | "sending" | "done" | "error">("idle");
+  const hasEmail = !!(lead.email && lead.email.trim());
+  async function send() {
+    if (!hasEmail || state === "sending" || state === "done") return;
+    setState("sending");
+    try {
+      const res = await fetch("/api/nurturing/subscribers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: lead.email,
+          company: lead.companyName,
+          name: lead.contactName,
+          owner: lead.assignedTo,
+          source: "反響リード",
+        }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      setState(data.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  }
+  const label = state === "done" ? "登録済" : state === "sending" ? "登録中…" : state === "error" ? "再試行" : "メルマガ";
+  return (
+    <button
+      type="button"
+      onClick={send}
+      disabled={!hasEmail || state === "sending" || state === "done"}
+      title={hasEmail ? "メルマガ（ナーチャリング）に登録" : "メールアドレスが無いため登録できません"}
+      className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${
+        state === "done"
+          ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+          : "border-neutral-300 bg-white text-neutral-600 hover:border-[#9e8d70] hover:text-[#9e8d70] disabled:opacity-40 disabled:hover:border-neutral-300 disabled:hover:text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+      }`}
+    >
+      {state === "done" ? "✓ 登録済" : `✉ ${label}`}
+    </button>
+  );
+}
+
 export function LeadList({
   leads,
   responders,
@@ -283,19 +328,20 @@ export function LeadList({
               <th className={`${TH} text-right`}>通話</th>
               <th className={`${TH} text-right`}>初動</th>
               <th className={TH}>録音</th>
+              <th className={TH}>メルマガ</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={13} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={14} className="px-4 py-10 text-center text-neutral-400">
                   読み込んでいます…
                 </td>
               </tr>
             )}
             {!loading && shown.length === 0 && (
               <tr>
-                <td colSpan={13} className="px-4 py-10 text-center text-neutral-400">
+                <td colSpan={14} className="px-4 py-10 text-center text-neutral-400">
                   該当するリードがありません
                 </td>
               </tr>
@@ -452,6 +498,9 @@ export function LeadList({
                     ) : (
                       <span className="text-neutral-300">—</span>
                     )}
+                  </td>
+                  <td className={TD}>
+                    <NurtureButton lead={lead} />
                   </td>
                 </tr>
               );
