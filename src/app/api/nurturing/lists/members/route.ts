@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ensureNurturingTables } from "@/lib/schema";
-import { getListSubscriberIds, addToList, removeFromList } from "@/lib/nurturing";
+import { getListSubscriberIds, addToList, removeFromList, enrollListMembers } from "@/lib/nurturing";
 
 export async function GET(req: NextRequest) {
   await ensureNurturingTables();
@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
     : [];
   if (!listId) return NextResponse.json({ ok: false, error: "listId が必要です" }, { status: 400 });
   await addToList(listId, subscriberIds);
+  // 「リスト追加」トリガーの有効なシナリオへ自動登録する
+  await enrollListMembers(listId, subscriberIds).catch(() => {});
   return NextResponse.json({ ok: true, added: subscriberIds.length });
 }
 

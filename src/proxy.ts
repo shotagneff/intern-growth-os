@@ -21,7 +21,8 @@ export async function proxy(req: NextRequest) {
   const isPublicNurturing =
     pathname.startsWith("/api/nurturing/unsubscribe") ||
     pathname.startsWith("/api/nurturing/track") ||
-    pathname.startsWith("/api/nurturing/webhook");
+    pathname.startsWith("/api/nurturing/webhook") ||
+    pathname.startsWith("/api/nurturing/cron");
   if (isPublicNurturing) return NextResponse.next();
 
   const isApi = pathname.startsWith("/api/");

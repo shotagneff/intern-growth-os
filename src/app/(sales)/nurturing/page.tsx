@@ -10,6 +10,7 @@ import { Kpi } from "@/components/table-ui";
 import SubscribersTab from "./SubscribersTab";
 import ListsTab from "./ListsTab";
 import CampaignsTab from "./CampaignsTab";
+import ScenariosTab from "./ScenariosTab";
 
 type Summary = {
   subscribers: number;
@@ -21,7 +22,7 @@ type Summary = {
   sentCampaigns: number;
 };
 
-type Tab = "subscribers" | "lists" | "campaigns";
+type Tab = "subscribers" | "lists" | "campaigns" | "scenarios";
 
 export default function NurturingPage() {
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -71,14 +72,19 @@ export default function NurturingPage() {
             <TabButton active={tab === "campaigns"} onClick={() => setTab("campaigns")}>
               キャンペーン
             </TabButton>
+            <TabButton active={tab === "scenarios"} onClick={() => setTab("scenarios")}>
+              シナリオ
+            </TabButton>
           </div>
 
           {tab === "subscribers" ? (
             <SubscribersTab onChanged={loadSummary} />
           ) : tab === "lists" ? (
             <ListsTab onChanged={loadSummary} />
-          ) : (
+          ) : tab === "campaigns" ? (
             <CampaignsTab onChanged={loadSummary} />
+          ) : (
+            <ScenariosTab onChanged={loadSummary} />
           )}
         </div>
       </div>

@@ -12,6 +12,8 @@ import type {
   NurturingList,
   Campaign,
   CampaignRecipient,
+  Automation,
+  AutomationStep,
 } from "@/lib/nurturing-types";
 import { todayJst } from "@/lib/nurturing-types";
 
@@ -111,6 +113,30 @@ function toRecipient(r: Row): CampaignRecipient {
     clickCount: num(r.click_count),
     providerMessageId: (r.provider_message_id as string) ?? null,
     error: (r.error as string) ?? null,
+  };
+}
+
+function toAutomation(r: Row): Automation {
+  return {
+    id: num(r.id),
+    name: String(r.name ?? ""),
+    trigger: (r.trigger as string) ?? null,
+    listId: r.list_id == null ? null : num(r.list_id),
+    status: (r.status as Automation["status"]) ?? "停止",
+    createdAt: iso(r.created_at),
+    updatedAt: iso(r.updated_at),
+  };
+}
+
+function toStep(r: Row): AutomationStep {
+  return {
+    id: num(r.id),
+    automationId: num(r.automation_id),
+    stepOrder: num(r.step_order),
+    delayDays: num(r.delay_days),
+    subject: (r.subject as string) ?? null,
+    bodyHtml: (r.body_html as string) ?? null,
+    bodyText: (r.body_text as string) ?? null,
   };
 }
 
@@ -634,4 +660,233 @@ export async function getSummary(): Promise<NurturingSummary> {
     campaigns: num(r.campaigns),
     sentCampaigns: num(r.sent_campaigns),
   };
+}
+
+// ---------------------------------------------------------------------------
+// シナリオ（ステップメール / automation）
+// ---------------------------------------------------------------------------
+
+/** 一覧（ステップ数・進行中の登録数つき） */
+export async function getAutomations(): Promise<
+  (Automation & { stepCount: number; activeEnrollments: number })[]
+> {
+  const { rows } = await pool.query(`
+    SELECT a.*,
+      (SELECT COUNT(*) FROM nurturing_automation_steps s WHERE s.automation_id = a.id) AS step_count,
+      (SELECT COUNT(*) FROM nurturing_automation_enrollments e
+         WHERE e.automation_id = a.id AND e.status = '進行中') AS active_enrollments
+    FROM nurturing_automations a
+    ORDER BY a.created_at DESC NULLS LAST, a.id DESC
+  `);
+  return rows.map((r) => ({
+    ...toAutomation(r),
+    stepCount: num(r.step_count),
+    activeEnrollments: num(r.active_enrollments),
+  }));
+}
+
+export async function getAutomation(id: number): Promise<Automation | null> {
+  const { rows } = await pool.query("SELECT * FROM nurturing_automations WHERE id = $1", [id]);
+  return rows[0] ? toAutomation(rows[0]) : null;
+}
+
+export async function createAutomation(input: {
+  name: string;
+  trigger?: string | null;
+  listId?: number | null;
+}): Promise<Automation> {
+  const { rows } = await pool.query(
+    `INSERT INTO nurturing_automations (name, trigger, list_id, status)
+     VALUES ($1,$2,$3,'停止') RETURNING *`,
+    [input.name, input.trigger ?? "購読者追加", input.listId ?? null],
+  );
+  return toAutomation(rows[0]);
+}
+
+const AUTOMATION_MAP: Record<string, string> = {
+  name: "name",
+  trigger: "trigger",
+  listId: "list_id",
+  status: "status",
+};
+
+export async function updateAutomation(id: number, patch: Record<string, unknown>): Promise<void> {
+  const { sets, vals } = buildSet(patch, AUTOMATION_MAP);
+  if (!sets.length) return;
+  vals.push(id);
+  await pool.query(
+    `UPDATE nurturing_automations SET ${sets.join(", ")}, updated_at = NOW() WHERE id = $${vals.length}`,
+    vals,
+  );
+}
+
+export async function deleteAutomation(id: number): Promise<void> {
+  await pool.query("DELETE FROM nurturing_automation_enrollments WHERE automation_id = $1", [id]);
+  await pool.query("DELETE FROM nurturing_automation_steps WHERE automation_id = $1", [id]);
+  await pool.query("DELETE FROM nurturing_automations WHERE id = $1", [id]);
+}
+
+// ---- ステップ ----
+
+export async function getSteps(automationId: number): Promise<AutomationStep[]> {
+  const { rows } = await pool.query(
+    "SELECT * FROM nurturing_automation_steps WHERE automation_id = $1 ORDER BY step_order, id",
+    [automationId],
+  );
+  return rows.map(toStep);
+}
+
+export async function addStep(
+  automationId: number,
+  input: { delayDays?: number; subject?: string | null; bodyHtml?: string | null },
+): Promise<AutomationStep> {
+  const ord = await pool.query(
+    "SELECT COALESCE(MAX(step_order),0) + 1 AS n FROM nurturing_automation_steps WHERE automation_id = $1",
+    [automationId],
+  );
+  const stepOrder = num(ord.rows[0].n);
+  const { rows } = await pool.query(
+    `INSERT INTO nurturing_automation_steps (automation_id, step_order, delay_days, subject, body_html)
+     VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+    [automationId, stepOrder, input.delayDays ?? 0, input.subject ?? null, input.bodyHtml ?? null],
+  );
+  return toStep(rows[0]);
+}
+
+const STEP_MAP: Record<string, string> = {
+  delayDays: "delay_days",
+  subject: "subject",
+  bodyHtml: "body_html",
+  bodyText: "body_text",
+  stepOrder: "step_order",
+};
+
+export async function updateStep(id: number, patch: Record<string, unknown>): Promise<void> {
+  const { sets, vals } = buildSet(patch, STEP_MAP);
+  if (!sets.length) return;
+  vals.push(id);
+  await pool.query(`UPDATE nurturing_automation_steps SET ${sets.join(", ")} WHERE id = $${vals.length}`, vals);
+}
+
+export async function deleteStep(id: number): Promise<void> {
+  await pool.query("DELETE FROM nurturing_automation_steps WHERE id = $1", [id]);
+}
+
+// ---- 登録（enrollment）と実行 ----
+
+/**
+ * 購読者をシナリオに登録する。1ステップ目の delay を待って最初の送信予定を立てる。
+ * ステップが無いシナリオには登録しない。重複登録は無視する。
+ */
+export async function enrollSubscriber(automationId: number, subscriberId: number): Promise<void> {
+  const step1 = await pool.query(
+    "SELECT delay_days FROM nurturing_automation_steps WHERE automation_id = $1 ORDER BY step_order LIMIT 1",
+    [automationId],
+  );
+  if (!step1.rows[0]) return;
+  const delay = num(step1.rows[0].delay_days);
+  await pool.query(
+    `INSERT INTO nurturing_automation_enrollments
+       (automation_id, subscriber_id, current_step, next_run_at, status)
+     VALUES ($1, $2, 0, NOW() + ($3 || ' days')::interval, '進行中')
+     ON CONFLICT (automation_id, subscriber_id) DO NOTHING`,
+    [automationId, subscriberId, delay],
+  );
+}
+
+/** 新規購読者を「購読者追加」トリガーの有効なシナリオへ登録する */
+export async function enrollNewSubscriber(subscriberId: number): Promise<void> {
+  const { rows } = await pool.query(
+    "SELECT id FROM nurturing_automations WHERE status = '有効' AND trigger = '購読者追加'",
+  );
+  for (const r of rows) await enrollSubscriber(num(r.id), subscriberId);
+}
+
+/** リストに追加された購読者を「リスト追加」トリガーの有効なシナリオへ登録する */
+export async function enrollListMembers(listId: number, subscriberIds: number[]): Promise<void> {
+  if (!subscriberIds.length) return;
+  const { rows } = await pool.query(
+    "SELECT id FROM nurturing_automations WHERE status = '有効' AND trigger = 'リスト追加' AND list_id = $1",
+    [listId],
+  );
+  for (const r of rows) {
+    for (const sid of subscriberIds) await enrollSubscriber(num(r.id), sid);
+  }
+}
+
+export type DueEnrollment = {
+  enrollmentId: number;
+  automationId: number;
+  subscriberId: number;
+  email: string;
+  unsubscribeToken: string;
+  currentStep: number;
+  step: AutomationStep | null;
+};
+
+/** 送信予定が来ている登録を取り出す（購読中・有効シナリオのみ）。次に送るべきステップも同梱 */
+export async function getDueEnrollments(limit = 200): Promise<DueEnrollment[]> {
+  const { rows } = await pool.query(
+    `SELECT e.id AS enrollment_id, e.automation_id, e.subscriber_id, e.current_step,
+            s.email, s.unsubscribe_token,
+            st.id AS step_id, st.step_order, st.delay_days, st.subject, st.body_html, st.body_text
+       FROM nurturing_automation_enrollments e
+       JOIN nurturing_subscribers s ON s.id = e.subscriber_id
+       JOIN nurturing_automations a ON a.id = e.automation_id
+       LEFT JOIN nurturing_automation_steps st
+         ON st.automation_id = e.automation_id AND st.step_order = e.current_step + 1
+      WHERE e.status = '進行中'
+        AND e.next_run_at IS NOT NULL AND e.next_run_at <= NOW()
+        AND s.status = '購読中'
+        AND a.status = '有効'
+      ORDER BY e.next_run_at
+      LIMIT $1`,
+    [limit],
+  );
+  return rows.map((r) => ({
+    enrollmentId: num(r.enrollment_id),
+    automationId: num(r.automation_id),
+    subscriberId: num(r.subscriber_id),
+    email: String(r.email ?? ""),
+    unsubscribeToken: String(r.unsubscribe_token ?? ""),
+    currentStep: num(r.current_step),
+    step: r.step_id == null ? null : toStep(r),
+  }));
+}
+
+/**
+ * ステップ送信後に登録を1つ進める。
+ * 次のステップがあれば delay を待って次回予定を立て、無ければ完了にする。
+ */
+export async function advanceEnrollment(enrollmentId: number): Promise<void> {
+  const upd = await pool.query(
+    "UPDATE nurturing_automation_enrollments SET current_step = current_step + 1 WHERE id = $1 RETURNING automation_id, current_step",
+    [enrollmentId],
+  );
+  if (!upd.rows[0]) return;
+  const automationId = num(upd.rows[0].automation_id);
+  const currentStep = num(upd.rows[0].current_step);
+  const next = await pool.query(
+    "SELECT delay_days FROM nurturing_automation_steps WHERE automation_id = $1 AND step_order = $2 LIMIT 1",
+    [automationId, currentStep + 1],
+  );
+  if (next.rows[0]) {
+    await pool.query(
+      "UPDATE nurturing_automation_enrollments SET next_run_at = NOW() + ($2 || ' days')::interval WHERE id = $1",
+      [enrollmentId, num(next.rows[0].delay_days)],
+    );
+  } else {
+    await pool.query(
+      "UPDATE nurturing_automation_enrollments SET status = '完了', next_run_at = NULL WHERE id = $1",
+      [enrollmentId],
+    );
+  }
+}
+
+/** 送るステップが無くなった登録を完了にする */
+export async function completeEnrollment(enrollmentId: number): Promise<void> {
+  await pool.query(
+    "UPDATE nurturing_automation_enrollments SET status = '完了', next_run_at = NULL WHERE id = $1",
+    [enrollmentId],
+  );
 }

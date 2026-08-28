@@ -50,7 +50,7 @@
 | ホーム（今日のアポ・今日の出勤・お知らせ） | `/` | 実装済み | API（/api/announcements・/api/sales・/api/attendance・/api/members） |
 | 日報・ホウレンソウ | `/daily-reports` | 実装済み | **localStorage のみ**（要改善） |
 | 反響リード | `/leads` | 実装済み | Callforce 側の Supabase（複製しない） |
-| ナーチャリング（メルマガ/MA） | `/nurturing` | 実装済み（シナリオは次段） | DB（nurturing_* 8テーブル）+ Resend送信 |
+| ナーチャリング（メルマガ/MA） | `/nurturing` | 実装済み（購読者・リスト・キャンペーン・計測・配信停止・シナリオ） | DB（nurturing_* 8テーブル）+ Resend送信 |
 | 補助金・助成金 | `/subsidies` | 実装済み | `src/data/subsidies.ts` の台帳（手動更新）+ Claude API |
 | 売上・KPIダッシュボード | `/dashboard` | 実装済み | Google スプレッドシートCSV |
 | 動画研修ラーニング | `/e-learning` | 実装済み | DB（動画）/ localStorage（視聴履歴） |
@@ -123,6 +123,17 @@
 ---
 
 ## 7. 変更ログ（新しいものを上に書く）
+
+### 2026-08-28（ナーチャリング: 「メルマガ」改称・反響リード連携・シナリオ追加）
+
+- アポ獲得管理の **「送客」ボタン/列を「メルマガ」に改称**（登録済/登録中…）。イメージしづらい表現を、メルマガ登録だと分かる表記に
+- **反響リード（`/leads`）にも「メルマガ」ボタン**を追加。失注/対象外を含め、メール保有リードを購読者へ登録できる（流入元=反響リード、Callforce の UUID なので leadId は渡さない）
+- **シナリオ（ステップメール / automation）を実装**。トリガー（購読者追加 / リスト追加）で購読者を自動登録し、各ステップを「前ステップから○日後」に自動配信
+  - API: `/api/nurturing/automations`（シナリオCRUD）・`/automations/steps`（ステップCRUD）・`/cron`（実行）
+  - 自動登録: 購読者POST時（新規のみ）に「購読者追加」トリガー、リストmembers POST時に「リスト追加」トリガーの有効シナリオへ enroll
+  - 実行: **Vercel Cron**（`vercel.json`、毎時 `0 * * * *`）が `/api/nurturing/cron` を叩き、送信予定が来た登録のステップを送って1つ進める。`CRON_SECRET` があれば `Authorization: Bearer` で保護
+  - **設計判断: シナリオ配信は配信明細を持たない**ので開封/クリック計測ピクセルは付けない（配信停止リンクと List-Unsubscribe は付ける）。ステップの遅延は日単位なので毎時cronで十分
+  - **要設定（任意）**: `CRON_SECRET`（cron保護）。Vercel Hobbyプランはcronが日1回制限のため、その場合は日次スケジュールへ変更するか Pro を利用
 
 ### 2026-08-27（ナーチャリング＝メルマガ/MA を新設）
 
@@ -223,6 +234,7 @@
 ├── package.json                       依存管理。Next.js 16 / React 19 / pg / Tailwind v4。
 ├── middleware.ts                      認証ミドルウェア。全ページで Cookie 検証、admin 権限チェック。
 ├── next.config.ts                     Next.js 設定（現状デフォルト）。
+├── vercel.json                        Vercel Cron 設定（/api/nurturing/cron を毎時実行＝シナリオ配信）。
 ├── tsconfig.json                      TypeScript 設定。
 ├── eslint.config.mjs                  ESLint 設定。
 ├── postcss.config.mjs                 PostCSS 設定（Tailwind）。
@@ -275,7 +287,8 @@
     │   │       ├── page.tsx               タブ枠（購読者/リスト/キャンペーン）＋KPI。
     │   │       ├── SubscribersTab.tsx     購読者一覧・検索・ステータス・削除。
     │   │       ├── ListsTab.tsx           リスト（セグメント）CRUD＋購読者割り当てモーダル。
-    │   │       └── CampaignsTab.tsx       キャンペーン一覧＋編集モーダル（件名/差出人/対象/本文・テスト/本送信）。
+    │   │       ├── CampaignsTab.tsx       キャンペーン一覧＋編集モーダル（件名/差出人/対象/本文・テスト/本送信）。
+    │   │       └── ScenariosTab.tsx       シナリオ（ステップメール）一覧＋ステップ編集モーダル。
     │   │
     │   ├── (learning)/                動画研修・ラーニング
     │   │   ├── e-learning/page.tsx        → /e-learning
@@ -333,6 +346,8 @@
     │       │   ├── subscribers/       購読者の一覧＋集計・送客/追加・更新・削除。
     │       │   ├── lists/             リストCRUD（+ members/ で購読者の割り当て・除外・所属ID取得）。
     │       │   ├── campaigns/         キャンペーンCRUD（+ send/ でテスト送信・本送信）。
+    │       │   ├── automations/       シナリオCRUD（+ steps/ でステップCRUD）。
+    │       │   ├── cron/              シナリオ実行（公開・認証除外／CRON_SECRET で保護）。Vercel Cron が叩く。
     │       │   ├── unsubscribe/       配信停止（公開・認証除外）。GET=リンク／POST=One-Click。
     │       │   ├── track/             開封(open=透明GIF)・クリック(click=記録して302)の計測（公開・認証除外）。
     │       │   └── webhook/           Resend Webhook（公開・Svix署名検証）。配信完了/バウンス/苦情を反映。

@@ -10,6 +10,7 @@ import {
   updateSubscriber,
   deleteSubscriber,
   getSummary,
+  enrollNewSubscriber,
 } from "@/lib/nurturing";
 
 export async function GET() {
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
     owner: (body.owner as string) ?? null,
     note: (body.note as string) ?? null,
   });
+  // 新規購読者は「購読者追加」トリガーの有効なシナリオへ自動登録する
+  if (created && subscriber?.id) {
+    await enrollNewSubscriber(subscriber.id).catch(() => {});
+  }
   return NextResponse.json({ ok: true, subscriber, created });
 }
 
