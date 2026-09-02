@@ -11,10 +11,16 @@ import {
 } from "@/components/panel";
 import { ROLE_LABEL, ROLE_ORDER, type Role } from "@/lib/roles";
 
+// team / jobTitle / iconUrl は、2026-09-02 に廃止した「メンバー管理」から
+// 引き継いだ名簿の情報。出勤スケジュールとホームの表示に使う。
+// jobTitle は職種（長期インターン等）で、権限の role とは別物。
 type UserRow = {
   loginId: string;
   displayName?: string;
   role: Role;
+  team?: string | null;
+  jobTitle?: string | null;
+  iconUrl?: string | null;
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -26,6 +32,8 @@ export default function UsersAdminPage() {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("user");
+  const [team, setTeam] = useState("営業");
+  const [jobTitle, setJobTitle] = useState("長期インターン");
   const [saveMessage, setSaveMessage] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
@@ -65,7 +73,15 @@ export default function UsersAdminPage() {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ loginId: id, displayName: name || undefined, password: pw, role, active: true }),
+        body: JSON.stringify({
+          loginId: id,
+          displayName: name || undefined,
+          password: pw,
+          role,
+          team: team.trim() || undefined,
+          jobTitle: jobTitle.trim() || undefined,
+          active: true,
+        }),
       });
 
       if (!res.ok) {
@@ -78,6 +94,8 @@ export default function UsersAdminPage() {
       setDisplayName("");
       setPassword("");
       setRole("user");
+      setTeam("営業");
+      setJobTitle("長期インターン");
       setSaveMessage("ユーザーを保存しました（同IDがある場合はパスワードを更新します）。");
       setTimeout(() => setSaveMessage(""), 3000);
       await fetchUsers();
@@ -99,6 +117,9 @@ export default function UsersAdminPage() {
           loginId: u.loginId,
           displayName: patch.displayName ?? u.displayName ?? "",
           role: patch.role ?? u.role,
+          team: patch.team ?? u.team ?? "",
+          jobTitle: patch.jobTitle ?? u.jobTitle ?? "",
+          iconUrl: patch.iconUrl ?? u.iconUrl ?? "",
           active: patch.active ?? u.active,
         }),
       });
@@ -143,6 +164,10 @@ export default function UsersAdminPage() {
           displayName: u.displayName ?? "",
           password: newPw,
           role: u.role,
+          // パスワードだけ変えるつもりが名簿の情報を消してしまわないよう、そのまま送り返す
+          team: u.team ?? "",
+          jobTitle: u.jobTitle ?? "",
+          iconUrl: u.iconUrl ?? "",
           active: u.active,
         }),
       });
@@ -241,6 +266,33 @@ export default function UsersAdminPage() {
                 反響解除は、反響リード・ナーチャリング・成績・売上KPIを閲覧できます（管理メニューは使えません）。
               </p>
             </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                チーム
+              </label>
+              <input
+                type="text"
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                placeholder="例：営業"
+                className={INPUT}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                役割（職種）
+              </label>
+              <input
+                type="text"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                placeholder="例：長期インターン"
+                className={INPUT}
+              />
+              <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                ここで登録した方が、そのまま出勤スケジュールに並びます。
+              </p>
+            </div>
           </div>
           <div className="mt-4 flex justify-end">
             <PrimaryButton
@@ -297,6 +349,36 @@ export default function UsersAdminPage() {
                         onBlur={(e) => void updateUser(u, { displayName: e.target.value })}
                         placeholder="表示名"
                         className="min-w-[160px] rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
+                        disabled={loading}
+                      />
+
+                      <input
+                        type="text"
+                        value={u.team ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setUsers((prev) =>
+                            prev.map((x) => (x.loginId === u.loginId ? { ...x, team: value } : x))
+                          );
+                        }}
+                        onBlur={(e) => void updateUser(u, { team: e.target.value })}
+                        placeholder="チーム"
+                        className="w-[90px] rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
+                        disabled={loading}
+                      />
+
+                      <input
+                        type="text"
+                        value={u.jobTitle ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setUsers((prev) =>
+                            prev.map((x) => (x.loginId === u.loginId ? { ...x, jobTitle: value } : x))
+                          );
+                        }}
+                        onBlur={(e) => void updateUser(u, { jobTitle: e.target.value })}
+                        placeholder="役割"
+                        className="w-[120px] rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                         disabled={loading}
                       />
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-import type { Member } from "../members/page";
+import type { Member } from "@/lib/member";
 import {
   PAGE_MAIN,
   PAGE_INNER,
@@ -211,15 +211,15 @@ export default function PartnersMindmapAdminPage() {
             title="紹介レコードの管理"
             action={
               <Link
-                href="/admin/members"
+                href="/admin/users"
                 className="text-xs text-neutral-500 underline-offset-2 hover:underline dark:text-neutral-400"
               >
-                メンバー管理へ
+                ユーザー管理へ
               </Link>
             }
           >
             <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
-              紹介された人の名前は自由入力で登録し、紹介元はメンバー管理に登録されているメンバーから選択します。
+              紹介された人の名前は自由入力で登録し、紹介元はユーザー管理に登録されているメンバーから選択します。
             </p>
 
             {/* 追加フォーム */}

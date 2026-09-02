@@ -385,7 +385,7 @@ export function ELearningCourseView({ courseId, courseTitle, courseSubtitle, sho
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const res = await fetch("/api/admin/members", { cache: "no-store" });
+        const res = await fetch("/api/members", { cache: "no-store" });
         if (!res.ok) return;
         const data = (await res.json()) as Member[];
         if (!Array.isArray(data)) return;

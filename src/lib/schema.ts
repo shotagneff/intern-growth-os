@@ -3,6 +3,21 @@ import { pool } from "@/lib/db";
 // ---------------------------------------------------------------------------
 // igos_users
 // ---------------------------------------------------------------------------
+/**
+ * 社員はこのテーブル1本で管理する。
+ *
+ * 以前は別に members テーブルがあり、同じ人が別IDで両方に載っていた
+ * （宅間さんが igos_users では 000017、members では takuma）。
+ * その結果「平賀さんは members にしかいない」「中舎さん・桐髙さんは
+ * igos_users にしかいない」というずれが生まれ、出勤スケジュールに
+ * 2人しか出ていなかった（2026-09-02 に統合）。
+ *
+ * ログイン情報（login_id / password_hash / role）と、名簿としての情報
+ * （display_name / team / job_title / icon_url）を同じ行に持つ。
+ *
+ * ※ `role` は**権限**（admin / lead_access / user）。
+ *   職種（長期インターン等）は `job_title` に入れる。混同しないこと。
+ */
 export async function ensureUsersTable(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS igos_users (
@@ -22,29 +37,10 @@ export async function ensureUsersTable(): Promise<void> {
   await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS active BOOLEAN;`);
   await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ;`);
   await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;`);
-}
-
-// ---------------------------------------------------------------------------
-// members
-// ---------------------------------------------------------------------------
-export async function ensureMembersTable(): Promise<void> {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS members (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      team TEXT,
-      role TEXT,
-      icon_url TEXT,
-      active BOOLEAN NOT NULL DEFAULT TRUE,
-      updated_at TIMESTAMPTZ DEFAULT NOW()
-    );
-  `);
-
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS team TEXT;');
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS role TEXT;');
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS icon_url TEXT;');
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;');
-  await pool.query('ALTER TABLE members ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();');
+  // 旧 members から引き継いだ名簿の情報
+  await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS team TEXT;`);
+  await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS job_title TEXT;`);
+  await pool.query(`ALTER TABLE igos_users ADD COLUMN IF NOT EXISTS icon_url TEXT;`);
 }
 
 // ---------------------------------------------------------------------------
@@ -482,7 +478,8 @@ export async function ensureNurturingTables(): Promise<void> {
 // ---------------------------------------------------------------------------
 export async function ensureAllTables(): Promise<void> {
   await ensureUsersTable();
-  await ensureMembersTable();
+  // members テーブルは igos_users へ統合済み（2026-09-02）。
+  // 旧データは残してあるが、コードからは参照しない。
   await ensureAnnouncementsTable();
   await ensureAdminEventsTable();
   await ensureElearningVideosTable();

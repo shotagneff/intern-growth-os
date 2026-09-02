@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 
-import type { Member } from "../../../admin/members/page";
+import type { Member } from "@/lib/member";
 import {
   PAGE_MAIN,
   PAGE_INNER,

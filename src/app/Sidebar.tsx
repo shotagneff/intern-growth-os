@@ -91,8 +91,8 @@ export default function Sidebar() {
             <SidebarLink href="/admin/e-learning" label="動画研修ラーニング（管理）" />
             <SidebarLink href="/admin/announcements" label="お知らせ管理（管理）" />
             <SidebarLink href="/admin/events" label="イベント管理（管理）" />
+            {/* メンバー管理は 2026-09-02 にユーザー管理へ統合（二重管理の解消） */}
             <SidebarLink href="/admin/users" label="ユーザー管理（管理）" />
-            <SidebarLink href="/admin/members" label="メンバー管理（管理者用）" />
           </>
         )}
       </nav>

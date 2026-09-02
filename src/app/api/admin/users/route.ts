@@ -8,10 +8,16 @@ export const runtime = "nodejs";
 
 const USERS_TABLE = "igos_users";
 
+// team / jobTitle / iconUrl は、2026-09-02 に廃止した members テーブルから
+// 引き継いだ名簿の情報。jobTitle は職種（長期インターン等）で、
+// 権限の role とは別物。
 type UserRow = {
   loginId: string;
   displayName?: string;
   role: Role;
+  team?: string | null;
+  jobTitle?: string | null;
+  iconUrl?: string | null;
   active: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -26,6 +32,9 @@ export async function GET() {
       login_id AS "loginId",
       display_name AS "displayName",
       role,
+      team,
+      job_title AS "jobTitle",
+      icon_url AS "iconUrl",
       active,
       created_at AS "createdAt",
       updated_at AS "updatedAt"
@@ -47,6 +56,9 @@ export async function POST(req: NextRequest) {
     displayName?: string;
     password?: string;
     role?: Role;
+    team?: string;
+    jobTitle?: string;
+    iconUrl?: string;
     active?: boolean;
   };
 
@@ -54,6 +66,9 @@ export async function POST(req: NextRequest) {
   const displayName = String(body.displayName ?? "").trim() || null;
   const password = String(body.password ?? "").trim();
   const role: Role = toRole(body.role);
+  const team = String(body.team ?? "").trim() || null;
+  const jobTitle = String(body.jobTitle ?? "").trim() || null;
+  const iconUrl = String(body.iconUrl ?? "").trim() || null;
   const active = body.active !== false;
 
   if (!loginId || !password) {
@@ -63,15 +78,19 @@ export async function POST(req: NextRequest) {
   const passwordHash = hashPassword(password);
 
   await pool.query(
-    `INSERT INTO ${USERS_TABLE} (login_id, password_hash, display_name, role, active, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,NOW(),NOW())
+    `INSERT INTO ${USERS_TABLE}
+      (login_id, password_hash, display_name, role, team, job_title, icon_url, active, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW())
      ON CONFLICT (login_id) DO UPDATE SET
       password_hash = EXCLUDED.password_hash,
       display_name = EXCLUDED.display_name,
       role = EXCLUDED.role,
+      team = EXCLUDED.team,
+      job_title = EXCLUDED.job_title,
+      icon_url = EXCLUDED.icon_url,
       active = EXCLUDED.active,
       updated_at = NOW();`,
-    [loginId, passwordHash, displayName, role, active],
+    [loginId, passwordHash, displayName, role, team, jobTitle, iconUrl, active],
   );
 
   return NextResponse.json({ ok: true, loginId });
@@ -88,6 +107,9 @@ export async function PUT(req: NextRequest) {
     displayName?: string;
     password?: string;
     role?: Role;
+    team?: string;
+    jobTitle?: string;
+    iconUrl?: string;
     active?: boolean;
   };
 
@@ -100,6 +122,9 @@ export async function PUT(req: NextRequest) {
   const active = body.active !== false;
   const password = String(body.password ?? "").trim();
   const displayName = String(body.displayName ?? "").trim() || null;
+  const team = String(body.team ?? "").trim() || null;
+  const jobTitle = String(body.jobTitle ?? "").trim() || null;
+  const iconUrl = String(body.iconUrl ?? "").trim() || null;
 
   if (password) {
     const passwordHash = hashPassword(password);
@@ -108,20 +133,26 @@ export async function PUT(req: NextRequest) {
         password_hash = $2,
         display_name = $3,
         role = $4,
-        active = $5,
+        team = $5,
+        job_title = $6,
+        icon_url = $7,
+        active = $8,
         updated_at = NOW()
       WHERE login_id = $1;`,
-      [loginId, passwordHash, displayName, role, active],
+      [loginId, passwordHash, displayName, role, team, jobTitle, iconUrl, active],
     );
   } else {
     await pool.query(
       `UPDATE ${USERS_TABLE} SET
         display_name = $2,
         role = $3,
-        active = $4,
+        team = $4,
+        job_title = $5,
+        icon_url = $6,
+        active = $7,
         updated_at = NOW()
       WHERE login_id = $1;`,
-      [loginId, displayName, role, active],
+      [loginId, displayName, role, team, jobTitle, iconUrl, active],
     );
   }
 

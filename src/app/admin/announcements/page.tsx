@@ -70,7 +70,7 @@ export default function AdminAnnouncementsPage() {
   useEffect(() => {
     const loadMembers = async () => {
       try {
-        const res = await fetch("/api/admin/members", { cache: "no-store" });
+        const res = await fetch("/api/members", { cache: "no-store" });
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           console.error("Failed to fetch members", res.status, text);
