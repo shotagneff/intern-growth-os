@@ -2,13 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { canViewRestricted } from "@/lib/roles";
 
 const MAIN_COLOR = "#9e8d70";
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  // 権限が確認できるまでは開ける前提で描く（サイドバーと同じ理由）
+  const [canSeeRestricted, setCanSeeRestricted] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (!res.ok) {
+          setCanSeeRestricted(false);
+          return;
+        }
+        const data = (await res.json()) as { role?: string };
+        setCanSeeRestricted(canViewRestricted(data?.role));
+      } catch {
+        setCanSeeRestricted(false);
+      }
+    };
+
+    void load();
+  }, []);
 
   const toggle = () => setOpen((prev) => !prev);
   const close = () => setOpen(false);
@@ -62,6 +83,7 @@ export function MobileNav() {
             label="反響リード"
             active={isActive("/leads")}
             onClick={close}
+            locked={!canSeeRestricted}
           />
           <MobileLink
             href="/appointments"
@@ -74,6 +96,7 @@ export function MobileNav() {
             label="ナーチャリング"
             active={isActive("/nurturing")}
             onClick={close}
+            locked={!canSeeRestricted}
           />
           <MobileLink
             href="/attendance"
@@ -86,12 +109,14 @@ export function MobileNav() {
             label="成績"
             active={isActive("/performance")}
             onClick={close}
+            locked={!canSeeRestricted}
           />
           <MobileLink
             href="/dashboard"
             label="売上・KPIダッシュボード"
             active={isActive("/dashboard")}
             onClick={close}
+            locked={!canSeeRestricted}
           />
           <MobileLink
             href="/e-learning"
@@ -121,11 +146,13 @@ type MobileLinkProps = {
   href: string;
   label: string;
   disabled?: boolean;
+  /** 権限が足りず開けない項目。薄く表示して押せなくする */
+  locked?: boolean;
   active?: boolean;
   onClick: () => void;
 };
 
-function MobileLink({ href, label, disabled, active, onClick }: MobileLinkProps) {
+function MobileLink({ href, label, disabled, locked, active, onClick }: MobileLinkProps) {
   const base =
     "flex items-center rounded-xl px-3 py-2 text-sm font-medium";
 
@@ -133,6 +160,22 @@ function MobileLink({ href, label, disabled, active, onClick }: MobileLinkProps)
     return (
       <div className={`${base} cursor-not-allowed text-neutral-400 dark:text-neutral-600`}>
         <span>{label}</span>
+      </div>
+    );
+  }
+
+  if (locked) {
+    return (
+      <div
+        className={`${base} cursor-not-allowed text-neutral-400 dark:text-neutral-600`}
+        title="権限が異なるため、確認することができません"
+      >
+        <span className="flex items-center gap-1.5">
+          {label}
+          <span className="rounded-full border border-neutral-200 px-1.5 py-px text-[10px] leading-none text-neutral-400 dark:border-neutral-700">
+            権限
+          </span>
+        </span>
       </div>
     );
   }

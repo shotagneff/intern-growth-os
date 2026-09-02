@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { ensureUsersTable } from "@/lib/schema";
 import { hashPassword } from "@/lib/password";
+import { toRole, type Role } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
 const USERS_TABLE = "igos_users";
-
-type Role = "admin" | "user";
 
 type UserRow = {
   loginId: string;
@@ -54,7 +53,7 @@ export async function POST(req: NextRequest) {
   const loginId = String(body.loginId ?? "").trim();
   const displayName = String(body.displayName ?? "").trim() || null;
   const password = String(body.password ?? "").trim();
-  const role: Role = body.role === "admin" ? "admin" : "user";
+  const role: Role = toRole(body.role);
   const active = body.active !== false;
 
   if (!loginId || !password) {
@@ -97,7 +96,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "loginId is required" }, { status: 400 });
   }
 
-  const role: Role = body.role === "admin" ? "admin" : "user";
+  const role: Role = toRole(body.role);
   const active = body.active !== false;
   const password = String(body.password ?? "").trim();
   const displayName = String(body.displayName ?? "").trim() || null;

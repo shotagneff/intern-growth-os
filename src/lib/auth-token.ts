@@ -1,3 +1,5 @@
+import { ROLES, type Role } from "./roles";
+
 const textEncoder = new TextEncoder();
 
 function base64UrlEncodeBytes(bytes: Uint8Array): string {
@@ -42,7 +44,7 @@ export type AdminTokenPayload = {
 };
 
 export type SessionTokenPayload = {
-  role: "admin" | "user";
+  role: Role;
   loginId?: string;
   exp: number;
 };
@@ -87,7 +89,7 @@ export async function verifySessionToken(token: string, secret: string): Promise
   try {
     const payloadRaw = new TextDecoder().decode(base64UrlDecodeToBytes(body));
     const payload = JSON.parse(payloadRaw) as SessionTokenPayload;
-    if (payload.role !== "admin" && payload.role !== "user") return null;
+    if (!ROLES.includes(payload.role)) return null;
     if (!payload.exp || Date.now() > payload.exp) return null;
     return payload;
   } catch {

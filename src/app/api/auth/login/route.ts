@@ -3,14 +3,13 @@ import { signSessionToken } from "@/lib/auth-token";
 import { pool } from "@/lib/db";
 import { ensureUsersTable } from "@/lib/schema";
 import { verifyPassword, hashPassword } from "@/lib/password";
+import { toRole, type Role } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
 const COOKIE_NAME = "igos_session";
 
 const USERS_TABLE = "igos_users";
-
-type Role = "admin" | "user";
 
 export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as {
@@ -57,7 +56,10 @@ export async function POST(req: NextRequest) {
     if (row && row.active) {
       const ok = verifyPassword(password, row.passwordHash);
       if (ok) {
-        role = row.role === "admin" ? "admin" : "user";
+        // 知らない値は toRole が 'user' に寄せる。
+        // ここを "admin か否か" で潰していたため、DB に新しいロールを入れても
+        // ログインした瞬間に一般社員へ戻っていた（2026-09-02）。
+        role = toRole(row.role);
         loginIdForToken = row.loginId;
       }
     }

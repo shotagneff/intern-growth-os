@@ -6,6 +6,7 @@
 // 触ったときは「認証なしで /api/admin/* が 401 を返すこと」を必ず確かめる。
 import { NextRequest, NextResponse } from "next/server";
 import { verifySessionToken } from "@/lib/auth-token";
+import { canViewRestricted, isRestrictedPath } from "@/lib/roles";
 
 const COOKIE_NAME = "igos_session";
 
@@ -59,6 +60,20 @@ export async function proxy(req: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
+  }
+
+  // 権限を持つ人だけの画面（反響リード / ナーチャリング / 成績 / 売上・KPI）。
+  //
+  // ページは **リダイレクトせず /forbidden を描画する**（rewrite）。
+  // ログイン画面へ飛ばすと、ログイン済みなのに弾かれた理由が伝わらず
+  // 「壊れている」と受け取られる。URL は元のまま、中身だけ差し替える。
+  if (isRestrictedPath(pathname) && !canViewRestricted(payload.role)) {
+    if (isApi) return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+
+    const url = req.nextUrl.clone();
+    url.pathname = "/forbidden";
+    url.search = "";
+    return NextResponse.rewrite(url);
   }
 
   return NextResponse.next();

@@ -9,8 +9,7 @@ import {
   SectionCard,
   PrimaryButton,
 } from "@/components/panel";
-
-type Role = "admin" | "user";
+import { ROLE_LABEL, ROLE_ORDER, type Role } from "@/lib/roles";
 
 type UserRow = {
   loginId: string;
@@ -232,9 +231,15 @@ export default function UsersAdminPage() {
                 onChange={(e) => setRole(e.target.value as Role)}
                 className={INPUT}
               >
-                <option value="user">一般</option>
-                <option value="admin">管理者</option>
+                {ROLE_ORDER.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABEL[r]}
+                  </option>
+                ))}
               </select>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-neutral-500 dark:text-neutral-400">
+                反響解除は、反響リード・ナーチャリング・成績・売上KPIを閲覧できます（管理メニューは使えません）。
+              </p>
             </div>
           </div>
           <div className="mt-4 flex justify-end">
@@ -275,7 +280,7 @@ export default function UsersAdminPage() {
                         </span>
                       )}
                       <span className="text-[11px] text-neutral-500 dark:text-neutral-400">
-                        role: {u.role} / {u.active ? "active" : "inactive"}
+                        権限: {ROLE_LABEL[u.role] ?? u.role} / {u.active ? "有効" : "停止中"}
                       </span>
                     </div>
 
@@ -301,8 +306,11 @@ export default function UsersAdminPage() {
                         className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-[11px] outline-none transition-colors focus:border-[#9e8d70] dark:border-neutral-700 dark:bg-neutral-900"
                         disabled={loading}
                       >
-                        <option value="user">一般</option>
-                        <option value="admin">管理者</option>
+                        {ROLE_ORDER.map((r) => (
+                          <option key={r} value={r}>
+                            {ROLE_LABEL[r]}
+                          </option>
+                        ))}
                       </select>
 
                       <label className="flex items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400">
