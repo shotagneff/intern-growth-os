@@ -93,6 +93,8 @@ export type Lead = {
   nextActionTime: string | null;
   leadSource: string | null;
   referrer: string | null;
+  /** 商談メモ。案件化したときに案件へそのまま引き継がれる */
+  note: string | null;
   updatedOn: string | null;
   /** 案件化済みか。案件テーブルに同じ案件IDがあるか */
   hasDeal: boolean;
@@ -113,6 +115,8 @@ export type Deal = {
   service: string | null;
   referrer: string | null;
   lostReason: string | null;
+  /** 商談メモ。案件化のときにリードから引き継いだもの。以後はこちらを更新する */
+  note: string | null;
   wonOn: string | null;
   lostOn: string | null;
   createdOn: string | null;

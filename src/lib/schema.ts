@@ -225,6 +225,8 @@ export async function ensureSalesLeadsTable(): Promise<void> {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_leads_registered ON sales_leads (registered_on);');
   // アポ/次アクションの時刻（"HH:MM"）。ホームの「今日のアポ」で何時かを出すため
   await pool.query('ALTER TABLE sales_leads ADD COLUMN IF NOT EXISTS next_action_time TEXT;');
+  // 商談メモ。案件化したときに案件側へそのまま引き継ぐ
+  await pool.query('ALTER TABLE sales_leads ADD COLUMN IF NOT EXISTS note TEXT;');
 }
 
 export async function ensureSalesDealsTable(): Promise<void> {
@@ -255,6 +257,8 @@ export async function ensureSalesDealsTable(): Promise<void> {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_owner ON sales_deals (owner);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_won ON sales_deals (won_on);');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_sales_deals_lost ON sales_deals (lost_on);');
+  // リードから引き継いだ商談メモ。案件化のあとはこちらで書き足していく
+  await pool.query('ALTER TABLE sales_deals ADD COLUMN IF NOT EXISTS note TEXT;');
 }
 
 export async function ensureSalesCustomersTable(): Promise<void> {

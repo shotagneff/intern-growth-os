@@ -60,6 +60,7 @@ function toLead(r: any, dealIds: Set<number>): Lead {
     nextActionTime: r.next_action_time ?? null,
     leadSource: r.lead_source,
     referrer: r.referrer,
+    note: r.note ?? null,
     updatedOn: toDateString(r.updated_on),
     hasDeal: dealIds.has(Number(r.id)),
   };
@@ -83,6 +84,7 @@ function toDeal(r: any, leadIds: Set<number>, customerByDeal: Map<number, string
     service: r.service,
     referrer: r.referrer,
     lostReason: r.lost_reason,
+    note: r.note ?? null,
     wonOn: toDateString(r.won_on),
     lostOn: toDateString(r.lost_on),
     createdOn: toDateString(r.created_on),
@@ -171,6 +173,7 @@ const LEAD_FIELDS: Record<string, string> = {
   nextActionTime: "next_action_time",
   leadSource: "lead_source",
   referrer: "referrer",
+  note: "note",
 };
 
 const DEAL_FIELDS: Record<string, string> = {
@@ -186,6 +189,7 @@ const DEAL_FIELDS: Record<string, string> = {
   service: "service",
   referrer: "referrer",
   lostReason: "lost_reason",
+  note: "note",
   wonOn: "won_on",
   lostOn: "lost_on",
 };
@@ -280,9 +284,11 @@ async function ensureDealForLead(leadId: number): Promise<void> {
   await pool.query(
     `INSERT INTO sales_deals
        (id, company, owner, phase, win_probability, next_action, next_action_on,
-        proposed_on, referrer, created_on, updated_on)
-     VALUES ($1,$2,$3,'提案',$4,$5,$6,$7,$8,$9,$9)`,
-    [leadId, l.company, l.owner, WIN_PROBABILITY["提案"], l.next_action, l.next_action_on, today, l.referrer, today]
+        proposed_on, referrer, note, created_on, updated_on)
+     VALUES ($1,$2,$3,'提案',$4,$5,$6,$7,$8,$9,$10,$10)`,
+    [leadId, l.company, l.owner, WIN_PROBABILITY["提案"], l.next_action, l.next_action_on, today, l.referrer,
+     // メモも一緒に運ぶ。シートでは案件シートへ手でコピペしていた欄
+     l.note ?? null, today]
   );
 }
 

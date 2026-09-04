@@ -186,6 +186,35 @@ function Money({ value, onCommit }: { value: number; onCommit: (n: number) => vo
   );
 }
 
+/**
+ * メモ欄。
+ *
+ * 「次回アクション」のような一行の記述ではなく、商談の経緯を書き足していく欄なので
+ * textarea にする。ただし常に開いていると行の高さが揃わず表が読みにくいため、
+ * 書いているあいだだけ広げる。
+ *
+ * リードに書いたメモは、フェーズを「案件化済」にした時点で案件へそのまま引き継がれる。
+ */
+function Note({ value, onCommit }: { value: string | null; onCommit: (v: string) => void }) {
+  const [draft, setDraft] = useState(value ?? "");
+  const [editing, setEditing] = useState(false);
+  React.useEffect(() => setDraft(value ?? ""), [value]);
+  return (
+    <textarea
+      rows={editing ? 4 : 1}
+      value={draft}
+      placeholder="メモ"
+      onFocus={() => setEditing(true)}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        setEditing(false);
+        if (draft !== (value ?? "")) onCommit(draft);
+      }}
+      className={`${CELL_INPUT} resize-none align-top leading-snug`}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // リード管理
 // ---------------------------------------------------------------------------
@@ -355,7 +384,7 @@ export function LeadTable({
             <tr>
               {["案件ID", "月", "会社名/氏名", "録音", "メルマガ", "担当者", "次回アポ日", "アポ時刻", "フェーズ", "確度", "登録日", "代表者名",
                 "先方担当者名", "役職", "電話番号", "メールアドレス", "WEBページ", "業種", "従業員規模",
-                "都道府県", "次回アクション", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
+                "都道府県", "次回アクション", "メモ", "リードソース種別", "紹介元", "最終更新日"].map((h) => (
                 <th
                   key={h}
                   className={
@@ -459,6 +488,9 @@ export function LeadTable({
                 <td className={`${TD} min-w-[16rem]`}>
                   <Text value={l.nextAction} onCommit={(v) => patch("lead", l.id, { nextAction: v })} />
                 </td>
+                <td className={`${TD} min-w-[20rem]`}>
+                  <Note value={l.note} onCommit={(v) => patch("lead", l.id, { note: v })} />
+                </td>
                 <td className={TD}>
                   <Select
                     value={l.leadSource}
@@ -507,7 +539,7 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
         <table className="w-full border-collapse">
           <thead className="border-b border-neutral-100 dark:border-neutral-800">
             <tr>
-              {["案件ID", "会社名/氏名", "担当者", "フェーズ", "受注確度", "次回アクション", "次回アクション日",
+              {["案件ID", "会社名/氏名", "担当者", "フェーズ", "受注確度", "次回アクション", "メモ", "次回アクション日",
                 "提案日", "保守管理費(月額)", "ショット金額", "想定年間総額", "競合", "提案サービス", "紹介元",
                 "失注理由", "受注日", "失注日", "作成日", "最終更新日"].map((h) => (
                 <th key={h} className={TH}>
@@ -549,6 +581,9 @@ export function DealTable({ deals, owners, patch }: { deals: Deal[]; owners: str
                 </td>
                 <td className={`${TD} min-w-[16rem]`}>
                   <Text value={d.nextAction} onCommit={(v) => patch("deal", d.id, { nextAction: v })} />
+                </td>
+                <td className={`${TD} min-w-[20rem]`}>
+                  <Note value={d.note} onCommit={(v) => patch("deal", d.id, { note: v })} />
                 </td>
                 <td className={TD}>
                   <Text type="date" value={d.nextActionOn} onCommit={(v) => patch("deal", d.id, { nextActionOn: v })} />
